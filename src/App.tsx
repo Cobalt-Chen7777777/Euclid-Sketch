@@ -402,7 +402,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             <FunctionPad
               expr={formula}
               onExpr={setFormula}
-              onAppend={(token) => setFormula((prev) => prev + token)}
               onBackspace={() => setFormula((prev) => prev.slice(0, -1))}
               onClear={() => { setFormula(""); setFormulaMsg(""); }}
               onAdd={onAddFormula}
@@ -448,10 +447,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onPenWidth={(n) => updateSettings({ penWidth: n })}
               color={color}
               onColor={(c) => updateSettings({ shapeColor: c })}
-              formula={formula}
-              onFormula={setFormula}
-              onAddFormula={onAddFormula}
-              formulaMsg={formulaMsg}
               shapes={shapes}
               selectedId={selectedId}
               onSelect={setSelectedId}

@@ -14,8 +14,8 @@
   --canvas-bg: #fffdf8;
   --grid-line: #d8d3c8;
   --tick-text: #8a8377;
-  --chrome: var(--chrome);
-  --chrome-soft: var(--chrome-soft);
+  --chrome: rgba(255, 254, 251, .96);
+  --chrome-soft: rgba(255, 254, 251, .90);
   --tint: #e8effd;
   --tint-ink: #1d4ed8;
   --tint-line: #bfd3fb;
@@ -758,7 +758,7 @@ button.with-icon svg { flex: none; }
   gap: 8px;
   padding: 10px 12px 12px;
   border-radius: 16px;
-  background: var(--chrome);
+  background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: 0 -6px 26px rgba(30, 25, 18, .16);
   overflow: auto;
@@ -827,7 +827,7 @@ button.with-icon svg { flex: none; }
 .fnpad-key {
   padding: 10px 0; font-size: 14px;
   border: 1px solid var(--line); border-radius: 10px;
-  background: var(--surface); color: var(--ink);
+  background: var(--surface-2); color: var(--ink);
 }
 .fnpad-key:active { background: var(--pill); }
 .fnpad-key.op { background: var(--surface-2); color: var(--tint-ink); font-weight: 600; }
@@ -872,3 +872,12 @@ button.with-icon svg { flex: none; }
 html:has(.panel.theme-dark) { background: #17150f; }
 html:has(.panel.theme-dark) body { background: #17150f; }
 .panel.theme-dark { border-radius: 0; }
+
+/* 键盘弹起时保持输入行可见：sheet 内部滚动，输入行吸顶 */
+.fnpad:focus-within .fnpad-input {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 4px 0 6px;
+  background: var(--surface);
+}

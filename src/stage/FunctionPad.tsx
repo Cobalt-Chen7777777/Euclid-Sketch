@@ -10,7 +10,7 @@
  * 求值直接用与绘图同一套求值器（model/expr），所以键位上能按的，
  * 画出来和算出来的结果完全一致。
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { compileExpr } from "../model/expr";
 import type { Shape } from "../model/types";
@@ -38,7 +38,6 @@ const SYMBOL_MAP: Record<string, string> = { "÷": "/", "×": "*", "−": "-" };
 interface Props {
   expr: string;
   onExpr: (value: string) => void;
-  onAppend: (token: string) => void;
   onBackspace: () => void;
   onClear: () => void;
   onAdd: () => void;
@@ -49,8 +48,26 @@ interface Props {
 }
 
 export function FunctionPad(props: Props) {
-  const { expr, onExpr, onAppend, onBackspace, onClear, onAdd, onClose, message, shapes, onDeleteShape } = props;
+  const { expr, onExpr, onBackspace, onClear, onAdd, onClose, message, shapes, onDeleteShape } = props;
   const curves = shapes.filter((s) => s.type === "function" || s.type === "parametric");
+
+  // 输入法（尤其是中文/拼音）组字期间，DOM 里的文字不会进 React state。
+  // 若此时因为键盘弹起触发一次重渲染，受控输入会把刚打的字抹掉——表现就是「打字没反应」。
+  // 所以这里让 DOM 持有文字：只有主动改（按键/清空/绘制后重置）才写回，组字结束再同步。
+  const inputRef = useRef<HTMLInputElement>(null);
+  const composing = useRef(false);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el || composing.current) return;
+    if (el.value !== expr) el.value = expr;
+  }, [expr]);
+
+  // 程序化修改：同时更新 state 与 DOM
+  const setExpr = (next: string) => {
+    onExpr(next);
+    if (inputRef.current) inputRef.current.value = next;
+  };
 
   // 代入求值：x 取一个值，用同一套求值器算结果
   const [xValue, setXValue] = useState("1");
@@ -83,15 +100,17 @@ export function FunctionPad(props: Props) {
 
   const pressPadKey = (key: string) => {
     if (key === "⌫") {
+      setExpr(expr.slice(0, -1));
       onBackspace();
       return;
     }
     if (key === "C") {
+      setExpr("");
       onClear();
       setResult(null);
       return;
     }
-    onAppend(SYMBOL_MAP[key] ?? key);
+    setExpr(expr + (SYMBOL_MAP[key] ?? key));
   };
 
   return (
@@ -99,7 +118,7 @@ export function FunctionPad(props: Props) {
       <div className="fnpad-head">
         <b>函数</b>
         <div className="fnpad-head-right">
-          <button type="button" className="fnpad-quick-btn" onClick={onBackspace} aria-label="退格">
+          <button type="button" className="fnpad-quick-btn" onClick={() => { setExpr(expr.slice(0, -1)); onBackspace(); }} aria-label="退格">
             <DeleteIcon size={16} />
           </button>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="收起函数面板">
@@ -127,13 +146,23 @@ export function FunctionPad(props: Props) {
       <div className="fnpad-input">
         <span className="fnpad-eq">y =</span>
         <input
+          ref={inputRef}
           className="fnpad-field"
-          value={expr}
-          onChange={(e) => onExpr(e.target.value)}
+          defaultValue={expr}
+          onInput={(e) => onExpr(e.currentTarget.value)}
+          onCompositionStart={() => { composing.current = true; }}
+          onCompositionEnd={(e) => {
+            composing.current = false;
+            onExpr(e.currentTarget.value);
+          }}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
           placeholder="sin(x) + x/2"
           inputMode="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
           spellCheck={false}
+          enterKeyHint="done"
         />
         <button type="button" className="primary fnpad-draw" onClick={onAdd}>绘制</button>
       </div>
@@ -147,6 +176,10 @@ export function FunctionPad(props: Props) {
           onChange={(e) => setXValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && evaluate()}
           inputMode="decimal"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           aria-label="代入的 x 值"
         />
         <button type="button" className="fnpad-eq-btn" onClick={evaluate} aria-label="求值">=</button>
@@ -159,7 +192,7 @@ export function FunctionPad(props: Props) {
 
       <div className="fnpad-fnkeys">
         {FN_KEYS.map(([label, token]) => (
-          <button key={label} type="button" className="fnpad-fnkey" onClick={() => onAppend(token)}>
+          <button key={label} type="button" className="fnpad-fnkey" onClick={() => setExpr(expr + token)}>
             {label}
           </button>
         ))}

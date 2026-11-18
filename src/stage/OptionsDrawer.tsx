@@ -16,8 +16,6 @@ const PRIMITIVES: [PrimitiveType, string][] = [
   ["arrow", "箭头"], ["ray", "射线"], ["line", "直线"], ["point", "点"],
 ];
 
-const EXAMPLES = ["x^2+y^2=9", "(x-2)^2+(y+3)^2=16", "x^2/9+y^2/4=1", "sin(x)", "x^2", "x=cos(t),y=sin(t)"];
-
 interface Props {
   onClose: () => void;
   canvasBg: CanvasBg;
@@ -30,10 +28,6 @@ interface Props {
   onPenWidth: (width: number) => void;
   color: string;
   onColor: (color: string) => void;
-  formula: string;
-  onFormula: (value: string) => void;
-  onAddFormula: () => void;
-  formulaMsg: string;
   shapes: Shape[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -46,7 +40,7 @@ export function OptionsDrawer(props: Props) {
   const {
     onClose, canvasBg, onCanvasBg,
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
-    color, onColor, formula, onFormula, onAddFormula, formulaMsg,
+    color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
   } = props;
 
@@ -136,27 +130,6 @@ export function OptionsDrawer(props: Props) {
                 aria-pressed={color === c}
                 onClick={() => onColor(c)}
               />
-            ))}
-          </div>
-        </section>
-
-        {/* 公式 */}
-        <section className="drawer-sec">
-          <h3>公式</h3>
-          <div className="drawer-input-row">
-            <input
-              className="input"
-              value={formula}
-              onChange={(e) => onFormula(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && onAddFormula()}
-              placeholder="x^2+y^2=9 / sin(x) / x=cos(t),y=sin(t)"
-            />
-            <button type="button" className="primary" onClick={onAddFormula}>添加</button>
-          </div>
-          {formulaMsg ? <p className="error">{formulaMsg}</p> : null}
-          <div className="chips">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="chip mono" onClick={() => onFormula(ex)}>{ex}</button>
             ))}
           </div>
         </section>
