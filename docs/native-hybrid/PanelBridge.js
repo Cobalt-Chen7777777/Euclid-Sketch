@@ -6,6 +6,7 @@ function createPanelAddon(addonid, mainPath) {
         self.addonid = addonid;
         self.mainPath = mainPath;
         self.panel = null;
+        self.floatingMode = "mini";
       },
 
       sceneDidDisconnect: function () {
@@ -28,9 +29,10 @@ function createPanelAddon(addonid, mainPath) {
       /** 以指定形态显示浮层：mini = 贴在画布上的小浮条 */
       showFloating: function (mode) {
         if (!self.panel) return false;
+        self.floatingMode = mode === "workspace" ? "workspace" : "mini";
         var controller = Application.sharedInstance().studyController(self.window);
         try {
-          self.panel.showFloatingInMode(controller, mode === "workspace" ? "workspace" : "mini");
+          self.panel.showFloatingInMode(controller, self.floatingMode);
           return true;
         } catch (e) {
           // 旧版本没有 showFloatingInMode：退回普通浮层
@@ -66,6 +68,7 @@ function createPanelAddon(addonid, mainPath) {
             if (name === "closePanel") {
               self.panel.hideFloating();
               self.panel = null;
+              self.floatingMode = "mini";
               self.refreshCommands();
               return { ok: true };
             }
@@ -86,7 +89,8 @@ function createPanelAddon(addonid, mainPath) {
 
       layout: function () {
         if (!self.panel) return;
-        self.showFloating("mini");
+        // 记住当前形态：用户「展开」成大窗后，布局刷新不能把它拉回小条
+        self.showFloating(self.floatingMode || "mini");
       },
 
       queryAddonCommandStatus: function () {

@@ -107,8 +107,8 @@ export default tseslint.config(
       "eslint.config.*",
       "eslint/**",
       "vite.config.*",
-      // native 层：JSB 环境代码（var / 空 catch 是刻意的），不按页面规则检查
-      "public/main.js",
+      // native 层留档（已停用）：JSB 环境代码 var / 空 catch 是刻意的，不按页面规则检查
+      "docs/native-hybrid",
     ],
   },
 

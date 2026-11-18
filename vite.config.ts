@@ -7,9 +7,9 @@ export default defineConfig({
   // 面板里的资源只能走 MarginNote 提供的 /pkg/ 路径。
   base: "/pkg/",
   define: {
-    __MN_NATIVE_BRIDGE__: true,
+    __MN_NATIVE_BRIDGE__: false,
   },
-  plugins: [react(), mnRails({ mode: "hybrid" })],
+  plugins: [react(), mnRails({ mode: "panel" })],
   build: {
     outDir: "dist",
     emptyOutDir: true,
