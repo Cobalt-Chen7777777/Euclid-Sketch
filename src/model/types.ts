@@ -37,6 +37,8 @@ export interface FunctionShape {
   /** 形如 "sin(x)" 或 "x^2"，因变量固定为 y */
   expr: string;
   xRange: Range;
+  /** 公式来源（由函数面板绘制时写入，用于统一列出与清除） */
+  source?: string;
   color: string;
 }
 
@@ -47,6 +49,8 @@ export interface ParametricShape {
   xExpr: string;
   yExpr: string;
   tRange: Range;
+  /** 公式来源（由函数面板绘制时写入） */
+  source?: string;
   color: string;
 }
 
@@ -75,6 +79,8 @@ export interface EllipseShape {
   cy: number;
   rx: number;
   ry: number;
+  /** 公式来源（由函数面板绘制时写入；手动拖出的椭圆为空） */
+  source?: string;
   color: string;
 }
 

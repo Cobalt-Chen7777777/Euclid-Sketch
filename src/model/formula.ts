@@ -10,7 +10,7 @@
  */
 import { compileExpr, type EvalFn } from "./expr";
 
-import type { CircleShape, EllipseShape, FunctionShape, ParametricShape, Point2 } from "./types";
+import type { CircleShape, EllipseShape, FunctionShape, ParametricShape, Point2, Shape } from "./types";
 import { newId, PALETTE } from "./types";
 
 export type ParseResult =
@@ -137,6 +137,7 @@ function tryEllipse(raw: string, color: string): EllipseShape | null {
     cy: offset(m[3]),
     rx: Math.sqrt(a2),
     ry: Math.sqrt(b2),
+    source: raw.trim(),
     color,
   };
 }
@@ -160,6 +161,7 @@ function tryParametric(raw: string, color: string): ParametricShape | null {
     xExpr: m[1],
     yExpr: m[2],
     tRange: [0, Math.PI * 2],
+    source: raw.trim(),
     color,
   };
 }
@@ -179,6 +181,7 @@ function tryFunction(raw: string, color: string): FunctionShape | null {
     type: "function",
     expr: s,
     xRange: [-10, 10],
+    source: raw.trim(),
     color,
   };
 }
@@ -275,4 +278,17 @@ export function sampleCircle(shape: CircleShape, samples = 120): Point2[] {
     });
   }
   return pts;
+}
+
+/**
+ * 是否由「函数面板」绘制出来的图形。
+ * 函数 / 参数方程恒为公式图形；圆与椭圆只有带 source 才算
+ * （手动拖出的圆、椭圆不带 source，清除函数时不能误删）。
+ */
+export function isFormulaShape(shape: Shape): boolean {
+  if (shape.type === "function" || shape.type === "parametric") return true;
+  if (shape.type === "circle" || shape.type === "ellipse") {
+    return typeof shape.source === "string" && shape.source.length > 0;
+  }
+  return false;
 }

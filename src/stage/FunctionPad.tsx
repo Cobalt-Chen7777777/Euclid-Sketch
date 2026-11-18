@@ -13,6 +13,7 @@
 import { useRef, useState } from "react";
 
 import { compileExpr } from "../model/expr";
+import { isFormulaShape } from "../model/formula";
 import type { Shape } from "../model/types";
 import { CloseIcon, DeleteIcon } from "../icons";
 
@@ -35,6 +36,14 @@ const PAD_KEYS: string[] = [
 
 const SYMBOL_MAP: Record<string, string> = { "÷": "/", "×": "*", "−": "-" };
 
+/** 列表里显示什么：优先用原始公式，旧数据（无 source）退回表达式本身 */
+function curveLabel(s: Shape): string {
+  if (s.type === "function") return `f(x) = ${s.expr}`;
+  if (s.type === "parametric") return `x=${s.xExpr}, y=${s.yExpr}`;
+  const src = "source" in s ? s.source : undefined;
+  return src || (s.type === "circle" ? "圆（公式）" : "椭圆（公式）");
+}
+
 interface Props {
   /** 点「绘制」时调用，返回是否成功（成功才清空草稿） */
   onAdd: (expr: string) => { ok: boolean };
@@ -44,14 +53,17 @@ interface Props {
   message: string;
   shapes: Shape[];
   onDeleteShape: (id: string) => void;
+  /** 一键清除所有由函数面板绘制的曲线/图形 */
+  onClearCurves: () => void;
 }
 
 export function FunctionPad(props: Props) {
-  const { onAdd, onTypingChange, onClose, message, shapes, onDeleteShape } = props;
+  const { onAdd, onTypingChange, onClose, message, shapes, onDeleteShape, onClearCurves } = props;
   // 草稿放在面板内部：每敲一个字只重渲染这个面板，
   // 不再牵动画布整棵树（之前逐字上抛状态，输入法下会明显卡顿）。
   const [expr, setExprState] = useState("");
-  const curves = shapes.filter((s) => s.type === "function" || s.type === "parametric");
+  // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
+  const curves = shapes.filter(isFormulaShape);
 
   // 输入法（尤其是中文/拼音）组字期间，DOM 里的文字不会进 React state。
   // 若此时因为键盘弹起触发一次重渲染，受控输入会把刚打的字抹掉——表现就是「打字没反应」。
@@ -131,16 +143,28 @@ export function FunctionPad(props: Props) {
       </div>
 
       {curves.length > 0 ? (
-        <div className="fnpad-list">
-          {curves.map((s, i) => (
-            <div key={s.id} className="fnpad-item">
-              <span className="fnpad-index">{i + 1}</span>
-              <code className="fnpad-expr">
-                {s.type === "function" ? `f(x) = ${s.expr}` : s.type === "parametric" ? `x=${s.xExpr}, y=${s.yExpr}` : ""}
-              </code>
-              <button type="button" onClick={() => onDeleteShape(s.id)} aria-label="删除曲线">✕</button>
-            </div>
-          ))}
+        <div className="fnpad-curves">
+          <div className="fnpad-curves-head">
+            <span>已绘制 {curves.length} 条</span>
+            <button type="button" className="fnpad-clear" onClick={onClearCurves}>
+              清除全部函数
+            </button>
+          </div>
+          <div className="fnpad-list">
+            {curves.map((s, i) => (
+              <div key={s.id} className="fnpad-item">
+                <span className="fnpad-index">{i + 1}</span>
+                <code className="fnpad-expr">{curveLabel(s)}</code>
+                <button
+                  type="button"
+                  className="fnpad-del"
+                  onClick={() => onDeleteShape(s.id)}
+                  aria-label={`删除 ${curveLabel(s)}`}
+                  title="删除这条"
+                >✕</button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <p className="fnpad-empty">输入表达式后点「绘制」</p>

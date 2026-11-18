@@ -5,7 +5,7 @@
 一个 **MarginNote 5 场景插件**。它不是把图做好再贴进笔记，而是把笔记里那块「草稿纸」变成可计算、可编辑的画布——随手画、随手改、随手导出。
 
 <p>
-  <img alt="version" src="https://img.shields.io/badge/version-0.3.0-2563eb">
+  <img alt="version" src="https://img.shields.io/badge/version-0.1.0-2563eb">
   <img alt="platform" src="https://img.shields.io/badge/MarginNote-5%20%7C%20iPadOS-1d4ed8">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-3a7d44">
 </p>
@@ -44,7 +44,8 @@
 - **15 个函数键**：sin / cos / tan / asin / acos / atan / ln / log / exp / √ / abs / x² / π / e / 1⁄x
 - **20 键数字键盘**：数字、四则、括号、乘方、变量 x，退格与清空
 - **代入求值**：`x = 2` → `f(2) = 4.909297`，与绘图共用同一套求值器
-- 支持圆方程、椭圆方程（含平移）、函数 `y=f(x)`、参数方程 `x=cos(t), y=sin(t)`
+- 支持圆方程、椭圆方程（含平移）、函数 `f(x)`、参数方程 `x=cos(t), y=sin(t)`
+- **可清除**：曲线列表支持逐条删除，或点「清除全部函数」一键清空（不会误删手画的图元）
 
 ![函数计算器](docs/screenshots/calculator.png)
 
@@ -144,7 +145,7 @@ src/
 ## 已知限制
 
 1. **图片不能直接写回笔记**：MN 场景插件未开放图片写入接口，采用「导出 PNG + 批注说明」的降级方案。
-2. **浮窗需要 native 层**：0.3.0 起工程包含 `main.js`（混合插件），用 `showFloatingInMode` 把面板以迷你浮条形态显示在 MN 画布上。
+2. **浮窗需要 native 层**：本版包含 `native/main.js`（混合插件），用 `showFloatingInMode` 把面板以迷你浮条形态显示在 MN 画布上。
 3. **三角函数固定用弧度**（尚未提供 DEG/RAD 切换）。
 
 ## 更新日志

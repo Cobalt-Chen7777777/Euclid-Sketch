@@ -758,7 +758,7 @@ button.with-icon svg { flex: none; }
   position: absolute;
   left: 8px; right: 8px; bottom: 8px;
   z-index: 19;
-  max-height: 74%;
+  max-height: 90%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -769,6 +769,8 @@ button.with-icon svg { flex: none; }
   box-shadow: 0 -6px 26px rgba(30, 25, 18, .16);
   overflow: auto;
 }
+/* 曲线变多时由面板整体滚动，不允许任一子项被压扁 */
+.fnpad > * { flex-shrink: 0; }
 .fnpad-head { display: flex; align-items: center; justify-content: space-between; }
 .fnpad-head b { font-size: 12.5px; }
 .fnpad-head-right { display: flex; align-items: center; gap: 6px; }
@@ -779,13 +781,36 @@ button.with-icon svg { flex: none; }
   background: var(--surface-2); color: var(--muted);
 }
 
-.fnpad-list { display: grid; gap: 4px; max-height: 84px; overflow: auto; }
+/* 曲线区：标题行带「清除全部」，列表可滚动 */
+.fnpad-curves { display: grid; gap: 5px; min-height: 0; flex: none; }
+.fnpad-curves-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; font-size: 11px; color: var(--muted);
+}
+.fnpad-clear {
+  flex: none;
+  padding: 5px 10px; font-size: 11.5px;
+  border: 1px solid #e6b9a8; border-radius: 8px;
+  background: var(--surface-2); color: #c2410c;
+  white-space: nowrap;
+}
+.fnpad-clear:active { background: #fbe9e2; }
+.fnpad-list { display: grid; gap: 4px; max-height: 208px; overflow: auto; flex: none; }
 .fnpad-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 5px 8px; border-radius: 8px;
+  padding: 3px 4px 3px 8px; border-radius: 8px;
   background: var(--surface-2); font-size: 12px;
 }
-.fnpad-item button { border: none; background: transparent; color: var(--muted); padding: 0 2px; }
+/* 逐条删除：44px 触摸热区（原来只有 10px 宽，iPad 上根本点不中） */
+.fnpad-del {
+  flex: none;
+  display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--muted);
+  font-size: 14px;
+}
+.fnpad-del:active { background: var(--pill); color: #c2410c; }
 .fnpad-index {
   display: grid; place-items: center;
   width: 16px; height: 16px; border-radius: 50%;

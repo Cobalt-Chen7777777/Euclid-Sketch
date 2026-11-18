@@ -11,7 +11,7 @@ import {
   svgToPng,
 } from "./export/image";
 import { describeShape } from "./model/describe";
-import { parseFormula } from "./model/formula";
+import { isFormulaShape, parseFormula } from "./model/formula";
 import {
   DEFAULT_DOCUMENT,
   type PrimitiveType,
@@ -204,6 +204,15 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setShapes((prev) => prev.filter((x) => x.id !== id));
     setSelectedId((cur) => (cur === id ? null : cur));
   }, [setShapes]);
+
+  // 清除所有「函数面板」绘制的图形；手画的图元/笔迹不受影响
+  const onClearCurves = useCallback(() => {
+    const removed = new Set(shapes.filter(isFormulaShape).map((x) => x.id));
+    if (removed.size === 0) return;
+    setShapes((prev) => prev.filter((x) => !removed.has(x.id)));
+    setSelectedId((cur) => (cur && removed.has(cur) ? null : cur));
+    showToast(`已清除 ${removed.size} 条函数曲线`);
+  }, [shapes, setShapes, showToast]);
 
   // ---- 文件导入 ----
   const onImportFile = useCallback((file: File) => {
@@ -405,6 +414,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               message={formulaMsg}
               shapes={shapes}
               onDeleteShape={onDeleteShape}
+              onClearCurves={onClearCurves}
             />
           ) : null}
 
