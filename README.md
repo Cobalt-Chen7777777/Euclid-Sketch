@@ -110,12 +110,12 @@ pnpm sync       # 安装到本机 MarginNote（仅 macOS）
 
 ### 发布
 
-仓库：<https://github.com/Cobalt-Chen7777777/euclid-sketch>。地址写在 `src/repo.ts` 的 `GITHUB_OWNER` / `GITHUB_REPO`，插件内「GitHub 仓库」「检查更新」「更新日志」都从那里读。
+仓库：<https://github.com/Cobalt-Chen7777777/Euclid-Sketch>。地址写在 `src/repo.ts` 的 `GITHUB_OWNER` / `GITHUB_REPO`，插件内「GitHub 仓库」「检查更新」「更新日志」都从那里读。
 
 首次推送（在 GitHub 上先建一个**空仓库**，不要勾选 README）：
 
 ```bash
-git remote add origin https://github.com/Cobalt-Chen7777777/euclid-sketch.git
+git remote add origin https://github.com/Cobalt-Chen7777777/Euclid-Sketch.git
 git branch -M main
 git push -u origin main
 ```
@@ -126,7 +126,7 @@ git push -u origin main
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-> 插件内「设置 → 窗口与关于 → 检查更新」读 `api.github.com/repos/Cobalt-Chen7777777/euclid-sketch/releases/latest`，所以仓库至少要有一个 Release 才会返回版本号；没有网络或没有 Release 时会给出人话提示。
+> 插件内「设置 → 窗口与关于 → 检查更新」读 `api.github.com/repos/Cobalt-Chen7777777/Euclid-Sketch/releases/latest`，所以仓库至少要有一个 Release 才会返回版本号；没有网络或没有 Release 时会给出人话提示。
 
 ### 目录
 

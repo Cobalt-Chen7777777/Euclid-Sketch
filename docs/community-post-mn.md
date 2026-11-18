@@ -76,7 +76,7 @@ Euclid Sketch 把那块「草稿纸」直接搬进了 MN——**图是活的**�
 
 全代码 MIT 开源，欢迎 PR 与 fork：
 
-**GitHub**：https://github.com/Cobalt-Chen7777777/euclid-sketch
+**GitHub**：https://github.com/Cobalt-Chen7777777/Euclid-Sketch
 
 ---
 

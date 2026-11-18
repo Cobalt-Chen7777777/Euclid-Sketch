@@ -3,7 +3,7 @@
  * 换账号或改仓库名时只改本文件即可。
  */
 export const GITHUB_OWNER = "Cobalt-Chen7777777";
-export const GITHUB_REPO = "euclid-sketch";
+export const GITHUB_REPO = "Euclid-Sketch";
 
 export const GITHUB_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}`;
 export const RELEASES_URL = `${GITHUB_URL}/releases`;
