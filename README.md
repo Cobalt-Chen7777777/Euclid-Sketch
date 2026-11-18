@@ -5,7 +5,7 @@
 一个 **MarginNote 5 场景插件**。它不是把图做好再贴进笔记，而是把笔记里那块「草稿纸」变成可计算、可编辑的画布——随手画、随手改、随手导出。
 
 <p>
-  <img alt="version" src="https://img.shields.io/badge/version-0.2.0-2563eb">
+  <img alt="version" src="https://img.shields.io/badge/version-0.2.1-2563eb">
   <img alt="platform" src="https://img.shields.io/badge/MarginNote-5%20%7C%20iPadOS-1d4ed8">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-3a7d44">
 </p>
