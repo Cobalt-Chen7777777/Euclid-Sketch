@@ -143,14 +143,15 @@ export function FunctionPad(props: Props) {
           ))}
         </div>
       ) : (
-        <p className="fnpad-empty">还没有曲线。输入表达式后点「绘制」，例如 <code>sin(x)</code>。</p>
+        <p className="fnpad-empty">输入表达式后点「绘制」</p>
       )}
 
-      <div className="fnpad-input">
-        <span className="fnpad-eq">f(x) =</span>
+      {/* 单行工具条：标签/输入/求值/绘制全部固定高度，永不换行 */}
+      <div className="fnbar">
+        <span className="fnbar-label">f(x)</span>
         <input
           ref={inputRef}
-          className="fnpad-field"
+          className="fnbar-field"
           defaultValue={expr}
           onInput={(e) => setExprState(e.currentTarget.value)}
           onFocus={() => onTypingChange?.(true)}
@@ -169,29 +170,26 @@ export function FunctionPad(props: Props) {
           spellCheck={false}
           enterKeyHint="done"
         />
-        <button type="button" className="primary fnpad-draw" onClick={draw}>绘制</button>
-      </div>
-
-      {/* 代入求值 */}
-      <div className="fnpad-eval">
-        <span className="fnpad-eval-label">x =</span>
+        <span className="fnbar-label">x</span>
         <input
-          className="fnpad-eval-field"
+          className="fnbar-x"
           value={xValue}
           onChange={(e) => setXValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && evaluate()}
           inputMode="decimal"
           autoComplete="off"
           autoCorrect="off"
-          autoCapitalize="off"
           spellCheck={false}
           aria-label="代入的 x 值"
         />
-        <button type="button" className="fnpad-eq-btn" onClick={evaluate} aria-label="求值">=</button>
-        <output className={`fnpad-result${result && !result.ok ? " bad" : ""}`}>
-          {result ? result.text : "代入后按 = 求值"}
-        </output>
+        <button type="button" className="fnbar-eq" onClick={evaluate} aria-label="求值">=</button>
+        <button type="button" className="primary fnbar-draw" onClick={draw}>绘制</button>
       </div>
+
+      {/* 结果行：高度固定，没有结果时显示占位文字，避免出现时撑高 */}
+      <p className={`fnbar-result${result && !result.ok ? " bad" : ""}`}>
+        {result ? result.text : "代入 x 后按 = 求值"}
+      </p>
 
       {message ? <p className="error fnpad-error">{message}</p> : null}
 
