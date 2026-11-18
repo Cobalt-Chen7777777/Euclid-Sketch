@@ -39,7 +39,7 @@ import { SolidStage } from "./stage/SolidStage";
 import { QuickBall, type QuickAction } from "./stage/QuickBall";
 import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
-import { AngleIcon, ChevronLeftIcon, ChevronRightIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon } from "./icons";
+import { AngleIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon } from "./icons";
 
 const VIEW_W = 400;
 const VIEW_H = 240;
@@ -298,10 +298,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     { id: "angle", label: "画角度", icon: <AngleIcon size={17} />, run: () => { setTool("angle"); setOptionsOpen(false); setQuickOpen(false); } },
     { id: "place", label: "插入图形", icon: <ShapesIcon size={17} />, run: () => { setTool("place"); setOptionsOpen(true); setQuickOpen(false); } },
     { id: "formula", label: "函数计算器", icon: <SigmaIcon size={17} />, run: () => { setTab("fn"); setQuickOpen(false); } },
-    { id: "prev", label: "上一张卡片", icon: <ChevronLeftIcon size={17} />, run: () => { void gotoCard(-1); setQuickOpen(false); } },
-    { id: "next", label: "下一张卡片", icon: <ChevronRightIcon size={17} />, run: () => { void gotoCard(1); setQuickOpen(false); } },
     { id: "settings", label: "设置", icon: <GearIcon size={17} />, run: () => { setView("settings"); setQuickOpen(false); } },
-  ], [gotoCard]);
+  ], []);
 
   const resolvedTheme = resolveTheme(settings.theme, systemDark, mnTheme);
 

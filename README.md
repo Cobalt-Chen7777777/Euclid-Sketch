@@ -5,7 +5,7 @@
 一个 **MarginNote 5 场景插件**。它不是把图做好再贴进笔记，而是把笔记里那块「草稿纸」变成可计算、可编辑的画布——随手画、随手改、随手导出。
 
 <p>
-  <img alt="version" src="https://img.shields.io/badge/version-0.2.1-2563eb">
+  <img alt="version" src="https://img.shields.io/badge/version-0.3.0-2563eb">
   <img alt="platform" src="https://img.shields.io/badge/MarginNote-5%20%7C%20iPadOS-1d4ed8">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-3a7d44">
 </p>
@@ -144,7 +144,7 @@ src/
 ## 已知限制
 
 1. **图片不能直接写回笔记**：MN 场景插件未开放图片写入接口，采用「导出 PNG + 批注说明」的降级方案。
-2. **浮球只能在面板内**：真正的浮窗（`panel.showFloatingIn`）属于 native 层，需要 `main.js`；纯面板插件做不到。面板收起后的迷你条可当作入口。
+2. **浮窗需要 native 层**：0.3.0 起工程包含 `main.js`（混合插件），用 `showFloatingInMode` 把面板以迷你浮条形态显示在 MN 画布上。
 3. **三角函数固定用弧度**（尚未提供 DEG/RAD 切换）。
 
 ## 更新日志

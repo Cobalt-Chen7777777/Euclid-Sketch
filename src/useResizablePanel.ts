@@ -42,6 +42,20 @@ const clamp = (value: number, low: number, high: number): number =>
 
 const isMnAvailable = (): boolean => typeof mn !== "undefined";
 
+/**
+ * 通知 native 层（混合插件才有 main.js 处理这些消息）。
+ * 纯面板模式下 mn.call 会 reject，这里吞掉即可，不影响面板内行为。
+ */
+function notifyNative(name: string): Promise<unknown> {
+  if (!isMnAvailable()) return Promise.reject(new Error("no mn"));
+  try {
+    const res = mn.call(name);
+    return res.catch ? res.catch(() => null) : Promise.resolve(res);
+  } catch {
+    return Promise.reject(new Error("no native"));
+  }
+}
+
 function readStoredSize(): PanelSize {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -100,8 +114,13 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     if (rememberRef.current) persistSize(size);
   }, [applySize]);
 
-  // 挂载时恢复持久化尺寸（mn.mode 不改尺寸，必须显式 size）
+  // 挂载时恢复持久化尺寸；但若宿主以 mini 形态打开（native 浮条），不要撑开。
+  // 同时补一次 mn.mode("mini")，确保 <html data-mode> 与 host 一致（样式靠它切换迷你布局）。
   useEffect(() => {
+    if (isMnAvailable() && mn.currentMode === "mini") {
+      mn.mode("mini");
+      return;
+    }
     applySize(sizeRef.current);
   }, [applySize]);
 
@@ -192,6 +211,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     if (!isMnAvailable()) return;
     mn.mode("mini");
     mn.size(PANEL_LIMITS.miniWidth, PANEL_LIMITS.miniHeight);
+    void notifyNative("collapse");
     // 记录实际尺寸，避免展开时被「去重」拦掉
     appliedRef.current = { width: PANEL_LIMITS.miniWidth, height: PANEL_LIMITS.miniHeight };
   }, []);
@@ -202,10 +222,16 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     mn.mode("workspace");
     appliedRef.current = null;
     applySize(sizeRef.current);
+    void notifyNative("expand");
   }, [applySize]);
 
   const close = useCallback(() => {
-    if (isMnAvailable()) mn.close();
+    if (!isMnAvailable()) return;
+    // 混合插件里交给 native 收浮层（保留插件本体）；纯面板模式退回 mn.close()
+    notifyNative("closePanel").then((res) => {
+      const ok = res && typeof res === "object" && (res as { ok?: boolean }).ok;
+      if (!ok) mn.close();
+    }).catch(() => mn.close());
   }, []);
 
   /** 重载面板（会丢内存数据，用于异常恢复） */

@@ -2,6 +2,23 @@
 
 遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 0.3.0
+
+**改为「面板 + main.js」混合插件，浮窗移到 MN 画布上。**
+
+- 新增 native 层（`native/main.js` + `native/PanelBridge.js`，取自脚手架官方混合模板）：
+  用 `AddonWebPanel` + `showFloatingInMode(controller, "mini")` 把面板以浮层形态显示在画布上，
+  默认是一条 300×54 的小浮条（上一张 / 下一张 / 展开 / 关闭）
+- `vite.config.ts` 切换为 `mode: "hybrid"`；图标改由 native 的 `queryAddonCommandStatus` 提供
+- **代价**：`mnaddon.json` 的 `cardCommands`（卡片菜单「写入批注」）在经典加载方式下不再生效
+- 点「展开」→ 切成 workspace 形态的大浮窗；点「关闭」→ `hideFloating()` 收回浮层
+- 面板侧通过 `mn.call("expand" / "collapse" / "closePanel")` 与 native 协同，
+  纯面板环境下这些调用失败会被吞掉，不影响原有行为
+- 以 mini 形态被 native 打开时，页面不再强行把窗口撑成 420×620
+
+> ⚠️ 加入 `main.js` 后，点击插件按钮不再自动打开面板，改由 main.js 负责创建/显示。
+> 若装到设备后点插件无反应，请回退到 0.2.x（纯面板版本）。
+
 ## 0.2.1
 
 - **函数输入压成单行**：`f(x)` 输入、`x` 代入值、`=` 求值、`绘制` 合并为一行，控件统一 32px 高
