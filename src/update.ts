@@ -5,7 +5,7 @@
  * 因此不需要任何后端。失败一律降级成「无法检查」，不打扰使用。
  */
 import { APP_VERSION } from "./version";
-import { GITHUB_REPO, isRepoConfigured } from "./repo";
+import { GITHUB_OWNER, GITHUB_REPO, isRepoConfigured } from "./repo";
 
 export interface UpdateResult {
   ok: boolean;
@@ -48,11 +48,11 @@ export async function checkUpdate(timeoutMs = 8000): Promise<UpdateResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`, {
       signal: controller.signal,
       headers: { Accept: "application/vnd.github+json" },
     });
-    if (res.status === 404) return { ok: false, error: "仓库还没有发布 Release" };
+    if (res.status === 404) return { ok: false, error: "仓库不存在，或还没有发布 Release" };
     if (!res.ok) return { ok: false, error: `GitHub 返回 ${res.status}` };
 
     const data = (await res.json()) as { tag_name?: string; html_url?: string };
