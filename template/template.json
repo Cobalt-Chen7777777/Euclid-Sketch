@@ -1,0 +1,30 @@
+{
+  "id": "u-com-mathsketch-addon",
+  "name": "Euclid Sketch",
+  "plugins": [
+    "com.mathsketch.addon"
+  ],
+  "pluginConfigs": {
+    "com.mathsketch.addon": {}
+  },
+  "bottom": {
+    "modes": [
+      {
+        "id": "collect",
+        "behavior": "write",
+        "tools": [
+          "tool.excerptBox",
+          "addon.com.mathsketch.addon.primary",
+          "theme"
+        ]
+      }
+    ]
+  },
+  "selectionMenu": {
+    "cards": [
+      "noteHighlight:",
+      "commentNote",
+      "addon.com.mathsketch.addon.annotate:"
+    ]
+  }
+}

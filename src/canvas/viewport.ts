@@ -1,0 +1,101 @@
+/** 世界坐标与 SVG 屏幕坐标之间的变换 */
+import type { Point2, Range } from "../model/types";
+
+export interface Viewport {
+  width: number;
+  height: number;
+  xRange: Range;
+  yRange: Range;
+}
+
+export function toScreen(p: Point2, v: Viewport): Point2 {
+  const [x0, x1] = v.xRange;
+  const [y0, y1] = v.yRange;
+  const sx = ((p.x - x0) / (x1 - x0)) * v.width;
+  const sy = v.height - ((p.y - y0) / (y1 - y0)) * v.height;
+  return { x: sx, y: sy };
+}
+
+export function toWorld(p: Point2, v: Viewport): Point2 {
+  const [x0, x1] = v.xRange;
+  const [y0, y1] = v.yRange;
+  const x = x0 + (p.x / v.width) * (x1 - x0);
+  const y = y0 + ((v.height - p.y) / v.height) * (y1 - y0);
+  return { x, y };
+}
+
+/** 半径（世界）转屏幕像素长度 */
+export function scaleX(v: Viewport): number {
+  return v.width / (v.xRange[1] - v.xRange[0]);
+}
+export function scaleY(v: Viewport): number {
+  return v.height / (v.yRange[1] - v.yRange[0]);
+}
+
+/** 屏幕上的圆半径：取 x/y 缩放的几何平均，保持视觉接近正圆 */
+export function radiusToScreen(r: number, v: Viewport): number {
+  return r * Math.sqrt(Math.abs(scaleX(v) * scaleY(v)));
+}
+export function radiusToWorld(rPx: number, v: Viewport): number {
+  return rPx / Math.sqrt(Math.abs(scaleX(v) * scaleY(v)));
+}
+
+/** 生成网格线位置（世界坐标） */
+export function gridLines(v: Viewport, step: number): { x: number[]; y: number[] } {  const xs: number[] = [];
+  const ys: number[] = [];
+  if (step <= 0) return { x: xs, y: ys };
+  const [x0, x1] = v.xRange;
+  const [y0, y1] = v.yRange;
+  for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) xs.push(x);
+  for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) ys.push(y);
+  return { x: xs, y: ys };
+}
+
+/** 平移视口（世界坐标增量） */
+export function panRange(range: Range, delta: number): Range {
+  return [range[0] + delta, range[1] + delta];
+}
+
+/**
+ * 让画布铺满容器：**保持当前缩放比例**，只增减可见范围。
+ *
+ * 早先的写法是「保持横向范围、按宽高比重算纵向范围」，面板一变尺寸，
+ * 世界范围就跟着变，拖窗口调大小时画面会不断重新缩放（看起来是"乱动"）。
+ * 现在固定 px/单位，尺寸变化只改变看得到多少，图形不会跳。
+ */
+export function fitViewport(v: Viewport, width: number, height: number): Viewport {
+  if (width < 40 || height < 40) return v;
+  const spanX = v.xRange[1] - v.xRange[0];
+  const spanY = v.yRange[1] - v.yRange[0];
+  if (spanX <= 0 || spanY <= 0) return { ...v, width, height };
+
+  // 比例只从横向推导：反复 fit 时结果稳定（用几何平均会因舍入逐次漂移）
+  const scale = v.width / spanX;
+  const cx = (v.xRange[0] + v.xRange[1]) / 2;
+  const cy = (v.yRange[0] + v.yRange[1]) / 2;
+  const nextSpanX = width / scale;
+  const nextSpanY = height / scale;
+
+  return {
+    width,
+    height,
+    xRange: [cx - nextSpanX / 2, cx + nextSpanX / 2],
+    yRange: [cy - nextSpanY / 2, cy + nextSpanY / 2],
+  };
+}
+
+/** 以某屏幕点为中心缩放视口 */
+export function zoomViewport(v: Viewport, anchor: Point2, factor: number): Viewport {
+  const worldAnchor = toWorld(anchor, v);
+  const [x0, x1] = v.xRange;
+  const [y0, y1] = v.yRange;
+  const newW = (x1 - x0) * factor;
+  const newH = (y1 - y0) * factor;
+  const rx = (worldAnchor.x - x0) / (x1 - x0);
+  const ry = (worldAnchor.y - y0) / (y1 - y0);
+  return {
+    ...v,
+    xRange: [worldAnchor.x - newW * rx, worldAnchor.x + newW * (1 - rx)],
+    yRange: [worldAnchor.y - newH * ry, worldAnchor.y + newH * (1 - ry)],
+  };
+}

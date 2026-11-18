@@ -1,0 +1,27 @@
+{
+  "addonid": "com.mathsketch.addon",
+  "author": "MathSketch",
+  "title": "Euclid Sketch",
+  "version": "0.1.0",
+  "marginnote_version_min": "4.5.0",
+  "immersiveOnly": true,
+  "panel": "index.html",
+  "icon": "icon.png",
+  "panelWidth": 420,
+  "panelMaxHeight": 900,
+  "events": [
+    "excerpt"
+  ],
+  "cardCommands": [
+    {
+      "id": "annotate",
+      "title": {
+        "zh-Hans": "写入批注",
+        "en": "Add a comment"
+      },
+      "when": {
+        "hasExcerpt": true
+      }
+    }
+  ]
+}

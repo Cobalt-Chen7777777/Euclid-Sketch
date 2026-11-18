@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+.verify/
+*.mnaddon
+*.mntemplate
+.DS_Store
+shots/
+docs/preview-*.png

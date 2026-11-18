@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256">
+  <!--
+    Euclid Sketch · 插件图标
+
+    注意：MarginNote 会把本图当作 alpha 蒙版，只取轮廓、用界面色单色绘制。
+    因此必须是「透明底的纯剪影」——不能有背景色块、渐变或半透明，
+    图形以外区域全部透明，内部层次只能靠负空间表达。
+
+    设计约束（官方《为插件设置图标》）：
+      · 64 网格内四周留白 4–6；描边 3–5；端点与转角圆角
+      · 负空间缝隙 ≥2，避免小尺寸抗锯齿粘连；内容 100% 不透明
+
+    构图：尺规合一 —— 圆规（铰链 + 两腿）立在带刻度的直尺上，
+         尺在下、刻度朝下，避让圆规腿；两者共构成一个完整剪影。
+  -->
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 直尺：横条 + 向下的刻度 -->
+    <path d="M9 48 L55 48" stroke-width="5" />
+    <path d="M15 48 L15 53.5 M25 48 L25 53.5 M35 48 L35 53.5 M45 48 L45 53.5" stroke-width="3.2" />
+    <!-- 圆规：两腿落在尺上 -->
+    <path d="M32 13 L20 46" stroke-width="4.6" />
+    <path d="M32 13 L44 46" stroke-width="4.6" />
+    <!-- 铰链 -->
+    <circle cx="32" cy="11.6" r="3.2" fill="#ffffff" stroke="none" />
+  </g>
+</svg>
