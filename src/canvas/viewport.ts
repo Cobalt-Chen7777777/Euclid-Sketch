@@ -46,8 +46,15 @@ export function gridLines(v: Viewport, step: number): { x: number[]; y: number[]
   if (step <= 0) return { x: xs, y: ys };
   const [x0, x1] = v.xRange;
   const [y0, y1] = v.yRange;
-  for (let x = Math.ceil(x0 / step) * step; x <= x1; x += step) xs.push(x);
-  for (let y = Math.ceil(y0 / step) * step; y <= y1; y += step) ys.push(y);
+  // 上限保护：极端缩放时按倍数放粗步长，避免生成上万条线把界面卡死
+  const MAX_LINES = 240;
+  const countX = Math.ceil((x1 - x0) / step);
+  const countY = Math.ceil((y1 - y0) / step);
+  const stepX = countX > MAX_LINES ? step * Math.ceil(countX / MAX_LINES) : step;
+  const stepY = countY > MAX_LINES ? step * Math.ceil(countY / MAX_LINES) : step;
+
+  for (let x = Math.ceil(x0 / stepX) * stepX; x <= x1; x += stepX) xs.push(x);
+  for (let y = Math.ceil(y0 / stepY) * stepY; y <= y1; y += stepY) ys.push(y);
   return { x: xs, y: ys };
 }
 

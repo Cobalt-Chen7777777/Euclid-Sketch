@@ -21,13 +21,20 @@ export function useAutoFitHeight(enabled: boolean) {
     const element = ref.current;
     if (!enabled || !element) return;
 
-    let frame = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastHeight = -1;
+
+    // 护栏：高度差小于 2px 不触发；且 200ms 内只触发一次。
+    // 键盘弹起/收起会让面板高度来回变化，没有护栏时 mn.fit() 会和宿主反复拉锯。
     const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        const height = element.getBoundingClientRect().height;
+        if (Math.abs(height - lastHeight) < 2) return;
+        lastHeight = height;
         fitPanelHeight();
-      });
+      }, 200);
     };
 
     // 首次开启立刻对齐一次，后续交给尺寸观察
@@ -37,7 +44,7 @@ export function useAutoFitHeight(enabled: boolean) {
 
     return () => {
       observer?.disconnect();
-      if (frame) cancelAnimationFrame(frame);
+      if (timer) clearTimeout(timer);
     };
   }, [enabled]);
 

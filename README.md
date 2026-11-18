@@ -5,7 +5,7 @@
 一个 **MarginNote 5 场景插件**。它不是把图做好再贴进笔记，而是把笔记里那块「草稿纸」变成可计算、可编辑的画布——随手画、随手改、随手导出。
 
 <p>
-  <img alt="version" src="https://img.shields.io/badge/version-0.1.0-2563eb">
+  <img alt="version" src="https://img.shields.io/badge/version-0.2.0-2563eb">
   <img alt="platform" src="https://img.shields.io/badge/MarginNote-5%20%7C%20iPadOS-1d4ed8">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-3a7d44">
 </p>
@@ -25,6 +25,7 @@
 ### 画布
 
 - **草稿纸手感**：用笔直接写、直接涂，笔迹实时呈现，可选笔迹平滑
+- **14 色调色板**：墨黑、灰在前（批注常用），后接蓝/青/绿/草绿/橙/红/玫红/紫/靛/深青/金褐/暖灰，固定两行七列
 - **画布铺满面板**：面板拉多大画布就多大；缩放时保持比例，图形不会跳
 - **两种背景**：坐标系（网格 + 刻度）或空白画布
 - **缩放平移**：双指捏合 / 滚轮缩放，平移工具拖动画布
@@ -105,6 +106,16 @@ pnpm build      # 构建面板
 pnpm package    # 生成 .mnaddon / .mntemplate
 pnpm sync       # 安装到本机 MarginNote（仅 macOS）
 ```
+
+### 发布
+
+改好 `src/repo.ts` 里的 `GITHUB_OWNER`，然后打 tag 即可——`.github/workflows/release.yml` 会跑 check/build/package，并把 `.mnaddon` 与 `.mntemplate` 挂到 Release：
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+> 插件内「设置 → 窗口与关于 → 检查更新」读的就是这个 Release，所以仓库至少要有一个 Release 才会返回版本号。
 
 ### 目录
 

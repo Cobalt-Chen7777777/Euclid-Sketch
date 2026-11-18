@@ -10,7 +10,7 @@
  * 求值直接用与绘图同一套求值器（model/expr），所以键位上能按的，
  * 画出来和算出来的结果完全一致。
  */
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { compileExpr } from "../model/expr";
 import type { Shape } from "../model/types";
@@ -36,11 +36,10 @@ const PAD_KEYS: string[] = [
 const SYMBOL_MAP: Record<string, string> = { "÷": "/", "×": "*", "−": "-" };
 
 interface Props {
-  expr: string;
-  onExpr: (value: string) => void;
-  onBackspace: () => void;
-  onClear: () => void;
-  onAdd: () => void;
+  /** 点「绘制」时调用，返回是否成功（成功才清空草稿） */
+  onAdd: (expr: string) => { ok: boolean };
+  /** 焦点进入/离开输入框（用于暂停自动高度，避免键盘导致反复 mn.fit） */
+  onTypingChange?: (typing: boolean) => void;
   onClose: () => void;
   message: string;
   shapes: Shape[];
@@ -48,7 +47,10 @@ interface Props {
 }
 
 export function FunctionPad(props: Props) {
-  const { expr, onExpr, onBackspace, onClear, onAdd, onClose, message, shapes, onDeleteShape } = props;
+  const { onAdd, onTypingChange, onClose, message, shapes, onDeleteShape } = props;
+  // 草稿放在面板内部：每敲一个字只重渲染这个面板，
+  // 不再牵动画布整棵树（之前逐字上抛状态，输入法下会明显卡顿）。
+  const [expr, setExprState] = useState("");
   const curves = shapes.filter((s) => s.type === "function" || s.type === "parametric");
 
   // 输入法（尤其是中文/拼音）组字期间，DOM 里的文字不会进 React state。
@@ -57,21 +59,24 @@ export function FunctionPad(props: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
 
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el || composing.current) return;
-    if (el.value !== expr) el.value = expr;
-  }, [expr]);
-
-  // 程序化修改：同时更新 state 与 DOM
+  // 程序化修改：同时更新 state 与 DOM（DOM 与 state 始终一致，组字期间除外）
   const setExpr = (next: string) => {
-    onExpr(next);
+    setExprState(next);
     if (inputRef.current) inputRef.current.value = next;
   };
 
   // 代入求值：x 取一个值，用同一套求值器算结果
   const [xValue, setXValue] = useState("1");
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /** 提交给画布：成功则清空草稿，失败保留以便修改 */
+  const draw = () => {
+    const res = onAdd(expr);
+    if (res.ok) {
+      setExpr("");
+      setResult(null);
+    }
+  };
 
   const evaluate = () => {
     const x = Number(xValue);
@@ -101,12 +106,10 @@ export function FunctionPad(props: Props) {
   const pressPadKey = (key: string) => {
     if (key === "⌫") {
       setExpr(expr.slice(0, -1));
-      onBackspace();
       return;
     }
     if (key === "C") {
       setExpr("");
-      onClear();
       setResult(null);
       return;
     }
@@ -118,7 +121,7 @@ export function FunctionPad(props: Props) {
       <div className="fnpad-head">
         <b>函数</b>
         <div className="fnpad-head-right">
-          <button type="button" className="fnpad-quick-btn" onClick={() => { setExpr(expr.slice(0, -1)); onBackspace(); }} aria-label="退格">
+          <button type="button" className="fnpad-quick-btn" onClick={() => setExpr(expr.slice(0, -1))} aria-label="退格">
             <DeleteIcon size={16} />
           </button>
           <button type="button" className="drawer-close" onClick={onClose} aria-label="收起函数面板">
@@ -149,13 +152,15 @@ export function FunctionPad(props: Props) {
           ref={inputRef}
           className="fnpad-field"
           defaultValue={expr}
-          onInput={(e) => onExpr(e.currentTarget.value)}
+          onInput={(e) => setExprState(e.currentTarget.value)}
+          onFocus={() => onTypingChange?.(true)}
+          onBlur={() => onTypingChange?.(false)}
           onCompositionStart={() => { composing.current = true; }}
           onCompositionEnd={(e) => {
             composing.current = false;
-            onExpr(e.currentTarget.value);
+            setExprState(e.currentTarget.value);
           }}
-          onKeyDown={(e) => e.key === "Enter" && onAdd()}
+          onKeyDown={(e) => e.key === "Enter" && draw()}
           placeholder="sin(x)+x/2"
           inputMode="text"
           autoComplete="off"
@@ -164,7 +169,7 @@ export function FunctionPad(props: Props) {
           spellCheck={false}
           enterKeyHint="done"
         />
-        <button type="button" className="primary fnpad-draw" onClick={onAdd}>绘制</button>
+        <button type="button" className="primary fnpad-draw" onClick={draw}>绘制</button>
       </div>
 
       {/* 代入求值 */}

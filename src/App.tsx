@@ -79,8 +79,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [formula, setFormula] = useState("");
   const [formulaMsg, setFormulaMsg] = useState("");
+  // 正在输入法里打字：暂停自动高度，避免键盘弹起/收起引发反复 mn.fit
+  const [typing, setTyping] = useState(false);
   const [toast, setToast] = useState("");
   const [lockRadius, setLockRadius] = useState(false);
   const [lockedRadius, setLockedRadius] = useState<number | null>(null);
@@ -142,7 +143,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   });
   // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度
   const [collapsed, setCollapsed] = useState(false);
-  const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed);
+  const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing);
 
   const onCollapse = useCallback(() => {
     setCollapsed(true);
@@ -175,20 +176,20 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     };
   }, [showToast]);
 
-  // ---- 公式添加 ----
-  const onAddFormula = useCallback(() => {
-    const result = parseFormula(formula, color);
+  // ---- 公式添加（由函数面板传入表达式，返回是否成功） ----
+  const onAddFormula = useCallback((src: string): { ok: boolean } => {
+    const result = parseFormula(src, color);
     if (result.kind === "error") {
       setFormulaMsg(result.message);
-      return;
+      return { ok: false };
     }
     setShapes((prev) => [...prev, result.shape]);
     setFormulaMsg("");
-    setFormula("");
     // 在函数面板里连续绘制时不切走，切回 2D 反而会把面板关掉
     setTab((cur) => (cur === "fn" ? "fn" : "2d"));
     showToast("已添加公式图形");
-  }, [formula, color, setShapes, showToast]);
+    return { ok: true };
+  }, [color, setShapes, showToast]);
 
   // ---- 圆规锁定半径 ----
   const onToggleLock = () => {
@@ -400,11 +401,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
           {tab === "fn" ? (
             <FunctionPad
-              expr={formula}
-              onExpr={setFormula}
-              onBackspace={() => setFormula((prev) => prev.slice(0, -1))}
-              onClear={() => { setFormula(""); setFormulaMsg(""); }}
               onAdd={onAddFormula}
+              onTypingChange={setTyping}
               onClose={() => setTab("2d")}
               message={formulaMsg}
               shapes={shapes}
