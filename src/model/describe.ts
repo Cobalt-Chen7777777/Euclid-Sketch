@@ -10,7 +10,7 @@ export function describeShape(s: Shape): string {
     case "rect": return `矩形 (${s.x1.toFixed(1)},${s.y1.toFixed(1)})→(${s.x2.toFixed(1)},${s.y2.toFixed(1)})`;
     case "polygon": return `${s.sides}边形 r=${s.r.toFixed(1)}`;
     case "ray": return `射线 (${s.x1.toFixed(1)},${s.y1.toFixed(1)})→`;
-    case "function": return `y = ${s.expr}`;
+    case "function": return `f(x) = ${s.expr}`;
     case "parametric": return `x=${s.xExpr}, y=${s.yExpr}`;
     case "point": return `点 (${s.x.toFixed(1)},${s.y.toFixed(1)})`;
     case "line": return "线段";

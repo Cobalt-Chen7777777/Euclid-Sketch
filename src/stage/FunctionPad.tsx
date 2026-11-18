@@ -133,7 +133,7 @@ export function FunctionPad(props: Props) {
             <div key={s.id} className="fnpad-item">
               <span className="fnpad-index">{i + 1}</span>
               <code className="fnpad-expr">
-                {s.type === "function" ? `y = ${s.expr}` : s.type === "parametric" ? `x=${s.xExpr}, y=${s.yExpr}` : ""}
+                {s.type === "function" ? `f(x) = ${s.expr}` : s.type === "parametric" ? `x=${s.xExpr}, y=${s.yExpr}` : ""}
               </code>
               <button type="button" onClick={() => onDeleteShape(s.id)} aria-label="删除曲线">✕</button>
             </div>
@@ -144,7 +144,7 @@ export function FunctionPad(props: Props) {
       )}
 
       <div className="fnpad-input">
-        <span className="fnpad-eq">y =</span>
+        <span className="fnpad-eq">f(x) =</span>
         <input
           ref={inputRef}
           className="fnpad-field"
@@ -156,7 +156,7 @@ export function FunctionPad(props: Props) {
             onExpr(e.currentTarget.value);
           }}
           onKeyDown={(e) => e.key === "Enter" && onAdd()}
-          placeholder="sin(x) + x/2"
+          placeholder="sin(x)+x/2"
           inputMode="text"
           autoComplete="off"
           autoCorrect="off"

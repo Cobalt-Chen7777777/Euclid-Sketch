@@ -622,7 +622,13 @@ button.with-icon svg { flex: none; }
 .chip.on { background: var(--tint); border-color: var(--tint-line); color: var(--tint-ink); font-weight: 600; }
 .chip.mono { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; }
 
-.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 固定 7 列：面板宽窄变化时永远两行，不会忽而一行忽而两行 */
+.swatches { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+.swatch {
+  width: 100%; height: auto; aspect-ratio: 1;
+  border-radius: 50%; border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong); padding: 0;
+}
 .swatch.on { box-shadow: 0 0 0 2px var(--ink); }
 
 .shape-pick {
@@ -791,16 +797,22 @@ button.with-icon svg { flex: none; }
 }
 .fnpad-empty { margin: 0; font-size: 11px; color: var(--muted); }
 
-.fnpad-input { display: flex; align-items: center; gap: 6px; }
-.fnpad-eq { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); }
+.fnpad-input {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: nowrap; min-width: 0;
+}
+.fnpad-eq {
+  flex: none; white-space: nowrap;
+  font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted);
+}
 .fnpad-field {
-  flex: 1; min-width: 0;
+  flex: 1 1 auto; min-width: 56px;
   padding: 8px 10px; font-size: 13px;
   font-family: ui-monospace, Menlo, monospace;
   border: 1px solid var(--line-strong); border-radius: 9px;
   background: var(--surface); color: var(--ink);
 }
-.fnpad-draw { padding: 8px 14px; }
+.fnpad-draw { flex: 0 0 auto; padding: 8px 14px; white-space: nowrap; }
 .fnpad-error { margin: 0; font-size: 11px; }
 
 /* 函数键：一行 5 个，共 3 行 */
@@ -834,16 +846,22 @@ button.with-icon svg { flex: none; }
 .fnpad-key.danger { color: #c2410c; }
 
 /* 代入求值行 */
-.fnpad-eval { display: flex; align-items: center; gap: 6px; }
-.fnpad-eval-label { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted); }
+.fnpad-eval {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: nowrap; min-width: 0;
+}
+.fnpad-eval-label {
+  flex: none; white-space: nowrap;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--muted);
+}
 .fnpad-eval-field {
-  width: 64px; padding: 6px 8px; font-size: 12px;
+  flex: none; width: 56px; padding: 6px 8px; font-size: 12px;
   font-family: ui-monospace, Menlo, monospace;
   border: 1px solid var(--line-strong); border-radius: 8px;
   background: var(--surface); color: var(--ink);
 }
 .fnpad-eq-btn {
-  width: 34px; padding: 6px 0; font-size: 13px; font-weight: 700;
+  flex: none; width: 34px; padding: 6px 0; font-size: 13px; font-weight: 700;
   border: none; border-radius: 8px;
   background: var(--tint); color: var(--tint-ink);
 }
