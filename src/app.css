@@ -16,6 +16,10 @@
   --tick-text: #8a8377;
   --chrome: rgba(255, 254, 251, .96);
   --chrome-soft: rgba(255, 254, 251, .90);
+  /* Liquid Glass：低负载玻璃材质（仅浮层，blur 半径保守，无动画） */
+  --glass: rgba(255, 254, 251, .58);
+  --glass-panel: rgba(255, 254, 251, .72);
+  --glass-hi: rgba(255, 255, 255, .55);
   --tint: #e8effd;
   --tint-ink: #1d4ed8;
   --tint-line: #bfd3fb;
@@ -476,6 +480,9 @@ button.with-icon svg { flex: none; }
 .panel.theme-dark {
   color-scheme: dark;
   background: var(--page);
+  --glass: rgba(42, 39, 35, .52);
+  --glass-panel: rgba(42, 39, 35, .68);
+  --glass-hi: rgba(255, 255, 255, .14);
   --page: #1c1a17;
   --surface: #272521;
   --surface-2: #302d28;
@@ -1012,3 +1019,62 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 /* ---------- 设置：工具栏自定义 ---------- */
 .rail-pick { display: grid; gap: 6px; padding: 4px 2px 2px; }
 .rail-pick-label { font-size: 11.5px; color: var(--muted); }
+
+/* ============================================================
+   Liquid Glass（渐进增强）
+   规则：只模糊浮层（面积小）；画布/内容区永不模糊；
+   blur 半径 ≤14px；无玻璃相关动画；不支持的 WebView 自动回退原底色。
+   ============================================================ */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  /* 小浮层：工具列 / 操作条 / 胶囊 / 迷你条 / 浮球菜单 / 提示 / toast */
+  .rail,
+  .lasso-bar,
+  .seg,
+  .mini-bar,
+  .quickball-menu,
+  .stage-hint,
+  .stage-topic,
+  .toast {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    backdrop-filter: blur(14px) saturate(1.5);
+    box-shadow: inset 0 1px 0 var(--glass-hi), var(--shadow);
+  }
+
+  /* 大面板（抽屉 / 计算器）：轻玻璃，保可读性 */
+  .drawer,
+  .fnpad {
+    background: var(--glass-panel);
+    -webkit-backdrop-filter: blur(10px) saturate(1.35);
+    backdrop-filter: blur(10px) saturate(1.35);
+    box-shadow: inset 0 1px 0 var(--glass-hi), 0 -6px 26px rgba(30, 25, 18, .16);
+  }
+
+  /* 快捷浮球：玻璃球质感（渐变 + 顶部高光 + 底部内影） */
+  .quickball-btn {
+    background: linear-gradient(160deg, rgba(37, 99, 235, .78), rgba(29, 78, 216, .55));
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+    backdrop-filter: blur(8px) saturate(1.4);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .5),
+      inset 0 -2px 4px rgba(0, 0, 0, .18),
+      0 6px 18px rgba(37, 99, 235, .4);
+  }
+  .quickball.open .quickball-btn {
+    background: linear-gradient(160deg, rgba(42, 39, 35, .82), rgba(42, 39, 35, .6));
+    box-shadow:
+      inset 0 1px 0 var(--glass-hi),
+      inset 0 -2px 4px rgba(0, 0, 0, .2),
+      0 6px 18px rgba(0, 0, 0, .32);
+  }
+
+  /* 深色下 toast 提高对比（玻璃层叠文字区） */
+  .panel.theme-dark .toast {
+    background: rgba(42, 39, 35, .62);
+  }
+
+  /* 工具列选中态在玻璃上仍清晰 */
+  .rail-btn.on {
+    background: var(--glass-panel);
+  }
+}
