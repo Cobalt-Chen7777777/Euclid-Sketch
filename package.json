@@ -11,7 +11,8 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "check": "eslint . --max-warnings=0 && tsc --noEmit"
+    "check": "eslint . --max-warnings=0 && tsc --noEmit",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -35,5 +36,18 @@
     "typescript": "5.9.3",
     "typescript-eslint": "^8.72.0",
     "vite": "^8.3.4"
-  }
+  },
+  "description": "Euclid Sketch：MarginNote 5 场景插件——函数、几何、立体模型与题目作图，画完直接写进卡片",
+  "homepage": "https://github.com/Cobalt-Chen7777777/Euclid-Sketch#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cobalt-Chen7777777/Euclid-Sketch.git"
+  },
+  "keywords": [
+    "marginnote",
+    "addon",
+    "math",
+    "geometry",
+    "graphing"
+  ]
 }

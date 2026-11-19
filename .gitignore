@@ -7,3 +7,6 @@ release/
 .DS_Store
 shots/
 docs/preview-*.png
+
+# 社区自动化产物
+release/*.zip

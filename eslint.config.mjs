@@ -107,8 +107,11 @@ export default tseslint.config(
       "eslint.config.*",
       "eslint/**",
       "vite.config.*",
-      // 无头回归脚本（node 直跑，非页面代码）
+      // 无头回归与社区自动化脚本（node / Playwright 直跑，非页面代码）
       "verify-*.mjs",
+      "scripts/**",
+      // 历史留档的 native 混合形态代码（已停用，仅参考）
+      "docs/archive/**",
       // native 层留档（已停用）：JSB 环境代码 var / 空 catch 是刻意的，不按页面规则检查
       "docs/native-hybrid",
       // 临时验证脚本（下划线前缀）
