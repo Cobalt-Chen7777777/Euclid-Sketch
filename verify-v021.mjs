@@ -260,7 +260,7 @@ async function main() {
     await page.waitForTimeout(500);
     const imgShape = await page.evaluate(() => Boolean(document.querySelector(".canvas-svg image")));
     record("卡片图导入成功", imgShape);
-    const renderUrls = await page.evaluate(() => (window as unknown as { __renderUrls: string[] }).__renderUrls);
+    const renderUrls = await page.evaluate(() => window.__renderUrls);
     const hitFocus = renderUrls.some((u) => u.includes("/notes/n-2/render"));
     record("渲染目标 = 焦点卡", hitFocus, renderUrls.join(" | ") || "无请求");
 
