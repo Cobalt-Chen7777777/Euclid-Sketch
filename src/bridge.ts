@@ -26,6 +26,38 @@ export async function hasImageWriteCapability(caps: Capabilities): Promise<boole
   return routes.some((r) => /image|media|attach|picture/i.test(r));
 }
 
+/**
+ * 把选定卡片渲染成一张长图（标题 / 正文 / 摘录图 / 插图 / 手写合成）。
+ * 对应 GET /bridge/v1/notes/{noteid}/render —— 返回图片二进制，需要 fetch 原语读取。
+ * 失败（无内容 / 超像素上限 / 断网）返回 null，由调用方提示。
+ */
+export async function renderCardImage(
+  noteid: string,
+  width = 880,
+): Promise<{ src: string; w: number; h: number } | null> {
+  try {
+    const res = await fetch(`/bridge/v1/notes/${noteid}/render?format=png&width=${width}`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) return null;
+    const src = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("图片读取失败"));
+      reader.readAsDataURL(blob);
+    });
+    const size = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.width, h: img.height });
+      img.onerror = () => reject(new Error("图片解析失败"));
+      img.src = src;
+    });
+    return { src, w: size.w, h: size.h };
+  } catch {
+    return null;
+  }
+}
+
 /** 写卡片标题 */
 export async function setCardTitle(noteid: string, text: string): Promise<{ ok: boolean; error?: string }> {
   const res = await mn.api(`/notes/${noteid}/title`, {

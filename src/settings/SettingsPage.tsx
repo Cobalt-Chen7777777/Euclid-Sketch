@@ -7,7 +7,7 @@ import { useState } from "react";
 import { checkUpdate } from "../update";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
-import { RAIL_CATALOG } from "../settings/model";
+import { RailCustomizer } from "./RailCustomizer";
 import {
   AngleIcon, ChevronIcon, EraserIcon, ExportIcon, GridIcon, ImageIcon, ImportIcon, InfoIcon, MagnetIcon,
   PaletteIcon, PenIcon, PolygonIcon, ResetIcon, RulerIcon, SmoothIcon,
@@ -111,43 +111,12 @@ export function SettingsPage({
 
       {section === "canvas" ? (
         <>
-          <SettingsGroup title="工具栏与线型" accent="violet">
-            <SettingRow
-              icon={<RulerIcon />}
-              title="新图元默认虚线"
-              subtitle="线段 / 圆 / 矩形等直接画成虚线；已有图形在「绘图选项 → 图形列表」里切换"
-              trailing={
-                <Toggle
-                  checked={settings.dashedDefault}
-                  label="新图元默认虚线"
-                  onChange={(dashedDefault) => onChange({ dashedDefault })}
-                />
-              }
+          <SettingsGroup title="工具栏" accent="violet">
+            <RailCustomizer
+              railTools={settings.railTools}
+              railPresets={settings.railPresets}
+              onChange={onChange}
             />
-            <div className="rail-pick">
-              <span className="rail-pick-label">工具栏按钮 · 点选显示 / 隐藏（「选择」始终显示）</span>
-              <div className="chips">
-                {RAIL_CATALOG.map((c) => {
-                  const on = settings.railTools.includes(c.id) || c.id === "select";
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`chip${on ? " on" : ""}`}
-                      onClick={() => {
-                        if (c.id === "select") return;
-                        const next = on
-                          ? settings.railTools.filter((x) => x !== c.id)
-                          : [...settings.railTools, c.id];
-                        onChange({ railTools: next.length > 0 ? next : ["select"] });
-                      }}
-                    >
-                      {c.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </SettingsGroup>
 
           <SettingsGroup title="画布显示" accent="blue">
@@ -331,12 +300,6 @@ export function SettingsPage({
               title="导出模型 JSON"
               subtitle="图形、笔迹与视图范围，可再次导入"
               onClick={data.onExport}
-            />
-            <SettingRow
-              icon={<ImageIcon />}
-              title="导出 PNG 图片"
-              subtitle="2× 分辨率，可在 MN 中手动插入"
-              onClick={data.onExportPng}
             />
           </SettingsGroup>
 

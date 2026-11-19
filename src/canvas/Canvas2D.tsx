@@ -41,8 +41,8 @@ export interface CanvasOptions {
   inkSmoothing: boolean;
   /** 画角度时第二条边吸附到特殊角（30/45/60/90…） */
   specialAngleSnap: boolean;
-  /** 线型：新画图元默认虚线 */
-  dashedDefault: boolean;
+  /** 线型：画布样式开关——开启后画什么都画成虚线 */
+  dashStyle: boolean;
 }
 
 interface Props {
@@ -60,8 +60,8 @@ interface Props {
   onSelect: (id: string | null) => void;
   onToast?: (msg: string) => void;
   /** place 工具要绘制的图元类型与边数 */
-  /** 线型：新画图元默认虚线 */
-  dashedDefault: boolean;
+  /** 线型：画布样式开关——开启后画什么都画成虚线 */
+  dashStyle: boolean;
   /** 套索/多选：当前选中的图形 id 集合 */
   selectionIds: string[];
   onSelectionChange: (ids: string[]) => void;
@@ -256,7 +256,7 @@ export function Canvas2D(props: Props) {
         const { shape, deg, snapped } = createAngle(
           angleDraft.v, angleDraft.arm1, world, color, options.specialAngleSnap,
         );
-        const styled = options.dashedDefault ? ({ ...shape, dashed: true } as Shape) : shape;
+        const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
         setShapes((prev) => [...prev, styled]);
         onSelect(shape.id);
         setAngleDraft(null);
@@ -398,7 +398,7 @@ export function Canvas2D(props: Props) {
       if (r > 0.15) {
         setShapes((prev) => [...prev, {
           id: newId("circle"), type: "circle", cx: drag.center.x, cy: drag.center.y, r, color,
-          dashed: options.dashedDefault || undefined,
+          dashed: options.dashStyle || undefined,
         } as CircleShape]);
         onLockedRadiusChange(r);
         onToast?.(`圆规画圆 r=${r.toFixed(2)}`);
@@ -406,7 +406,7 @@ export function Canvas2D(props: Props) {
     } else if (drag.kind === "draw") {
       const shape = createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides);
       if (shape) {
-        const styled = options.dashedDefault ? ({ ...shape, dashed: true } as Shape) : shape;
+        const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
         setShapes((prev) => [...prev, styled]);
         onSelect(styled.id);
       }

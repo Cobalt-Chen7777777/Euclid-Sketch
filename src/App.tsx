@@ -2,7 +2,7 @@ import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
 import type { Viewport } from "./canvas/viewport";
-import { addComment, focusCard, getCapabilities, hasImageWriteCapability } from "./bridge";
+import { addComment, focusCard, getCapabilities, hasImageWriteCapability, renderCardImage } from "./bridge";
 import {
   downloadDocument,
   downloadBlob,
@@ -42,7 +42,7 @@ import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
 import { AngleIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon, WriteIcon } from "./icons";
 import { useLassoClipboard } from "./useLassoClipboard";
-import { fileToImageShape } from "./model/image";
+import { fileToImageShape, imageSrcToShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
 const VIEW_W = 400;
@@ -139,11 +139,11 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     eraserRadius: settings.eraserRadius,
     inkSmoothing: settings.inkSmoothing,
     specialAngleSnap: settings.specialAngleSnap,
-    dashedDefault: settings.dashedDefault,
+    dashStyle: settings.dashStyle,
   }), [settings]);
 
-  // 面板尺寸：右下角拖动缩放 + 收起/关闭（实现方式同 CardLink）
-  const { onResizePointerDown, resetSize, collapse, expand, close } = useResizablePanel({
+  // 面板尺寸记忆与收起/关闭；窗口缩放把手已按用户要求移除
+  const { resetSize, collapse, expand, close } = useResizablePanel({
     remember: settings.rememberWindowSize,
   });
   // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度
@@ -225,6 +225,23 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       showToast(e instanceof Error ? e.message : "图片导入失败");
     }
   }, [viewport, color, setShapes, showToast]);
+
+  /** 从当前选定卡片渲染长图，插入画布（题目图上作图的主入口） */
+  const onImportCardImage = useCallback(async () => {
+    if (!targetCard) {
+      showToast("请先通过「下一张卡片」或设置页选定一张卡片");
+      return;
+    }
+    const rendered = await renderCardImage(targetCard);
+    if (!rendered) {
+      showToast("卡片渲染失败（可能没有内容或超过像素上限）");
+      return;
+    }
+    const shape = await imageSrcToShape(rendered.src, viewport, color, true);
+    setShapes((prev) => [...prev, shape]);
+    setSelectedId(shape.id);
+    showToast("已插入卡片图，可在图上直接作图");
+  }, [targetCard, viewport, color, setShapes, showToast]);
 
   /** 切换某个已有图形的虚线线型 */
   const onToggleDashed = useCallback((id: string) => {
@@ -407,7 +424,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onToast={showToast}
-              dashedDefault={settings.dashedDefault}
+              dashStyle={settings.dashStyle}
               selectionIds={lasso.selectionIds}
               onSelectionChange={lasso.setSelectionIds}
               placeType={placeType}
@@ -418,6 +435,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
           ) : (
             <SolidStage
               dark={resolvedTheme === "dark"}
+              onExportPng={() => { void onExportPng(); }}
               solid={solid}
               onPick={onPickSolid}
               onParam={updateSolidParam}
@@ -460,7 +478,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               railTools={settings.railTools}
               onTool={setTool}
               onPlaceType={setPlaceType}
-              onImportImage={() => imageInputRef.current?.click()}
+              onImportImage={() => { void onImportCardImage(); }}
               lockRadius={lockRadius}
               onToggleLock={onToggleLock}
               optionsOpen={optionsOpen}
@@ -487,7 +505,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
           />
 
           {tab === "2d" ? (
-            <p className="stage-hint">双指拖动平移 · 捏合缩放 · 右下角改窗口</p>
+            <p className="stage-hint">双指拖动平移 · 捏合缩放</p>
           ) : null}
 
           {tab === "2d" && optionsOpen ? (
@@ -496,7 +514,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               canvasBg={settings.canvasBg}
               onCanvasBg={(canvasBg) => updateSettings({ canvasBg })}
               placeType={placeType}
-              onPlaceType={setPlaceType}
+              onPlaceType={(t) => { setPlaceType(t); setTool("place"); }}
               placeSides={placeSides}
               onPlaceSides={(n) => updateSettings({ polygonSides: n })}
               penWidth={penWidth}
@@ -508,6 +526,10 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onSelect={setSelectedId}
               onDeleteShape={onDeleteShape}
               onToggleDashed={onToggleDashed}
+              dashStyle={settings.dashStyle}
+              onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
+              onExportPng={() => { void onExportPng(); }}
+              onImportImageFile={() => imageInputRef.current?.click()}
               lockRadius={lockRadius}
               lockedRadius={lockedRadius}
             />
@@ -532,20 +554,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         }}
       />
 
-      {/* 右下角拖动缩放；开启「跟随内容」时高度交给 mn.fit() */}
-      {settings.autoFitHeight ? null : (
-        <button
-          type="button"
-          className="resize-handle"
-          aria-label="右下角拖动缩放窗口"
-          title="拖动缩放；点击恢复默认尺寸"
-          onPointerDown={onResizePointerDown}
-        >
-          <svg viewBox="0 0 44 44" aria-hidden="true">
-            <path d="M12 35C27 35 35 27 35 12" />
-          </svg>
-        </button>
-      )}
     </main>
   );
 }

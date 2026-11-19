@@ -68,19 +68,27 @@ export function FunctionPad(props: Props) {
   const [compact, setCompact] = useState(false);
   const [mode, setMode] = useState<"fn" | "calc">("fn");
   const headDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
-  const onHeadDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  /**
+   * 整面板可拖动：按住面板任意空白处（非输入框 / 按钮 / 键盘 / 列表）即可拖。
+   * 拖动源元素要 capture，避免指针移出面板后事件丢失。
+   */
+  const onPadDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    const t = e.target as HTMLElement;
+    // 交互元素不作为拖动源；标题栏交给自己的 handler（它会更早收到事件并 stopPropagation？不——head 也走这套）
+    if (t.closest("input, button, select, .chips, .fnpad-keys, .fnpad-fnkeys, .fnpad-list, .fnbar, .drawer-close")) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const pad = e.currentTarget.closest(".fnpad") as HTMLElement | null;
-    if (!pad) return;
-    const rect = pad.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     headDrag.current = { px: e.clientX, py: e.clientY, ox: rect.left, oy: rect.top };
   };
-  const onHeadMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onPadDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = headDrag.current;
     if (!d) return;
-    setPos({ x: d.ox + e.clientX - d.px, y: Math.max(4, d.oy + e.clientY - d.py) });
+    setPos({
+      x: d.ox + e.clientX - d.px,
+      y: Math.max(4, d.oy + e.clientY - d.py),
+    });
   };
-  const onHeadUp = () => { headDrag.current = null; };
+  const onPadDragEnd = () => { headDrag.current = null; };
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
   const curves = shapes.filter(isFormulaShape);
 
@@ -169,9 +177,13 @@ export function FunctionPad(props: Props) {
       className={`fnpad${compact ? " fnpad-compact" : ""}`}
       role="dialog"
       aria-label="函数输入"
+      onPointerDown={onPadDragStart}
+      onPointerMove={onPadDragMove}
+      onPointerUp={onPadDragEnd}
+      onPointerCancel={onPadDragEnd}
       style={pos ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" } : undefined}
     >
-      <div className="fnpad-head" onPointerDown={onHeadDown} onPointerMove={onHeadMove} onPointerUp={onHeadUp} title="拖动移动面板">
+      <div className="fnpad-head" title="按住面板任意空白处拖动">
         <b>{mode === "fn" ? "函数" : "计算器"}</b>
         <div className="fnpad-head-right">
           <div className="seg small" role="group" aria-label="面板模式" onPointerDown={(e) => e.stopPropagation()}>

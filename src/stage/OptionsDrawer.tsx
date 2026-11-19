@@ -33,6 +33,13 @@ interface Props {
   onSelect: (id: string | null) => void;
   onDeleteShape: (id: string) => void;
   onToggleDashed: (id: string) => void;
+  /** 线型样式开关（画布上画什么都是虚线） */
+  dashStyle: boolean;
+  onDashStyle: (v: boolean) => void;
+  /** 导出当前画布为 PNG（2×） */
+  onExportPng: () => void;
+  /** 从本地文件导入图片（备用来源；主入口为卡片渲染图） */
+  onImportImageFile: () => void;
   lockRadius: boolean;
   lockedRadius: number | null;
 }
@@ -43,7 +50,7 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed,
+    onToggleDashed, dashStyle, onDashStyle, onExportPng, onImportImageFile,
   } = props;
 
   return (
@@ -74,6 +81,16 @@ export function OptionsDrawer(props: Props) {
           <p className="drawer-hint">
             {canvasBg === "coord" ? "带网格与刻度，适合函数与几何作图" : "纯白纸面，适合随手演算与涂画"}
           </p>
+        </section>
+
+        {/* 线型：画布样式开关（与颜色/笔宽同级） */}
+        <section className="drawer-sec">
+          <h3>线型</h3>
+          <div className="chips">
+            <button type="button" className={`chip${dashStyle ? "" : " on"}`} onClick={() => onDashStyle(false)}>实线</button>
+            <button type="button" className={`chip${dashStyle ? " on" : ""}`} onClick={() => onDashStyle(true)}>虚线</button>
+          </div>
+          <p className="drawer-hint">虚线开启后，新画的线段 / 圆 / 矩形等都是虚线；已有图形在下方列表可单独切换</p>
         </section>
 
         {/* 图元类型 */}
@@ -173,6 +190,14 @@ export function OptionsDrawer(props: Props) {
               ))}
             </div>
           )}
+        </section>
+
+        {/* 导出 PNG（画布在 DOM 里才可用，所以入口放画布侧） */}
+        <section className="drawer-sec">
+          <h3>导出</h3>
+          <button type="button" className="chip export-chip" onClick={onExportPng}>导出 PNG 图片（2×）</button>
+          <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
+          <p className="drawer-hint">导出含画布上全部图形；卡片图请用左侧工具栏的「插入卡片图」。JSON 导入导出在「设置」页</p>
         </section>
       </div>
     </aside>

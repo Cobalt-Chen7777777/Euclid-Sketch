@@ -478,6 +478,9 @@ button.with-icon svg { flex: none; }
 
 /* ---------- 深色主题：由入口写入 <html data-theme="dark"> ---------- */
 .panel.theme-dark {
+  /* 深色下加强列表项 / 色块对比（用户反馈「图形下的 UI 反色 / 显色 bug」） */
+  --item-bg: #383430;
+  --item-line: #5a544c;
   color-scheme: dark;
   background: var(--page);
   --glass: rgba(42, 39, 35, .52);
@@ -511,6 +514,17 @@ button.with-icon svg { flex: none; }
 .panel.theme-dark .toast { background: rgba(238, 233, 223, .95); color: #1c1a17; }
 .panel.theme-dark .resize-handle svg { stroke: #6f6a61; }
 .panel.theme-dark .rail-btn.on { background: var(--tint); color: var(--tint-ink); }
+/* 深色：图形列表项与色板边框提亮，避免黑底黑块 */
+.panel.theme-dark .shape-item,
+.panel.theme-dark .fnpad-item { background: var(--item-bg); border: 1px solid var(--item-line); }
+.panel.theme-dark .swatch { box-shadow: 0 0 0 1px rgba(255, 255, 255, .35); }
+.panel.theme-dark .dash-btn,
+.panel.theme-dark .del-btn,
+.panel.theme-dark .set-select,
+.panel.theme-dark .fnpad-field,
+.panel.theme-dark .fnbar-field,
+.panel.theme-dark .fnbar-x { border-color: var(--item-line); background: var(--item-bg); }
+.shape-item .dot { box-shadow: 0 0 0 1px rgba(120, 114, 105, .6); }
 .panel.theme-dark .quickball-btn { box-shadow: 0 6px 20px rgba(0, 0, 0, .55); }
 
 /* ---------- 悬浮工具列（左侧） ---------- */
@@ -937,7 +951,10 @@ button.with-icon svg { flex: none; }
 /* panel 之外的页面底色：用 :has 跟着主题走（Safari 15.4+ 支持） */
 html:has(.panel.theme-dark) { background: #17150f; }
 html:has(.panel.theme-dark) body { background: #17150f; }
-.panel.theme-dark { border-radius: 0; }
+.panel.theme-dark {
+  /* 深色下加强列表项 / 色块对比（用户反馈「图形下的 UI 反色 / 显色 bug」） */
+  --item-bg: #383430;
+  --item-line: #5a544c; border-radius: 0; }
 
 /* 键盘弹起时保持输入行可见：sheet 内部滚动，输入行吸顶 */
 .fnpad:focus-within .fnbar {
@@ -988,7 +1005,10 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 .lasso-count { font-size: 11px; color: var(--muted); padding: 0 4px; white-space: nowrap; }
 
 /* ---------- 函数面板小窗：拖动 / 紧凑 / 模式 ---------- */
-.fnpad-head { cursor: grab; touch-action: none; }
+.fnpad { touch-action: none; }
+/* 键盘 / 列表恢复内部滚动（子元素 touch-action 覆盖父级） */
+.fnpad-keys, .fnpad-fnkeys, .fnpad-list { touch-action: pan-y; }
+.fnpad-head { cursor: grab; }
 .fnpad-head:active { cursor: grabbing; }
 .fnpad-compact {
   left: auto;
@@ -1078,3 +1098,18 @@ html:has(.panel.theme-dark) body { background: #17150f; }
     background: var(--glass-panel);
   }
 }
+
+/* ---------- 工具栏自定义器 ---------- */
+.rail-customizer { display: grid; gap: 8px; padding: 4px 2px 2px; }
+.rail-pick-label { font-size: 11.5px; color: var(--muted); }
+.preset-wrap { display: inline-flex; align-items: center; gap: 2px; }
+.preset-del {
+  width: 18px; height: 18px; padding: 0;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--muted);
+  font-size: 12px; line-height: 1;
+}
+.preset-del:active { color: #c2410c; }
+.chip.preset-save { border-style: dashed; color: var(--tint-ink); }
+.chip.ghost { opacity: 0.55; border-style: dashed; }
+.chip.dragging { opacity: 0.45; transform: scale(1.06); }

@@ -14,9 +14,11 @@ interface Props {
   onPick: (kind: SolidKind) => void;
   onParam: (key: string, value: number) => void;
   onReady: (capture: () => string) => void;
+  /** 导出当前 3D 视图为 PNG */
+  onExportPng?: () => void;
 }
 
-export function SolidStage({ solid, onPick, onParam, onReady, dark = false }: Props) {
+export function SolidStage({ solid, onPick, onParam, onReady, dark = false, onExportPng }: Props) {
   const meta = solid ? SOLID_LIBRARY.find((m) => m.kind === solid.kind) : null;
   // 半透明（默认，能看见背面结构）/ 实体（隐藏棱用虚线）
   const [mode, setMode] = useState<SolidMode>("ghost");
@@ -46,6 +48,9 @@ export function SolidStage({ solid, onPick, onParam, onReady, dark = false }: Pr
               <button className={mode === "solid" ? "on" : ""} onClick={() => setMode("solid")}>实体</button>
             </div>
             <button type="button" className="chip" onClick={() => setResetSignal((n) => n + 1)}>复位视角</button>
+            {onExportPng ? (
+              <button type="button" className="chip" onClick={onExportPng}>导出 PNG</button>
+            ) : null}
           </div>
           <SolidView
             solid={solid}

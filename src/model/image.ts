@@ -10,9 +10,21 @@ import { newId } from "./types";
 
 const MAX_SIDE = 1200;
 
+/** 从文件导入（读为 dataURL 后走同一压缩管线） */
 export async function fileToImageShape(file: File, viewport: Viewport, color: string): Promise<ImageShape> {
-  const dataUrl = await readAsDataURL(file);
-  const img = await loadImage(dataUrl);
+  const src = await readAsDataURL(file);
+  return imageSrcToShape(src, viewport, color);
+}
+
+/** 把一张图片 dataURL 压缩并生成画布图形（卡片渲染图 / 文件导入共用） */
+export async function imageSrcToShape(
+  rawSrc: string,
+  viewport: Viewport,
+  color: string,
+  /** 非空时沿用原图（已是压缩好的 PNG，如卡片渲染图） */
+  reuseSrc = false,
+): Promise<ImageShape> {
+  const img = await loadImage(rawSrc);
 
   const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * scale));
@@ -21,8 +33,8 @@ export async function fileToImageShape(file: File, viewport: Viewport, color: st
   canvas.width = w;
   canvas.height = h;
   canvas.getContext("2d")?.drawImage(img, 0, 0, w, h);
-  const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
-  const src = canvas.toDataURL(mime, 0.85);
+  const mime = reuseSrc ? "image/png" : "image/jpeg";
+  const src = reuseSrc ? rawSrc : canvas.toDataURL(mime, 0.85);
 
   // 世界尺寸：宽约占可视宽度一半，保持图片宽高比
   const spanX = viewport.xRange[1] - viewport.xRange[0];
@@ -51,7 +63,7 @@ function readAsDataURL(file: File): Promise<string> {
   });
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);

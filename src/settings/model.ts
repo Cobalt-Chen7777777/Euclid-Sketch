@@ -23,10 +23,12 @@ export interface SketchSettings {
   snapEnabled: boolean;
   /** 画布：网格密度（世界坐标单位） */
   gridStep: number;
-  /** 线型：新画图元默认为虚线 */
-  dashedDefault: boolean;
+  /** 线型：画布样式开关——开启后画什么都画成虚线 */
+  dashStyle: boolean;
   /** 工具栏显示的工具按钮（顺序即显示顺序） */
   railTools: string[];
+  /** 工具栏方案：一键切换整组按钮组合 */
+  railPresets: { name: string; tools: string[] }[];
   /** 图元：描边线宽 */
   strokeWidth: number;
   /** 画笔：默认笔宽 */
@@ -54,8 +56,12 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   showTicks: true,
   snapEnabled: true,
   gridStep: 1,
-  dashedDefault: false,
+  dashStyle: false,
   railTools: ["select", "pen", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"],
+  railPresets: [
+    { name: "常用", tools: ["select", "pen", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"] },
+    { name: "精简", tools: ["select", "pen", "eraser", "line", "point", "circle", "place"] },
+  ],
   strokeWidth: 2,
   penWidth: 3,
   inkSmoothing: true,
@@ -97,6 +103,18 @@ const RAIL_TOOL_IDS = new Set([
   "place", "compass", "image",
 ]);
 
+function readRailPresets(raw: unknown, fallback: { name: string; tools: string[] }[]): { name: string; tools: string[] }[] {
+  if (!Array.isArray(raw)) return fallback;
+  const presets = raw
+    .filter((x): x is { name?: unknown; tools?: unknown } => typeof x === "object" && x !== null)
+    .map((x) => ({
+      name: typeof x.name === "string" && x.name.trim() ? x.name.trim().slice(0, 10) : "方案",
+      tools: readRailTools(x.tools, []),
+    }))
+    .filter((x) => x.tools.length > 0);
+  return presets.length > 0 ? presets : fallback;
+}
+
 function readRailTools(raw: unknown, fallback: string[]): string[] {
   if (!Array.isArray(raw)) return fallback;
   const picked = raw.filter((x): x is string => typeof x === "string" && RAIL_TOOL_IDS.has(x));
@@ -125,8 +143,9 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     showTicks: readBoolean(source.showTicks, DEFAULT_SETTINGS.showTicks),
     snapEnabled: readBoolean(source.snapEnabled, DEFAULT_SETTINGS.snapEnabled),
     gridStep: readNumber(source.gridStep, DEFAULT_SETTINGS.gridStep, 0.25, 5),
-    dashedDefault: readBoolean(source.dashedDefault, DEFAULT_SETTINGS.dashedDefault),
+    dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),
     railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
+    railPresets: readRailPresets(source.railPresets, DEFAULT_SETTINGS.railPresets),
     strokeWidth: readNumber(source.strokeWidth, DEFAULT_SETTINGS.strokeWidth, 1, 6),
     penWidth: readNumber(source.penWidth, DEFAULT_SETTINGS.penWidth, 1, 12),
     inkSmoothing: readBoolean(source.inkSmoothing, DEFAULT_SETTINGS.inkSmoothing),
