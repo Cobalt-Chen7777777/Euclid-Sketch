@@ -74,15 +74,20 @@
 
 ## 安装
 
-### 方式一：模板包（推荐）
+安装包在本仓库 [`release/`](release) 目录，可直接下载。
 
-1. 从 Releases 下载 `Euclid Sketch-x.y.z.mntemplate`
-2. 存进 iPad「文件」App（AirDrop / iCloud 均可）
-3. MarginNote → **设置 → 场景模板 → 管理场景模板 → 导入**
+### 方式一：模板包 + 插件（推荐，功能完整）
+
+卡片菜单里的「写入批注 / 导入此卡到草图 / 设为草图目标卡」命令由**模板**登记，只装插件时这些菜单项不会出现。
+
+1. 下载 `Euclid Sketch-x.y.z.mntemplate`，存进 iPad「文件」App（AirDrop / iCloud 均可）
+2. MarginNote → **设置 → 场景模板 → 管理场景模板 → 导入**
+3. 再下载 `Euclid Sketch-x.y.z.mnaddon` → MarginNote → **设置 → 插件 → 导入**
 
 ### 方式二：只装插件
 
-下载 `.mnaddon` → MarginNote → **设置 → 插件 → 导入**。
+下载 `.mnaddon` → MarginNote → **设置 → 插件 → 导入**。面板全部绘图与图片功能可用；
+目标卡依靠「摘录自动跟随 / 当前页推断 / 顶栏同步」，但没有卡片菜单命令。
 
 > ⚠️ MarginNote 对**同版本**的包会跳过安装。重装前请先删掉旧插件/旧模板，或使用更高版本号的包。
 
