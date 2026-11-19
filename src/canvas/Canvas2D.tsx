@@ -17,7 +17,7 @@ import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
 import { createPrimitiveByDrag, getHandles, hitTest, type Handle } from "../model/geometry";
 import { smoothPoints } from "../model/ink";
 import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
-import { hitImageLockBtn, ImageLockBadges } from "./imageLock";
+import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
 import {
@@ -62,6 +62,10 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onToast?: (msg: string) => void;
+  /** 图片锁定切换（锁定后橡皮擦不掉） */
+  onToggleImageLock: (id: string) => void;
+  /** 窗口拖动缩放中：冻结视口重算（SVG 自己拉伸，松手后一次算完），避免每帧全量重绘 */
+  frozen?: boolean;
   /** place 工具要绘制的图元类型与边数 */
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
@@ -93,7 +97,7 @@ export function Canvas2D(props: Props) {
     shapes, setShapes, viewport: v, setViewport, tool, color,
     lockRadius, lockedRadius, onLockedRadiusChange,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
-    selectionIds, onSelectionChange,
+    selectionIds, onSelectionChange, onToggleImageLock, frozen = false,
   } = props;
 
   const [drag, setDrag] = useState<DragState>({ kind: "none" });
@@ -120,6 +124,9 @@ export function Canvas2D(props: Props) {
 
   // 画布铺满容器：直接量 svg 自身尺寸（不是带边框的父容器），
   // 否则 viewBox 与渲染尺寸有 1–2px 差，x/y 比例不一致会把角度画歪
+  // 拖动窗口缩放期间冻结视口重算：
+  // SVG preserveAspectRatio=none 会自行拉伸铺满，松手（frozen→false）时 effect 重跑，
+  // 首次 schedule 立即 apply 一次——避免拖动中反复全量重绘网格与图形
   useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl || typeof ResizeObserver !== "function") return;
@@ -127,6 +134,7 @@ export function Canvas2D(props: Props) {
     let measured = false;
 
     const apply = () => {
+      if (frozen) return;
       const rect = svgEl.getBoundingClientRect();
       if (rect.width < 40 || rect.height < 40) return;
       setViewport((prev) => {
@@ -157,7 +165,7 @@ export function Canvas2D(props: Props) {
       observer.disconnect();
       if (timer) clearTimeout(timer);
     };
-  }, [setViewport, svgRef]);
+  }, [setViewport, svgRef, frozen]);
 
   const localPoint = useCallback((e: { clientX: number; clientY: number }): Point2 => {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -227,15 +235,6 @@ export function Canvas2D(props: Props) {
     // 捕获挂在 svg 本身：捕获在子节点上时，预览重渲染可能把节点换掉导致捕获丢失
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const sp = localPoint(e);
-
-    // 图片左上角锁定徽标：优先于一切工具手势
-    const lockHit = hitImageLockBtn(shapes, v, sp);
-    if (lockHit) {
-      const nowLocked = !lockHit.locked;
-      setShapes((prev) => prev.map((s) => (s.id === lockHit.id && s.type === "image" ? { ...s, locked: nowLocked } : s)));
-      onToast?.(nowLocked ? "图片已锁定，橡皮不再擦除" : "图片已解锁，橡皮可擦除");
-      return;
-    }
 
     pointers.current.set(e.pointerId, sp);
 
@@ -563,9 +562,7 @@ export function Canvas2D(props: Props) {
               fill="none" stroke="#2563eb" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.8} />
           );
         })}
-        {/* 图片左上角锁定徽标：点击切换橡皮保护 */}
-        <ImageLockBadges shapes={shapes} v={v} />
-        <ShapeLayer
+        {/* 图片锁定徽标：点击切换橡皮保护 */}        <ShapeLayer
           shapes={shapes}
           viewport={v}
           highlightId={selectedId}
@@ -577,6 +574,8 @@ export function Canvas2D(props: Props) {
           strokeWidth={options.strokeWidth}
         />
       </svg>
+      {/* 图片锁定徽标：HTML 覆盖层（SVG 内固定尺寸图形会随 viewBox 拉伸变形，锁会歪） */}
+      <ImageLockBadges shapes={shapes} v={v} onToggle={onToggleImageLock} />
     </div>
   );
 }

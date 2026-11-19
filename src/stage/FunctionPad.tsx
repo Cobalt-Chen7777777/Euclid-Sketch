@@ -69,25 +69,63 @@ export function FunctionPad(props: Props) {
   const [mode, setMode] = useState<"fn" | "calc">("fn");
   /** 拖动浮条：按住它才能移动面板（真机验证：整面板任意处拖动会被 MN 宿主手势干扰，不灵敏） */
   const barDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  /** 拖动期间挂在浮条上的原生触摸拦截的清理函数 */
+  const barDragCleanup = useRef<(() => void) | null>(null);
+  /** rAF 节流：最新的指针位置与动画帧句柄 */
+  const barLast = useRef<{ x: number; y: number } | null>(null);
+  const barRaf = useRef<number | null>(null);
   const onBarDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    // 原生触摸拦截（与画布/缩放把手同款）：React 的 preventDefault 拦不住
+    // WKWebView 宿主手势，不拦的话拖浮条会被宿主当成「拖动面板窗口」导致乱飘
+    const bar = e.currentTarget;
+    const stopTouch = (ev: Event) => ev.preventDefault();
+    bar.addEventListener("touchstart", stopTouch, { passive: false });
+    bar.addEventListener("touchmove", stopTouch, { passive: false });
+    barDragCleanup.current = () => {
+      bar.removeEventListener("touchstart", stopTouch);
+      bar.removeEventListener("touchmove", stopTouch);
+    };
     // 起点 = 面板相对定位父级（.stage）的偏移。不能用视口 rect：
     // style.left/top 是相对 .stage 的，用视口坐标会把 header 高度算进去，首次拖动整块跳变
     const panel = (e.currentTarget.closest(".fnpad") as HTMLElement | null) ?? e.currentTarget;
     barDrag.current = { px: e.clientX, py: e.clientY, ox: panel.offsetLeft, oy: panel.offsetTop };
+    barLast.current = null;
+    if (barRaf.current != null) {
+      cancelAnimationFrame(barRaf.current);
+      barRaf.current = null;
+    }
   };
   const onBarDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = barDrag.current;
     if (!d) return;
-    setPos({
-      x: d.ox + e.clientX - d.px,
-      y: Math.max(4, d.oy + e.clientY - d.py),
-    });
+    // rAF 节流：拖动帧合并到下一帧渲染，避免高频 setState 拖累整棵树
+    if (barRaf.current == null) {
+      barRaf.current = requestAnimationFrame(() => {
+        barRaf.current = null;
+        const cur = barDrag.current;
+        if (!cur || barLast.current == null) return;
+        setPos({
+          x: cur.ox + barLast.current.x - cur.px,
+          y: Math.max(4, cur.oy + barLast.current.y - cur.py),
+        });
+      });
+    }
+    barLast.current = { x: e.clientX, y: e.clientY };
   };
-  const onBarDragEnd = () => { barDrag.current = null; };
+  const onBarDragEnd = () => {
+    barDrag.current = null;
+    barLast.current = null;
+    if (barRaf.current != null) {
+      cancelAnimationFrame(barRaf.current);
+      barRaf.current = null;
+    }
+    barDragCleanup.current?.();
+    barDragCleanup.current = null;
+  };
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
   const curves = shapes.filter(isFormulaShape);
 

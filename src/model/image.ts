@@ -36,10 +36,19 @@ export async function imageSrcToShape(
   const mime = reuseSrc ? "image/png" : "image/jpeg";
   const src = reuseSrc ? rawSrc : canvas.toDataURL(mime, 0.85);
 
-  // 世界尺寸：宽约占可视宽度一半，保持图片宽高比
+  // 世界尺寸：宽约占可视宽度一半，保持图片真实宽高比；超高的长图（题目截图）
+  // 优先铺满画布高度的 85%，宽度按比例缩——避免长图被压扁变形
   const spanX = viewport.xRange[1] - viewport.xRange[0];
-  const wWorld = Math.min(spanX * 0.5, 6);
-  const hWorld = wWorld * (h / w);
+  const spanY = viewport.yRange[1] - viewport.yRange[0];
+  const iw = img.naturalWidth || img.width || 1;
+  const ih = img.naturalHeight || img.height || 1;
+  let wWorld = Math.min(spanX * 0.5, 6);
+  let hWorld = wWorld * (ih / iw);
+  const maxH = spanY * 0.85;
+  if (hWorld > maxH) {
+    hWorld = maxH;
+    wWorld = hWorld * (iw / ih);
+  }
   const cx = (viewport.xRange[0] + viewport.xRange[1]) / 2;
   const cy = (viewport.yRange[0] + viewport.yRange[1]) / 2;
   return {
@@ -51,6 +60,8 @@ export async function imageSrcToShape(
     h: hWorld,
     src,
     color,
+    // 记录真实比例：后续缩放按它校正，长图永远不变形
+    aspect: ih / iw,
     // 导入即锁定：题目底图不会被橡皮误擦（左上角徽标可解锁）
     locked: true,
   };
@@ -95,11 +106,16 @@ export function imageHandles(shape: ImageShape): Handle[] {
     {
       id: "resize",
       at: { x: shape.x + shape.w, y: shape.y + shape.h },
-      apply: (s0, w) => ({
-        ...(s0 as ImageShape),
-        w: Math.max(0.5, w.x - (s0 as ImageShape).x),
-        h: Math.max(0.5, w.y - (s0 as ImageShape).y),
-      }),
+      apply: (s0, w) => {
+        const s = s0 as ImageShape;
+        // 等比缩放（锚点=左下角）：宽度和高度都给候选值，取变化更显著的一轴做主控，
+        // 高度始终按真实宽高比校正——图片永远不会被拖变形
+        const ratio = s.aspect && s.aspect > 0 ? s.aspect : s.h / Math.max(s.w, 1e-6);
+        const byX = Math.max(0.5, w.x - s.x);
+        const byY = Math.max(0.5, (w.y - s.y) / Math.max(ratio, 1e-6));
+        const width = Math.abs(byX - s.w) >= Math.abs(byY - s.w) ? byX : byY;
+        return { ...s, w: width, h: width * ratio };
+      },
     },
   ];
 }

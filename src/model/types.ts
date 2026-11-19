@@ -212,6 +212,8 @@ export interface ImageShape {
   color: string;
   /** 锁定保护：橡皮擦不掉（导入默认锁定，图片左上角徽标可切换） */
   locked?: boolean;
+  /** 真实宽高比（height/width）：缩放时按它校正，避免长图被压扁变形 */
+  aspect?: number;
 }
 
 export type SolidKind =

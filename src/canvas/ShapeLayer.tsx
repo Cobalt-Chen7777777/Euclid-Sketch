@@ -1,4 +1,5 @@
 /** 纯渲染：把 Shape[] 画成 SVG 元素。不含交互逻辑。 */
+import { memo } from "react";
 import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
@@ -230,10 +231,15 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
   }
 }
 
-export function ShapeLayer({
-  shapes, viewport: v, highlightId, preview, previewShape,
+/**
+ * 静态图形层（memo）：网格/刻度/已提交图形/控制点。
+ * 拖动预览帧（圆规/绘制/笔迹）只有预览部分变化，静态层 props 引用不变即整层跳过重渲染——
+ * 这是拖动流畅度的关键：每帧渲染成本从「全部图形」降到「单个预览元素」。
+ */
+const StaticLayer = memo(function StaticLayer({
+  shapes, viewport: v, highlightId,
   showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
-}: Props) {
+}: Omit<Props, "preview" | "previewShape">) {
   const coord = shapes.find((s) => s.type === "coord");
   const step = gridStep ?? (coord && coord.type === "coord" ? coord.grid : 1);
   const grid = gridLines(v, step);
@@ -241,7 +247,7 @@ export function ShapeLayer({
   const handles = selected ? getHandles(selected) : [];
 
   return (
-    <g>
+    <>
       <defs>
         <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
           <path d="M0,0 L0,6 L9,3 z" fill="#555" />
@@ -289,25 +295,55 @@ export function ShapeLayer({
         <g key={shape.id}>{renderShape(shape, v, shape.id === highlightId, strokeWidth)}</g>
       ))}
 
-      {/* 选中图形的控制点 */}
+      {/* 选中图形的控制点：缩放点用绿色 + 对角双箭头（与蓝色移动/端点区分），
+          配色取自主题绿（成功/尺寸语义），白描边保证任何底色上清晰 */}
       {handles.map((h) => {
         const p = toScreen(h.at, v);
+        const isResize = h.id === "resize";
+        if (isResize) {
+          return (
+            <g key={h.id}>
+              <circle cx={p.x} cy={p.y} r={12} fill="rgba(16, 185, 129, .14)" />
+              <circle cx={p.x} cy={p.y} r={6.5} fill="#10b981" stroke="#fff" strokeWidth={1.8} />
+              <path
+                d={`M${p.x - 2.4},${p.y - 2.4} L${p.x + 2.4},${p.y + 2.4}`}
+                stroke="#fff" strokeWidth={1.5} strokeLinecap="round"
+              />
+              <path
+                d={`M${p.x - 1.1},${p.y - 2.4} L${p.x - 2.4},${p.y - 2.4} L${p.x - 2.4},${p.y - 1.1}
+                    M${p.x + 1.1},${p.y + 2.4} L${p.x + 2.4},${p.y + 2.4} L${p.x + 2.4},${p.y + 1.1}`}
+                fill="none" stroke="#fff" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+              />
+            </g>
+          );
+        }
         return <circle key={h.id} cx={p.x} cy={p.y} r={6} fill="#fff" stroke="#2563eb" strokeWidth={2} />;
       })}
+    </>
+  );
+});
+
+export function ShapeLayer({
+  preview, previewShape,
+  ...rest
+}: Props) {
+  return (
+    <g>
+      <StaticLayer {...rest} />
 
       {/* 圆规预览 */}
       {preview ? (
         <circle
-          cx={toScreen({ x: preview.cx, y: 0 }, v).x}
-          cy={toScreen({ x: 0, y: preview.cy }, v).y}
-          r={radiusToScreen(preview.r, v)}
+          cx={toScreen({ x: preview.cx, y: 0 }, rest.viewport).x}
+          cy={toScreen({ x: 0, y: preview.cy }, rest.viewport).y}
+          r={radiusToScreen(preview.r, rest.viewport)}
           fill="none" stroke="#dc2626" strokeWidth={2} strokeDasharray="6 4" opacity={0.8}
         />
       ) : null}
 
       {/* 拖动绘制 / 笔迹实时预览 */}
       {previewShape ? (
-        <g opacity={0.65}>{renderShape(previewShape, v, false, strokeWidth)}</g>
+        <g opacity={0.65}>{renderShape(previewShape, rest.viewport, false, rest.strokeWidth ?? 2)}</g>
       ) : null}
     </g>
   );

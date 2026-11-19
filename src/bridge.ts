@@ -129,3 +129,38 @@ export function createBridge(): PanelCommand {
 }
 
 export type { Card };
+
+/** 草图批注的识别前缀（写入时用于找到并改写上次的批注，避免堆叠） */
+export const REPORT_MARK = "【Euclid Sketch 草图";
+
+interface CommentsList {
+  comments?: Array<{ index?: number; text?: string }>;
+}
+
+/**
+ * 写入或更新草图批注：同一张卡上已存在草图批注时改写它（保留一条），
+ * 否则新增。更新用 expectedPrefix 防并发覆盖（内容已变则退回新增）。
+ */
+export async function upsertComment(noteid: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const list = await mn.api<CommentsList>(`/notes/${noteid}/comments`);
+    if (!list.error) {
+      let target: { index: number; text: string } | null = null;
+      for (const c of list.comments ?? []) {
+        if (typeof c.index === "number" && typeof c.text === "string" && c.text.startsWith(REPORT_MARK)) {
+          target = { index: c.index, text: c.text };
+        }
+      }
+      if (target) {
+        const res = await mn.api(`/notes/${noteid}/comments/${target.index}`, {
+          method: "POST",
+          body: { text, format: "text", confirm: true, expectedPrefix: target.text.slice(0, 32) },
+        });
+        if (!res.error) return { ok: true };
+      }
+    }
+  } catch {
+    // 读取/更新失败：退回新增
+  }
+  return addComment(noteid, text);
+}

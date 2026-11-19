@@ -22,10 +22,45 @@ interface TopicTree {
 
 interface AppContext {
   available?: boolean;
-  /** 学习集信息（id 为 topicid） */
-  studySet?: { id?: string };
-  /** 当前焦点卡（用户正在看的卡） */
+  /** 打开中的文档（focused=true 为当前文档） */
+  documents?: Array<{
+    bookmd5?: string;
+    page?: number;
+    focused?: boolean;
+  }>;
+  /** 学习集（键名实测为 topicid，不是 id） */
+  studySet?: { topicid?: string };
+  /** 焦点卡：官方实测基本恒为 null，不可依赖，仅作尝试 */
   focusedNote?: string;
+  /** 用户在脑图里点选的卡（实测也常为空数组，仅作尝试） */
+  selectedNotes?: string[];
+}
+
+interface DocumentExcerpts {
+  items?: Array<{ noteid?: string; cardNoteId?: string; page?: number }>;
+}
+
+/**
+ * 从当前打开的文档页反查题目卡：文档摘要里 page === 当前页的摘录卡。
+ * 这是不依赖模板菜单的自动兜底——用户在做当前页的题时，该页的摘录卡就是目标卡。
+ */
+export async function inferTargetFromPage(): Promise<string | null> {
+  try {
+    const ctx = await mn.api<AppContext>("/context");
+    if (ctx.error || ctx.available === false) return null;
+    const doc = (ctx.documents ?? []).find((d) => d.focused) ?? (ctx.documents ?? [])[0];
+    if (!doc?.bookmd5 || typeof doc.page !== "number") return null;
+    const res = await mn.api<DocumentExcerpts>(
+      `/documents/${encodeURIComponent(doc.bookmd5)}/excerpts`,
+    );
+    if (res.error) return null;
+    const samePage = (res.items ?? []).filter(
+      (x) => typeof x.cardNoteId === "string" && x.cardNoteId && x.page === doc.page,
+    );
+    return samePage.length > 0 ? samePage[samePage.length - 1]!.cardNoteId! : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface CurrentContext {
@@ -42,8 +77,9 @@ export async function getCurrentContext(): Promise<CurrentContext> {
   try {
     const ctx = await mn.api<AppContext>("/context");
     if (!ctx.error && ctx.available !== false) {
-      const topicid = typeof ctx.studySet?.id === "string" ? ctx.studySet.id : null;
-      const focusNoteid = typeof ctx.focusedNote === "string" && ctx.focusedNote ? ctx.focusedNote : null;
+      const topicid = typeof ctx.studySet?.topicid === "string" ? ctx.studySet.topicid : null;
+      const selected = Array.isArray(ctx.selectedNotes) ? ctx.selectedNotes.find((n) => typeof n === "string" && n) : undefined;
+      const focusNoteid = selected ?? (typeof ctx.focusedNote === "string" && ctx.focusedNote ? ctx.focusedNote : null);
       if (topicid || focusNoteid) return { topicid, focusNoteid };
     }
   } catch {
@@ -53,9 +89,21 @@ export async function getCurrentContext(): Promise<CurrentContext> {
   if (state.error) {
     throw new Error(`${state.error.code}：${state.error.message}`);
   }
+  const raw = (state.state ?? {}) as Record<string, unknown>;
+  const pickNote = (): string | null => {
+    for (const key of ["focusnoteid", "focusNoteid", "focusedNote", "currentNoteid"]) {
+      if (typeof raw[key] === "string" && raw[key]) return raw[key] as string;
+    }
+    const sel = raw["selectedNotes"];
+    if (Array.isArray(sel)) {
+      const first = sel.find((n) => typeof n === "string" && n);
+      if (first) return first as string;
+    }
+    return null;
+  };
   return {
-    topicid: state.state?.topicid ?? null,
-    focusNoteid: state.state?.focusnoteid ?? null,
+    topicid: typeof raw["topicid"] === "string" ? (raw["topicid"] as string) : null,
+    focusNoteid: pickNote(),
   };
 }
 

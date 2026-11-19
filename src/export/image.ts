@@ -70,3 +70,17 @@ export async function renderExportDataUrl(
   if (svg) return { dataUrl: await svgToPng(svgToDataURL(svg), 2), name: "math-sketch.png" };
   throw new Error("没有可导出的画布");
 }
+
+/** 把图片 dataURL 写入剪贴板（用于直接粘贴进 MN 批注/卡片）；失败返回 false */
+export async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
+  try {
+    if (typeof navigator.clipboard?.write !== "function" || typeof ClipboardItem === "undefined") {
+      return false;
+    }
+    const blob = dataUrlToBlob(dataUrl);
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return true;
+  } catch {
+    return false;
+  }
+}

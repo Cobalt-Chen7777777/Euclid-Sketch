@@ -1,12 +1,13 @@
-import { useRef, useCallback, useMemo, useState } from "react";
+import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
 import type { Viewport } from "./canvas/viewport";
-import { addComment, focusCard, renderCardImage } from "./bridge";
+import { renderCardImage, upsertComment } from "./bridge";
 import {
   downloadDocument,
   downloadBlob,
   dataUrlToBlob,
   renderExportDataUrl,
+  copyImageToClipboard,
 } from "./export/image";
 import { buildSketchReport } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
@@ -39,10 +40,11 @@ import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
 import { useLassoClipboard } from "./useLassoClipboard";
 import { useHistoryShapes, useUndoHotkeys } from "./useHistoryShapes";
-import { HistoryButtons } from "./stage/HistoryButtons";
+import { StageTopBar } from "./stage/StageTopBar";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
-import { fitImageInList, resizeImageInList, toggleImageLock } from "./canvas/imageOps";
+import { useImageActions } from "./useImageActions";
+import { toggleImageLock } from "./canvas/imageOps";
 import { fileToImageShape, imageSrcToShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
@@ -93,8 +95,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [lockRadius, setLockRadius] = useState(false);
   const [lockedRadius, setLockedRadius] = useState<number | null>(null);
   const [placeType, setPlaceType] = useState<PrimitiveType>("rect");
-
-  // 3D 当前模型（稳定对象引用，参数更新时替换）
   const [solid, setSolid] = useState<SolidShape | null>(null);
   const captureRef = useRef<(() => string) | null>(null);
 
@@ -106,8 +106,34 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setTimeout(() => setToast((cur) => (cur === msg ? "" : cur)), 2200);
   }, []);
 
-  // MN 卡片：学习集 + 焦点卡（写入/导入目标） + 能力探测
-  const { topic, cards, targetCard, setTargetCard, canWriteImage } = useMnContext(showToast);
+  // 卡片菜单命令通道的转发 ref：hook 回调只引用 ref，实际行为在后面绑定（避免闭包 TDZ）
+  const cardImportRef = useRef<((nid: string) => void) | null>(null);
+  const cardWriteRef = useRef<((nid: string) => void) | null>(null);
+
+  // MN 卡片：学习集 + 焦点卡（写入/导入目标） + 能力探测 + 手动同步 + 卡片事件
+  const { topic, cards, targetCard, setTargetCard, canWriteImage, refresh: refreshContext, gotoCard } = useMnContext(showToast, {
+    onCommand: (id, noteid) => {
+      setTargetCard(noteid);
+      if (id === "import-image") cardImportRef.current?.(noteid);
+      else if (id === "annotate") cardWriteRef.current?.(noteid);
+      else showToast("目标卡已切换为点选的卡片");
+    },
+    onExcerpt: (noteid) => {
+      // 做题流程入口：MN 里摘录产生新卡 → 自动设为目标
+      setTargetCard(noteid);
+      showToast("目标卡已切换为刚摘录的卡片");
+    },
+  });
+
+  /** 顶栏「同步」：把目标卡对齐到 MN 里当前聚焦/点选的卡 */
+  const onSyncTargetCard = useCallback(async () => {
+    try {
+      const fid = await refreshContext();
+      showToast(fid ? "已同步：目标 = MN 当前聚焦卡" : "MN 里没有聚焦的卡片：请先在脑图/文档里点开一张卡再同步");
+    } catch (e) {
+      showToast(`同步失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
+  }, [refreshContext, showToast]);
 
   // ---- 设置：本地持久化，改一项存一项 ----
   const [settings, setSettings] = useState<SketchSettings>(loadSettings);
@@ -144,7 +170,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }), [settings]);
 
   // 面板尺寸记忆与收起/关闭（右下角把手拖动缩放）
-  const { resetSize, collapse, expand, close, onResizePointerDown, isResizing } = useResizablePanel({
+  const { resetSize, collapse, expand, close, onResizePointerDown, isResizing, previewSize } = useResizablePanel({
     remember: settings.rememberWindowSize,
   });
   // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度；拖动把手缩放时也暂停（避免 mn.fit 拉锯）
@@ -207,14 +233,15 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   }, [viewport, color, setShapes, showToast]);
 
-  /** 从当前选定卡片渲染长图，插入画布（题目图上作图的主入口） */
-  const onImportCardImage = useCallback(async () => {
-    if (!targetCard) {
-      showToast("请先通过「下一张卡片」或设置页选定一张卡片");
+  /** 从当前目标卡渲染长图，插入画布（noteidArg 供卡片菜单命令直接指定目标卡） */
+  const onImportCardImage = useCallback(async (noteidArg?: string) => {
+    const nid = noteidArg ?? targetCard;
+    if (!nid) {
+      showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
       return;
     }
     try {
-      const rendered = await renderCardImage(targetCard);
+      const rendered = await renderCardImage(nid);
       if (!rendered) {
         showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
         return;
@@ -222,7 +249,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       const shape = await imageSrcToShape(rendered.src, viewport, color, true);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
-      showToast("已插入卡片图，可在图上直接作图");
+      showToast("已插入卡片图；卡片上若残留草图批注文字会一并显示，可在 MN 里删除该批注");
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
@@ -241,17 +268,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const onToggleImageLock = useCallback((id: string) => {
     setShapes((prev) => toggleImageLock(prev, id, showToast));
   }, [setShapes, showToast]);
-
-  /** 等比缩放选中图片（factor > 1 放大） */
-  const onResizeImage = useCallback((id: string, factor: number) => {
-    setShapes((prev) => resizeImageInList(prev, id, factor));
-  }, [setShapes]);
-
-  /** 图片重置到默认宽度（可视宽一半，等比） */
-  const onFitImage = useCallback((id: string) => {
-    const targetW = Math.min((viewport.xRange[1] - viewport.xRange[0]) / 2, 6);
-    setShapes((prev) => fitImageInList(prev, id, targetW));
-  }, [setShapes, viewport]);
+  /** 等比缩放 / 默认大小 / 按真实比例校正（集中 hook） */
+  const { onResizeImage, onFitImage, onNormalizeImage } = useImageActions(shapes, setShapes, viewport, showToast);
 
   // 清除所有「函数面板」绘制的图形；手画的图元/笔迹不受影响
   const onClearCurves = useCallback(() => {
@@ -269,6 +287,17 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       setShapes((prev) => prev.map((s) => (s.id === selectedId && "color" in s ? { ...s, color: c } : s)));
     }
   }, [updateSettings, selectedId, setShapes]);
+
+  /** 复制草图图片到剪贴板：直接粘贴进 MN 卡片的批注/子卡，是图片入卡的最短路径 */
+  const onCopyPng = async () => {
+    try {
+      const { dataUrl } = await renderExportDataUrl(tab, captureRef.current, svgRef.current);
+      const ok = await copyImageToClipboard(dataUrl);
+      showToast(ok ? "草图图片已复制：去卡片批注长按粘贴即可" : "复制失败（系统限制），请改用「导出 PNG」");
+    } catch {
+      showToast("复制失败：没有可导出的画布");
+    }
+  };
 
   // ---- 文件导入 ----
   const onImportFile = useCallback(async (file: File) => {
@@ -301,19 +330,31 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   };
 
-  // ---- 写入 MN（降级：公式/说明写批注） ----
-  const onWriteToMN = async () => {
-    if (!targetCard) {
-      showToast("请先选择一个笔记卡片");
+  // ---- 写入 MN（降级：公式/说明写批注；noteidArg 供卡片菜单命令直接指定目标卡） ----
+  const onWriteToMN = async (noteidArg?: string) => {
+    const nid = noteidArg ?? targetCard;
+    if (!nid) {
+      showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
+      return;
+    }
+    if (shapes.every((s) => s.type === "coord")) {
+      showToast("画布是空的：先画点内容再写入");
       return;
     }
     try {
-      const res = await addComment(targetCard, buildSketchReport(shapes));
-      showToast(res.ok ? "已写入批注" : `写入失败：${res.error ?? ""}`);
+      // upsert：同一张卡已有草图批注时改写它，不重复堆叠
+      const res = await upsertComment(nid, buildSketchReport(shapes));
+      showToast(res.ok ? "已写入批注（更新上次的草图纸）" : `写入失败：${res.error ?? ""}`);
     } catch (e) {
       showToast(`写入失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
   };
+
+  // 卡片菜单命令的行为绑定：每次渲染更新 ref 指向最新闭包
+  useEffect(() => {
+    cardImportRef.current = (nid) => { void onImportCardImage(nid); };
+    cardWriteRef.current = (nid) => { void onWriteToMN(nid); };
+  });
 
   const updateSolidParam = (key: string, value: number) => {
     setSolid((prev) => (prev ? { ...prev, params: { ...prev.params, [key]: value } } : prev));
@@ -324,25 +365,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setSolid(next);
     setShapes((prev) => [...prev.filter((x) => x.type !== "solid"), next]);
   }, [color, setShapes]);
-
-  // 卡片导航：按当前学习集的卡片顺序前后跳，并定位到该卡
-  const gotoCard = useCallback(async (step: number) => {
-    if (cards.length === 0) {
-      showToast("当前学习集里没有卡片");
-      return;
-    }
-    const current = cards.findIndex((c) => c.noteid === targetCard);
-    const index = current < 0 ? (step > 0 ? 0 : cards.length - 1) : (current + step + cards.length) % cards.length;
-    const card = cards[index];
-    if (!card) return;
-    setTargetCard(card.noteid);
-    try {
-      const res = await focusCard(card.noteid, topic ?? undefined);
-      showToast(res.ok ? `${index + 1}/${cards.length} · ${card.title}` : `跳转失败：${res.error ?? ""}`);
-    } catch (e) {
-      showToast(`跳转失败：${e instanceof Error ? e.message : "未知错误"}`);
-    }
-  }, [cards, targetCard, topic, setTargetCard, showToast]);
 
   const resolvedTheme = resolveTheme(settings.theme, systemDark, mnTheme);
 
@@ -365,6 +387,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       />
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
+      {/* 窗口拖动缩放中：尺寸预览 HUD（拖动期间不调宿主接口，松手才生效） */}
+      {previewSize ? (
+        <div className="size-hud" role="status">
+          {Math.round(previewSize.width)} × {Math.round(previewSize.height)}
+        </div>
+      ) : null}
 
       {view === "settings" ? (
         <div className="scroll">
@@ -384,7 +412,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onImport: () => fileInputRef.current?.click(),
               onExport: () => downloadDocument(docToExport),
               onExportPng,
-              onWrite: onWriteToMN,
+              onWrite: () => { void onWriteToMN(); },
             }}
           />
         </div>
@@ -408,6 +436,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               dashStyle={settings.dashStyle}
               selectionIds={lasso.selectionIds}
               onSelectionChange={lasso.setSelectionIds}
+              onToggleImageLock={onToggleImageLock}
+              frozen={isResizing}
               placeType={placeType}
               placeSides={placeSides}
               penWidth={penWidth}
@@ -424,36 +454,20 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             />
           )}
 
-          {/* 悬浮：2D / 3D 切换 */}
-          <div className="stage-top">
-            <div className="seg" role="group" aria-label="绘制模式">
-              <button className={tab === "2d" ? "on" : ""} onClick={() => setTab("2d")}>2D</button>
-              <button className={tab === "fn" ? "on" : ""} onClick={() => setTab("fn")}>函数</button>
-              <button className={tab === "3d" ? "on" : ""} onClick={() => setTab("3d")}>3D</button>
-            </div>
-            {tab !== "3d" ? (
-              <HistoryButtons canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
-            ) : null}
-            {tab !== "3d" ? (
-              <button
-                type="button"
-                className="write-btn"
-                onClick={() => { void onWriteToMN(); }}
-                aria-label="写入卡片"
-                title="把画布构图说明写入当前选定卡片的批注"
-              >写入</button>
-            ) : null}
-            {cards.length > 0 ? (
-              <span className="stage-topic">
-                {(() => {
-                  const idx = cards.findIndex((c) => c.noteid === targetCard);
-                  const card = cards[idx];
-                  if (idx < 0 || !card) return "当前卡";
-                  return `${idx + 1}/${cards.length} · ${card.title}`;
-                })()}
-              </span>
-            ) : topic ? <span className="stage-topic">{topic}</span> : null}
-          </div>
+          {/* 悬浮：模式切换 + 撤销重做 + 写入 + 目标卡（见 StageTopBar） */}
+          <StageTopBar
+            tab={tab}
+            onTabChange={setTab}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onWrite={() => { void onCopyPng(); }}
+            onSyncTarget={() => { void onSyncTargetCard(); }}
+            cards={cards}
+            targetCard={targetCard}
+            topic={topic}
+          />
 
           {tab === "fn" ? (
             <FunctionPad
@@ -519,9 +533,11 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onToggleImageLock={onToggleImageLock}
               onResizeImage={onResizeImage}
               onFitImage={onFitImage}
+              onNormalizeImage={onNormalizeImage}
               dashStyle={settings.dashStyle}
               onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
               onExportPng={() => { void onExportPng(); }}
+              onCopyPng={() => { void onCopyPng(); }}
               onImportImageFile={() => imageInputRef.current?.click()}
               lockRadius={lockRadius}
               lockedRadius={lockedRadius}

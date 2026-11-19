@@ -263,7 +263,7 @@ export function ChevronLeftIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 5 L8 12 L15 19" />
+      <path d="M14.5 5.5 L8 12 L14.5 18.5" strokeWidth={2.2} />
     </svg>
   );
 }
@@ -273,7 +273,7 @@ export function ChevronRightIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 5 L16 12 L9 19" />
+      <path d="M9.5 5.5 L16 12 L9.5 18.5" strokeWidth={2.2} />
     </svg>
   );
 }
@@ -416,4 +416,71 @@ export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: numbe
     case "image": return <ImageIcon size={size} />;
     case "lock": return <LockIcon size={size} />;
   }
+}
+
+/** 展开：向上箭头离开一条顶线（迷你条展开面板） */
+export function ExpandIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 13.5 L12 8 L18 13.5" />
+      <path d="M5.5 4.5 L18.5 4.5" />
+    </svg>
+  );
+}
+
+/** 加号：图片放大 */
+export function PlusIcon({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5 L12 19 M5 12 L19 12" />
+    </svg>
+  );
+}
+
+/** 减号：图片缩小 */
+export function MinusIcon({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+      <path d="M5 12 L19 12" />
+    </svg>
+  );
+}
+
+/** 适应大小：四角向外的箭头 */
+export function FitIcon({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 4.5 L4.5 4.5 L4.5 9" />
+      <path d="M15 4.5 L19.5 4.5 L19.5 9" />
+      <path d="M9 19.5 L4.5 19.5 L4.5 15" />
+      <path d="M15 19.5 L19.5 19.5 L19.5 15" />
+    </svg>
+  );
+}
+
+/** 复制：两个叠放的方框 */
+export function CopyIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="8.5" y="8.5" width="12" height="12" rx="2.4" />
+      <path d="M15.5 5.5 V4.8 A2 2 0 0 0 13.5 2.8 H4.8 A2 2 0 0 0 2.8 4.8 V13.5 A2 2 0 0 0 4.8 15.5 H5.5" />
+    </svg>
+  );
+}
+
+/** 品牌徽章：圆 + 圆规双翼（欧几里得作图意象），内联 SVG 不依赖资源路径 */
+export function BrandIcon({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="11.5" r="7.5" opacity={0.9} />
+      <path d="M12 3.2 L17.4 19.6 M12 3.2 L6.6 19.6" />
+      <circle cx="12" cy="3.2" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
 }

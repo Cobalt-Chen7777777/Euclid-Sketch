@@ -8,7 +8,7 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
-import { CloseIcon } from "../icons";
+import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
 const PRIMITIVES: [PrimitiveType, string][] = [
   ["circle", "圆"], ["ellipse", "椭圆"], ["arc", "圆弧"], ["rect", "矩形"],
@@ -39,11 +39,15 @@ interface Props {
   onResizeImage: (id: string, factor: number) => void;
   /** 图片重置到默认宽度 */
   onFitImage: (id: string) => void;
+  /** 按图片真实尺寸校正宽高比（修复旧数据的变形图片） */
+  onNormalizeImage: (id: string) => void;
   /** 线型样式开关（画布上画什么都是虚线） */
   dashStyle: boolean;
   onDashStyle: (v: boolean) => void;
   /** 导出当前画布为 PNG（2×） */
   onExportPng: () => void;
+  /** 复制草图图片到剪贴板（可直接粘贴进 MN 批注） */
+  onCopyPng: () => void;
   /** 从本地文件导入图片（备用来源；主入口为卡片渲染图） */
   onImportImageFile: () => void;
   lockRadius: boolean;
@@ -56,8 +60,8 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, onToggleImageLock, onResizeImage, onFitImage,
-    dashStyle, onDashStyle, onExportPng, onImportImageFile,
+    onToggleDashed, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
+    dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile,
   } = props;
 
   const selectedShape = shapes.find((s) => s.id === selectedId) ?? null;
@@ -107,9 +111,16 @@ export function OptionsDrawer(props: Props) {
           <section className="drawer-sec">
             <h3>图片调整</h3>
             <div className="chips">
-              <button type="button" className="chip" onClick={() => onResizeImage(selectedShape.id, 1.25)}>放大</button>
-              <button type="button" className="chip" onClick={() => onResizeImage(selectedShape.id, 0.8)}>缩小</button>
-              <button type="button" className="chip" onClick={() => onFitImage(selectedShape.id)}>默认大小</button>
+              <button type="button" className="chip icon-chip" onClick={() => onResizeImage(selectedShape.id, 1.25)} aria-label="放大" title="放大">
+                <PlusIcon size={13} />
+              </button>
+              <button type="button" className="chip icon-chip" onClick={() => onResizeImage(selectedShape.id, 0.8)} aria-label="缩小" title="缩小">
+                <MinusIcon size={13} />
+              </button>
+              <button type="button" className="chip icon-chip" onClick={() => onFitImage(selectedShape.id)} aria-label="默认大小" title="默认大小">
+                <FitIcon size={13} />
+              </button>
+              <button type="button" className="chip" onClick={() => onNormalizeImage(selectedShape.id)} title="按图片真实比例校正高度（修复变形的长图）">校正比例</button>
             </div>
             <p className="drawer-hint">拖动图片中心移动 · 右下角控制点自由拉伸 · 点图片左上角锁图标切换防误擦</p>
             <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
@@ -204,7 +215,16 @@ export function OptionsDrawer(props: Props) {
                           onClick={() => onToggleImageLock(s.id)}
                           aria-label={"locked" in s && s.locked ? "解锁图片" : "锁定图片"}
                           title={"locked" in s && s.locked ? "已锁定：橡皮擦不掉，点击解锁" : "未锁定：点击锁定防误擦"}
-                        >{"locked" in s && s.locked ? "🔒" : "🔓"}</button>
+                        >
+                          {/* 锁形用 SVG 画（emoji 在 WKWebView 里基线偏移会歪） */}
+                          <svg width={13} height={13} viewBox="0 0 18 18" aria-hidden="true">
+                            <path
+                              d={"locked" in s && s.locked ? "M6 8.2 V6.6 a3 3 0 0 1 6 0 V8.2" : "M6 8.2 V6.6 a3 3 0 0 1 6 0"}
+                              fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"
+                            />
+                            <rect x={3.8} y={8.2} width={10.4} height={7.2} rx={2} fill="currentColor" />
+                          </svg>
+                        </button>
                       ) : null}
                       {DASHABLE.has(s.type) ? (
                         <button
@@ -228,8 +248,9 @@ export function OptionsDrawer(props: Props) {
         <section className="drawer-sec">
           <h3>导出</h3>
           <button type="button" className="chip export-chip" onClick={onExportPng}>导出 PNG 图片（2×）</button>
+          <button type="button" className="chip export-chip" onClick={onCopyPng}>复制草图图片</button>
           <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
-          <p className="drawer-hint">导出含画布上全部图形；卡片图请用左侧工具栏的「插入卡片图」。JSON 导入导出在「设置」页</p>
+          <p className="drawer-hint">「复制草图图片」后可直接在 MN 卡片批注/子卡里长按粘贴；导出含全部图形；卡片图请用左侧「插入卡片图」</p>
         </section>
       </div>
     </aside>

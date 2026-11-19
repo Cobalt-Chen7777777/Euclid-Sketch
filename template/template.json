@@ -24,7 +24,16 @@
     "cards": [
       "noteHighlight:",
       "commentNote",
-      "addon.com.mathsketch.addon.annotate:"
+      "addon.com.mathsketch.addon.annotate:",
+      "addon.com.mathsketch.addon.import-image:",
+      "addon.com.mathsketch.addon.set-target:"
+    ],
+    "documents": [
+      "sendHighlight:",
+      "noteHighlight:",
+      "addon.com.mathsketch.addon.annotate:",
+      "addon.com.mathsketch.addon.import-image:",
+      "addon.com.mathsketch.addon.set-target:"
     ]
   }
 }

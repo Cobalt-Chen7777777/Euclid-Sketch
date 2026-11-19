@@ -459,11 +459,37 @@ button.with-icon svg { flex: none; }
 /* ---------- 迷你模式（收起后只剩一行） ---------- */
 .mini-bar { display: none; align-items: center; gap: 8px; }
 .mini-bar b { font-size: 13px; }
+/* 品牌徽章：渐变底 + 白色内联 SVG（不依赖 icon.png，特殊 URL scheme 下也不会破图） */
+.brand-badge {
+  width: 22px; height: 22px; flex: none;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  display: grid; place-items: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, .35);
+}
+.brand-img {
+  width: 20px; height: 20px; flex: none;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(30, 25, 18, .18);
+  object-fit: cover;
+  display: block;
+}
+.mini-title {
+  font-size: 12px; font-weight: 600;
+  color: var(--ink); opacity: .85;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .mini-spacer { flex: 1; }
 .mini-btn {
   padding: 5px 10px; font-size: 12px;
   border: 1px solid var(--line-strong); border-radius: 8px;
   background: var(--surface); color: var(--ink);
+}
+.mini-btn.icon {
+  width: 28px; height: 28px; padding: 0;
+  display: grid; place-items: center;
+  border-radius: 8px;
 }
 
 :root[data-mode="mini"] .mini-bar { display: flex; }
@@ -526,6 +552,23 @@ button.with-icon svg { flex: none; }
 .panel.theme-dark .fnbar-field,
 .panel.theme-dark .fnbar-x { border-color: var(--item-line); background: var(--item-bg); }
 .shape-item .dot { box-shadow: 0 0 0 1px rgba(120, 114, 105, .6); }
+
+/* 图片锁定徽标：HTML 覆盖层，固定像素尺寸不随画布拉伸变形 */
+.img-lock-btn {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0 2px;
+  padding: 1px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  display: block;
+  z-index: 5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.img-lock-btn svg { display: block; width: 100%; height: 100%; }
 
 /* ---------- 悬浮工具列（左侧） ---------- */
 .rail {
@@ -605,7 +648,9 @@ button.with-icon svg { flex: none; }
   font-size: 10.5px; color: var(--muted);
   background: var(--chrome-soft);
   padding: 3px 8px; border-radius: 8px;
-  max-width: 130px; overflow: hidden;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  max-width: 150px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -955,8 +1000,8 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 /* 拖动浮条：面板顶部的专用把手，按住才能移动面板 */
 .fnpad-dragbar {
   flex: none;
-  height: 18px;
-  margin: -4px -6px 0;
+  height: 22px;
+  margin: -6px -8px 0;
   display: grid;
   place-items: center;
   border-radius: 10px;
@@ -984,7 +1029,7 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 .seg.small { padding: 1px; }
 .seg.small button { padding: 3px 8px; font-size: 11px; }
 
-/* ---------- 抽屉：虚线 / 删除按钮 ---------- */
+/* ---------- 抽屉：虚线 / 删除 / 锁定按钮 ---------- */
 .dash-btn, .del-btn, .lock-btn {
   flex: none;
   display: grid;
@@ -1059,3 +1104,55 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 .chip.preset-save { border-style: dashed; color: var(--tint-ink); }
 .chip.ghost { opacity: 0.55; border-style: dashed; }
 .chip.dragging { opacity: 0.45; transform: scale(1.06); }
+
+/* 锁按钮（图形列表）：锁定态蓝色高亮 */
+.lock-btn.on {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, .5);
+  background: rgba(37, 99, 235, .08);
+}
+
+/* 图标 chip：图片调整的放大/缩小/默认大小 */
+.chip.icon-chip {
+  width: 34px; height: 28px; padding: 0;
+  display: grid; place-items: center;
+}
+/* 顶栏写入按钮：图标化 */
+.write-btn {
+  width: 30px; height: 26px; padding: 0;
+  display: grid; place-items: center;
+}
+/* 迷你模式：紧凑条 + 毛玻璃 */
+:root[data-mode="mini"] body { padding: 8px 10px; }
+:root[data-mode="mini"] .mini-bar {
+  height: 36px;
+  padding: 0 4px;
+  border-radius: 12px;
+  background: var(--chrome);
+}
+
+/* 窗口拖动缩放的尺寸预览 HUD */
+.size-hud {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  z-index: 90;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(28, 25, 20, .82);
+  color: #f5f1e8;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+/* 迷你条卡片导航：圆形透明按钮（重绘样式，和方形窗口按钮区分） */
+.mini-btn.icon {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink);
+  transition: background .15s ease;
+}
+.mini-btn.icon:active { background: rgba(120, 114, 105, .16); }

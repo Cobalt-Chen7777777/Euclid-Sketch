@@ -6,7 +6,10 @@
  *      否则这次拖拽会被宿主当成「拖动面板窗口」；
  *   2. 用 screenX / screenY 计算位移（不是 clientX / clientY）——面板一边拖一边改尺寸，
  *      视口坐标系会跟着漂移，用 client 坐标会自激抖动；
- *   3. 拖动期间节流（70ms）连续调用 mn.size(宽, 高)，宽高一起跟手；松手再提交一次；
+ *   3. 拖动期间**rAF 节流实时调用 mn.size**（每帧最多一次）：尺寸全程跟手。
+ *      之前卡顿的三个副因已修复——宿主手势抢夺（原生 touch 拦截）、autoFit
+ *      与缩放拉锯（拖动期间暂停）、画布全量重绘（frozen 冻结视口）；
+ *      剩下的 mn.size 过渡动画被逐帧重设时表现为阻尼跟随，视觉平滑；
  *   4. 位移小于 4px 视为点击，恢复默认尺寸。
  *
  * 官方接口约束（dev.marginnote.com.cn）：
@@ -102,6 +105,8 @@ export function useResizablePanel(options?: { remember?: boolean }) {
 
   /** 正在拖动把手：App 据此暂停 autoFit，避免 mn.fit() 与缩放拉锯 */
   const [isResizing, setResizing] = useState(false);
+  /** 拖动中的尺寸预览（HUD 展示用；拖动期间不调宿主接口，松手才生效） */
+  const [previewSize, setPreviewSize] = useState<PanelSize | null>(null);
 
   const appliedRef = useRef<PanelSize | null>(null);
   const applySize = useCallback((size: PanelSize) => {
@@ -138,6 +143,12 @@ export function useResizablePanel(options?: { remember?: boolean }) {
       handle.setPointerCapture(event.pointerId);
       setResizing(true);
 
+      // 原生触摸拦截（与画布同款模式）：React 的 preventDefault 拦不住
+      // WKWebView 宿主手势，不拦的话拖把手会同时被宿主当成「拖动窗口」导致乱动
+      const stopTouch = (ev: Event) => ev.preventDefault();
+      handle.addEventListener("touchstart", stopTouch, { passive: false });
+      handle.addEventListener("touchmove", stopTouch, { passive: false });
+
       const origin = {
         pointerId: event.pointerId,
         x: event.screenX,
@@ -147,18 +158,10 @@ export function useResizablePanel(options?: { remember?: boolean }) {
       };
       let moved = false;
       let latest: PanelSize = { width: origin.width, height: origin.height };
-      let pendingH: number | null = null;
-      let timer: ReturnType<typeof setTimeout> | null = null;
+      let raf: number | null = null;
 
-      const flushH = () => {
-        timer = null;
-        if (pendingH == null) return;
-        // 拖动中只调 mn.height：官方明确无动画，连续调用不会像 mn.size 那样
-        // 反复重启过渡动画导致面板乱动。宽度松手时随 mn.size 一次到位。
-        if (isMnAvailable()) mn.height(pendingH);
-        pendingH = null;
-      };
-
+      // 实时跟手：rAF 每帧节流调 mn.size（过渡动画被逐帧重设 = 阻尼跟随）。
+      // 卡顿副因已分别处理：宿主手势拦截 / autoFit 暂停 / 画布冻结重绘。
       const onMove = (moveEvent: PointerEvent) => {
         if (moveEvent.pointerId !== origin.pointerId) return;
         const dx = moveEvent.screenX - origin.x;
@@ -168,20 +171,28 @@ export function useResizablePanel(options?: { remember?: boolean }) {
           width: clamp(origin.width + dx, PANEL_LIMITS.minWidth, PANEL_LIMITS.maxWidth),
           height: clamp(origin.height + dy, PANEL_LIMITS.minHeight, PANEL_LIMITS.maxHeight),
         };
-        pendingH = latest.height;
-        if (!timer) timer = setTimeout(flushH, 90);
+        if (raf == null) {
+          raf = requestAnimationFrame(() => {
+            raf = null;
+            if (isMnAvailable()) mn.size(latest.width, latest.height);
+            appliedRef.current = latest;
+            setPreviewSize(latest);
+          });
+        }
       };
 
       const cleanup = () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
+        if (raf != null) {
+          cancelAnimationFrame(raf);
+          raf = null;
         }
-        pendingH = null;
+        setPreviewSize(null);
         handle.removeEventListener("pointermove", onMove);
         handle.removeEventListener("pointerup", onUp);
         handle.removeEventListener("pointercancel", onCancel);
         handle.removeEventListener("lostpointercapture", onCancel);
+        handle.removeEventListener("touchstart", stopTouch);
+        handle.removeEventListener("touchmove", stopTouch);
         if (handle.hasPointerCapture(origin.pointerId)) {
           handle.releasePointerCapture(origin.pointerId);
         }
@@ -245,5 +256,5 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     if (isMnAvailable()) mn.reload();
   }, []);
 
-  return { onResizePointerDown, isResizing, resetSize, collapse, expand, close, reload };
+  return { onResizePointerDown, isResizing, previewSize, resetSize, collapse, expand, close, reload };
 }

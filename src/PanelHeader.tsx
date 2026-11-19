@@ -4,7 +4,7 @@
  * 迷你模式的显隐由 CSS 负责（MN 会改 <html data-mode="mini">），
  * 这里不做状态判断，避免和宿主状态不同步。
  */
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, MinimizeIcon } from "./icons";
+import { BrandIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, ExpandIcon, MinimizeIcon } from "./icons";
 
 export type PanelView = "canvas" | "settings";
 
@@ -29,7 +29,8 @@ export function PanelHeader({
   return (
     <>
       <div className="mini-bar">
-        <span className="brand-mark" aria-hidden="true">◈</span>
+        <span className="brand-badge" aria-hidden="true"><BrandIcon size={13} /></span>
+        <span className="mini-title">Euclid Sketch</span>
         {onPrev && onNext && hasCards ? (
           <>
             <button type="button" className="mini-btn icon" onClick={onPrev} aria-label="上一张卡片">
@@ -41,13 +42,17 @@ export function PanelHeader({
           </>
         ) : null}
         <span className="mini-spacer" />
-        <button type="button" className="mini-btn" onClick={onExpand}>展开</button>
-        <button type="button" className="mini-btn icon" onClick={onClose} aria-label="关闭插件窗口">✕</button>
+        <button type="button" className="mini-btn icon" onClick={onExpand} aria-label="展开面板" title="展开">
+          <ExpandIcon size={16} />
+        </button>
+        <button type="button" className="mini-btn icon" onClick={onClose} aria-label="关闭插件窗口" title="关闭">
+          <CloseIcon size={15} />
+        </button>
       </div>
 
       <header className="appbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">◈</span>
+          <span className="brand-badge" aria-hidden="true"><BrandIcon size={13} /></span>
           <span className="brand-text">
             <b>Euclid Sketch</b>
             <small>数学模型构图</small>

@@ -1,0 +1,60 @@
+/**
+ * 画布顶部悬浮条：2D/函数/3D 切换 + 撤销重做 + 写入 + 目标卡指示。
+ */
+import type { Card } from "../topic";
+import { CopyIcon } from "../icons";
+import { HistoryButtons } from "./HistoryButtons";
+
+interface Props {
+  tab: string;
+  onTabChange: (tab: "2d" | "fn" | "3d") => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onWrite: () => void;
+  onSyncTarget: () => void;
+  cards: Card[];
+  targetCard: string;
+  topic: string | null;
+}
+
+/** 目标卡指示文案：列表内显示序号/总数/标题，列表外显示短 id */
+function targetLabel(cards: Card[], targetCard: string): string {
+  if (!targetCard) return "未选卡 · 点此同步";
+  const idx = cards.findIndex((c) => c.noteid === targetCard);
+  const card = cards[idx];
+  if (idx < 0 || !card) return `目标卡 …${targetCard.slice(-6)} · 点此同步`;
+  return `${idx + 1}/${cards.length} · ${card.title} · 点此同步`;
+}
+
+export function StageTopBar({
+  tab, onTabChange, canUndo, canRedo, onUndo, onRedo, onWrite, onSyncTarget, cards, targetCard, topic,
+}: Props) {
+  const is2d = tab !== "3d";
+  return (
+    <div className="stage-top">
+      <div className="seg" role="group" aria-label="绘制模式">
+        <button className={tab === "2d" ? "on" : ""} onClick={() => onTabChange("2d")}>2D</button>
+        <button className={tab === "fn" ? "on" : ""} onClick={() => onTabChange("fn")}>函数</button>
+        <button className={tab === "3d" ? "on" : ""} onClick={() => onTabChange("3d")}>3D</button>
+      </div>
+      {is2d ? <HistoryButtons canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} /> : null}
+      {is2d ? (
+        <button type="button" className="write-btn" onClick={onWrite} aria-label="复制草图图片" title="复制草图图片：到 MN 卡片批注长按粘贴（不写文字，不会污染卡片图）">
+          <CopyIcon size={14} />
+        </button>
+      ) : null}
+      {cards.length > 0 || targetCard ? (
+        <button
+          type="button"
+          className="stage-topic"
+          onClick={onSyncTarget}
+          title="点击同步：把写入/导入的目标对齐到 MN 当前聚焦卡"
+        >
+          {targetLabel(cards, targetCard)}
+        </button>
+      ) : topic ? <span className="stage-topic">{topic}</span> : null}
+    </div>
+  );
+}

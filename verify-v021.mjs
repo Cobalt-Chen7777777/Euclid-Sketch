@@ -43,12 +43,13 @@ async function newPage(browser) {
         return {};
       },
       call: async () => { throw new Error("no native"); },
-      on: () => {},
+      on: (event, cb) => { window.__mnHandlers[event] = cb; },
       fit: () => {}, height: () => {}, size: () => {}, mode: () => {}, close: () => {}, reload: () => {}, log: () => {},
     };
     // 1x1 蓝色 PNG：卡片渲染图
     window.__cardPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
     window.__renderUrls = [];
+    window.__mnHandlers = {};
   });
   // MN 部署路径 /pkg/assets/* → 本地 dist/assets/*（file:// 下 pathname 含盘符，取最后一段）
   await page.route("**/pkg/assets/*", (route) => {
@@ -217,17 +218,17 @@ async function main() {
     await page.locator(".drawer-close").click();
     await page.waitForTimeout(150);
     const badgeLocked = await page.evaluate(() => {
-      const g = document.querySelector(".canvas-svg .img-lock rect[fill*='37, 99, 235']");
+      const g = document.querySelector(".canvas-stage .img-lock-btn svg rect[fill*='37, 99, 235']");
       return Boolean(g);
     });
     record("图片导入默认锁定", badgeLocked);
     // 点锁定徽标解锁
-    const gBox = await page.locator(".canvas-svg .img-lock").first().boundingBox();
+    const gBox = await page.locator(".canvas-stage .img-lock-btn").first().boundingBox();
     if (gBox) {
       await page.mouse.click(gBox.x + 9, gBox.y + 9);
       await page.waitForTimeout(150);
     const unlocked = await page.evaluate(() => {
-      const g = document.querySelector(".canvas-svg .img-lock rect[fill*='37, 99, 235']");
+      const g = document.querySelector(".canvas-stage .img-lock-btn svg rect[fill*='37, 99, 235']");
       return !g;
     });
       record("点击徽标解锁", unlocked);
@@ -263,6 +264,16 @@ async function main() {
     const renderUrls = await page.evaluate(() => window.__renderUrls);
     const hitFocus = renderUrls.some((u) => u.includes("/notes/n-2/render"));
     record("渲染目标 = 焦点卡", hitFocus, renderUrls.join(" | ") || "无请求");
+
+    // ---------- 10. 摘录事件：自动切换目标卡 ----------
+    await page.evaluate(() => {
+      const h = window.__mnHandlers["excerpt"];
+      if (h) h({ noteid: "n-9" });
+    });
+    await page.waitForTimeout(250);
+    const topicText = await page.locator(".stage-topic").innerText().catch(() => "");
+    record("摘录事件切换目标卡", topicText.includes("n-9") || topicText.includes("切换") || topicText.includes("目标"),
+      topicText.slice(0, 40));
 
     await page.screenshot({ path: join(root, "shots", "95-v021-regression.png"), fullPage: true });
     await context.close();
