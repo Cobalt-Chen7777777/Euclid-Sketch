@@ -13,10 +13,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createAngle } from "../model/angle";
-import { lassoSelect, shapeBBox } from "../model/lasso";
+import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
 import { createPrimitiveByDrag, getHandles, hitTest, type Handle } from "../model/geometry";
 import { smoothPoints } from "../model/ink";
 import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
+import { hitImageLockBtn, ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
 import {
@@ -43,6 +44,8 @@ export interface CanvasOptions {
   specialAngleSnap: boolean;
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
+  /** 手指触控作图：关闭后手指不能画图（双指平移缩放保留），仅 Apple Pencil / 鼠标可作图 */
+  allowTouchDraw: boolean;
 }
 
 interface Props {
@@ -80,7 +83,8 @@ type DragState =
   | { kind: "compass"; center: Point2; current: Point2 }
   | { kind: "draw"; start: Point2; current: Point2 }
   | { kind: "ink"; points: Point2[] }
-  | { kind: "erase" };
+  | { kind: "erase" }
+  | { kind: "moveSel"; last: Point2 };
 
 const SNAP_PX = 16;
 
@@ -176,10 +180,14 @@ export function Canvas2D(props: Props) {
     return best ?? world;
   }, [shapes, v, options.snapEnabled]);
 
-  /** 橡皮擦：删除命中的图形（坐标系不可删），命中范围来自设置 */
+  /** 橡皮擦：删除命中的图形（坐标系与锁定图片不可删），命中范围来自设置 */
   const eraseAt = useCallback((world: Point2) => {
     const tolWorld = (options.eraserRadius / v.width) * (v.xRange[1] - v.xRange[0]);
-    const hit = [...shapes].reverse().find((s) => s.type !== "coord" && hitTest(s, world, tolWorld));
+    const hit = [...shapes].reverse().find((s) => {
+      if (s.type === "coord") return false;
+      if (s.type === "image" && s.locked) return false;
+      return hitTest(s, world, tolWorld);
+    });
     if (hit) {
       setShapes((prev) => prev.filter((s) => s.id !== hit.id));
       if (selectedId === hit.id) onSelect(null);
@@ -198,6 +206,19 @@ export function Canvas2D(props: Props) {
     return null;
   }, [selectedId, shapes, v]);
 
+  /** 命中已框选集合中的图形（整组拖动入口）：点在图形包围盒内即算（拖动比点选更宽松） */
+  const hitSelected = useCallback((world: Point2): boolean => {
+    if (selectionIds.length === 0) return false;
+    const pad = (10 / v.width) * (v.xRange[1] - v.xRange[0]);
+    return [...shapes]
+      .reverse()
+      .some((s) => {
+        if (!selectionIds.includes(s.id)) return false;
+        const b = shapeBBox(s);
+        return world.x >= b.x1 - pad && world.x <= b.x2 + pad && world.y >= b.y1 - pad && world.y <= b.y2 + pad;
+      });
+  }, [selectionIds, shapes, v]);
+
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     // 关键：画布上的拖拽必须只画图，不能让宿主把它当成「拖动面板窗口」。
     // preventDefault 让这次触摸不被宿主的原生手势接管，stopPropagation 断掉冒泡。
@@ -206,6 +227,16 @@ export function Canvas2D(props: Props) {
     // 捕获挂在 svg 本身：捕获在子节点上时，预览重渲染可能把节点换掉导致捕获丢失
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const sp = localPoint(e);
+
+    // 图片左上角锁定徽标：优先于一切工具手势
+    const lockHit = hitImageLockBtn(shapes, v, sp);
+    if (lockHit) {
+      const nowLocked = !lockHit.locked;
+      setShapes((prev) => prev.map((s) => (s.id === lockHit.id && s.type === "image" ? { ...s, locked: nowLocked } : s)));
+      onToast?.(nowLocked ? "图片已锁定，橡皮不再擦除" : "图片已解锁，橡皮可擦除");
+      return;
+    }
+
     pointers.current.set(e.pointerId, sp);
 
     if (pointers.current.size === 2) {
@@ -222,13 +253,28 @@ export function Canvas2D(props: Props) {
       return;
     }
 
+    // 手指画图开关：关闭后手指触摸不画图（双指手势在上面已处理），只有笔/鼠标可作图
+    if (e.pointerType === "touch" && !options.allowTouchDraw) return;
+
+    const worldRaw = toWorld(sp, v);
+
     if (tool === "lasso") {
-      setDrag({ kind: "lasso", points: [toWorld(sp, v)] });
+      // 已有框选结果时，按住其中任意图形 → 整组拖动；否则开始新框选
+      if (hitSelected(worldRaw)) {
+        setDrag({ kind: "moveSel", last: worldRaw });
+        onToast?.("拖动移动选中图形");
+        return;
+      }
+      setDrag({ kind: "lasso", points: [worldRaw] });
       return;
     }
 
-    const worldRaw = toWorld(sp, v);
     if (tool === "select") {
+      // 按住已框选图形 → 整组拖动；按住未选图形 → 单选；空白 → 清空
+      if (hitSelected(worldRaw)) {
+        setDrag({ kind: "moveSel", last: worldRaw });
+        return;
+      }
       onSelectionChange([]);
     }
 
@@ -329,6 +375,18 @@ export function Canvas2D(props: Props) {
           return next;
         });
         pinch.current = { dist, center };
+      }
+      return;
+    }
+
+    if (drag.kind === "moveSel") {
+      const world = toWorld(sp, v);
+      const dx = world.x - drag.last.x;
+      const dy = world.y - drag.last.y;
+      if (dx !== 0 || dy !== 0) {
+        const ids = new Set(selectionIds);
+        setShapes((prev) => prev.map((s) => (ids.has(s.id) ? translateShape(s, dx, dy) : s)));
+        setDrag({ kind: "moveSel", last: world });
       }
       return;
     }
@@ -505,6 +563,8 @@ export function Canvas2D(props: Props) {
               fill="none" stroke="#2563eb" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.8} />
           );
         })}
+        {/* 图片左上角锁定徽标：点击切换橡皮保护 */}
+        <ImageLockBadges shapes={shapes} v={v} />
         <ShapeLayer
           shapes={shapes}
           viewport={v}

@@ -207,6 +207,18 @@ export function SettingsPage({
                 />
               }
             />
+            <SettingRow
+              icon={<PenIcon />}
+              title="手指触控作图"
+              subtitle="关闭后手指不能画图（防误触），仅 Apple Pencil / 鼠标可作图；双指平移缩放保留"
+              trailing={
+                <Toggle
+                  checked={settings.allowTouchDraw}
+                  label="手指触控作图"
+                  onChange={(allowTouchDraw) => onChange({ allowTouchDraw })}
+                />
+              }
+            />
           </SettingsGroup>
         </>
       ) : null}
@@ -331,7 +343,7 @@ export function SettingsPage({
             <SettingRow
               icon={<WriteIcon />}
               title="写入构图说明"
-              subtitle="把画布图形清单写进目标卡片批注；图片用「导出 PNG」手动插入（MN 未开放图片直写接口）。也可用快捷浮球里的「写入卡片」"
+              subtitle="把画布图形清单写进目标卡片批注；图片用「导出 PNG」手动插入（MN 未开放图片直写接口）"
               onClick={data.onWrite}
             />
           </SettingsGroup>

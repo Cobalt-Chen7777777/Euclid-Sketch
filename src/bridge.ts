@@ -28,34 +28,37 @@ export async function hasImageWriteCapability(caps: Capabilities): Promise<boole
 
 /**
  * 把选定卡片渲染成一张长图（标题 / 正文 / 摘录图 / 插图 / 手写合成）。
- * 对应 GET /bridge/v1/notes/{noteid}/render —— 返回图片二进制，需要 fetch 原语读取。
+ * 官方接口：GET /notes/{noteid}/render —— 返回图片本身不是 JSON，官方要求用 fetch 原语读取：
+ *   fetch('/bridge/v1/notes/' + noteid + '/render?format=png&width=880')
  * 失败（无内容 / 超像素上限 / 断网）返回 null，由调用方提示。
+ * 注意：不检查 blob.type —— MN 返回的 Content-Type 不一定是 image/*，交给 Image 解码验证。
  */
 export async function renderCardImage(
   noteid: string,
   width = 880,
 ): Promise<{ src: string; w: number; h: number } | null> {
+  let res: Response;
   try {
-    const res = await fetch(`/bridge/v1/notes/${noteid}/render?format=png&width=${width}`);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (!blob.type.startsWith("image/")) return null;
-    const src = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("图片读取失败"));
-      reader.readAsDataURL(blob);
-    });
-    const size = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve({ w: img.width, h: img.height });
-      img.onerror = () => reject(new Error("图片解析失败"));
-      img.src = src;
-    });
-    return { src, w: size.w, h: size.h };
+    res = await fetch(`/bridge/v1/notes/${encodeURIComponent(noteid)}/render?format=png&width=${width}`);
   } catch {
     return null;
   }
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  if (blob.size === 0) return null;
+  const src = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.readAsDataURL(blob);
+  });
+  const size = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.width, h: img.height });
+    img.onerror = () => reject(new Error("图片解析失败"));
+    img.src = src;
+  });
+  return { src, w: size.w, h: size.h };
 }
 
 /** 写卡片标题 */
@@ -67,11 +70,15 @@ export async function setCardTitle(noteid: string, text: string): Promise<{ ok: 
   return toResult(res);
 }
 
-/** 追加批注（降级方案：把构图说明/公式写进批注） */
+/**
+ * 追加批注（降级方案：把构图说明/公式写进批注）。
+ * 官方接口：POST /notes/{noteid}/comments —— body 需 confirm:true（必填），
+ * format 合法值是 text/markdown/html/rich（之前误传 "richText" 导致写入失败）。
+ */
 export async function addComment(noteid: string, text: string): Promise<{ ok: boolean; error?: string }> {
   const res = await mn.api(`/notes/${noteid}/comments`, {
     method: "POST",
-    body: { text, format: "richText" },
+    body: { text, format: "text", confirm: true },
   });
   return toResult(res);
 }

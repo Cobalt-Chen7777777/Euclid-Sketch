@@ -1,0 +1,269 @@
+/**
+ * v0.2.1 无头回归：本轮全部改动的关键行为验证。
+ * 用法：node verify-v021.mjs（需 dist 已构建 + 本机 Chrome）
+ */
+import { chromium } from "playwright-core";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
+
+const root = dirname(fileURLToPath(import.meta.url));
+const indexUrl = pathToFileURL(join(root, "dist", "index.html")).href;
+
+const results = [];
+const record = (name, ok, detail = "") => {
+  results.push({ name, ok, detail });
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
+};
+
+/** mock mn 桥：记录 api 调用，卡片/树/批注/渲染图都可编程 */
+async function newPage(browser) {
+  const context = await browser.newContext({ viewport: { width: 520, height: 760 }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    const calls = [];
+    window.__mnCalls = calls;
+    window.mn = {
+      version: 1, currentMode: "workspace", lang: "zh-Hans", locale: "zh-Hans", theme: "light",
+      api: async (path, options) => {
+        calls.push({ path, options });
+        if (path === "/capabilities") return { routes: ["image/import"] };
+        if (path === "/ui-state") return { state: { topicid: "t-1" } };
+        if (path.startsWith("/study-sets/t-1/tree")) {
+          return { nodes: [
+            { noteid: "n-1", title: "题目一", docPage: 1 },
+            { noteid: "n-2", title: "题目二", docPage: 2 },
+          ], nextCursor: null };
+        }
+        if (path.endsWith("/comments") && options?.method === "POST") return { storedType: "text", storedText: options.body?.text ?? "" };
+        if (path.endsWith("/focus")) return {};
+        return {};
+      },
+      call: async () => { throw new Error("no native"); },
+      on: () => {},
+      fit: () => {}, height: () => {}, size: () => {}, mode: () => {}, close: () => {}, reload: () => {}, log: () => {},
+    };
+    // 1x1 蓝色 PNG：卡片渲染图
+    window.__cardPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+  });
+  // MN 部署路径 /pkg/assets/* → 本地 dist/assets/*（file:// 下 pathname 含盘符，取最后一段）
+  await page.route("**/pkg/assets/*", (route) => {
+    const file = route.request().url().split("/").pop();
+    return route.fulfill({ path: join(root, "dist", "assets", file) });
+  });
+  // /bridge/v1 渲染图请求 → PNG
+  await page.route("**/bridge/v1/notes/**", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    });
+  });
+  await page.goto(indexUrl);
+  await page.waitForSelector(".canvas-svg", { timeout: 10000 });
+  return { page, context };
+}
+
+const center = async (page) => {
+  const box = await page.locator(".canvas-svg").boundingBox();
+  return { x: box.x, y: box.y, w: box.width, h: box.height };
+};
+
+/** 画布世界坐标 → 页面坐标（世界区间约 [-8, 8]） */
+const worldToPage = (box, wx, wy) => ({
+  x: box.x + ((wx + 8) / 16) * box.w,
+  y: box.y + ((8 - wy) / 16) * box.h,
+});
+
+async function clickRailTool(page, label) {
+  await page.locator(".rail-btn").filter({ hasText: "" }).evaluateAll(() => {});
+  // 按 title 找按钮
+  await page.locator(`.rail-btn[title="${label}"]`).click();
+}
+
+async function svgDrag(page, from, to) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
+  await page.mouse.move(to.x, to.y, { steps: 4 });
+  await page.mouse.up();
+}
+
+const countInk = (page) => page.locator(".canvas-svg path.crayon, .canvas-svg [data-kind='ink']").count();
+
+async function main() {
+  const browser = await chromium.launch({
+    executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    headless: true,
+  });
+
+  // ---------- 1. 基础界面 ----------
+  {
+    const { page, context } = await newPage(browser);
+    await page.waitForTimeout(400);
+
+    record("浮球已删除", (await page.locator(".quickball").count()) === 0);
+    record("缩放把手已恢复", (await page.locator(".resize-handle").count()) === 1);
+    record("撤销/重做按钮存在", (await page.locator(".hist-btn").count()) === 2);
+    record("撤销初始禁用", await page.locator('.hist-btn[aria-label="撤销上一步"]').isDisabled());
+
+    // ---------- 2. 计算器浮条 ----------
+    await page.locator('.seg button:has-text("函数")').click();
+    await page.waitForSelector(".fnpad");
+    record("拖动浮条存在", (await page.locator(".fnpad-dragbar").count()) === 1);
+    const before = await page.locator(".fnpad").evaluate((el) => el.style.left || "(unset)");
+    const bar = await page.locator(".fnpad-dragbar").boundingBox();
+    await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bar.x + bar.width / 2 + 80, bar.y + bar.height / 2 - 40, { steps: 6 });
+    await page.mouse.up();
+    const after = await page.locator(".fnpad").evaluate((el) => el.style.left || "(unset)");
+    record("浮条拖动生效", before !== after, `${before} → ${after || "(set)"}`);
+
+    // ---------- 3. 撤销/重做（画笔一笔） ----------
+    await page.locator('.fnpad .drawer-close').click();
+    await clickRailTool(page, "画笔");
+    const box = await center(page);
+    const a = worldToPage(box, -3, 2);
+    const b = worldToPage(box, 3, -2);
+    await svgDrag(page, a, b);
+    await page.waitForTimeout(150);
+    const inkCount = await page.evaluate(() => {
+      const svg = document.querySelector(".canvas-svg");
+      return svg.querySelectorAll("path").length;
+    });
+    record("画笔一笔生效", inkCount >= 1, `path=${inkCount}`);
+
+    await page.locator('.hist-btn[aria-label="撤销上一步"]').click();
+    await page.waitForTimeout(120);
+    const afterUndo = await page.evaluate(() => document.querySelector(".canvas-svg").querySelectorAll("path").length);
+    record("撤销生效", afterUndo === inkCount - 1, `path=${afterUndo}`);
+    record("重做可用", !(await page.locator('.hist-btn[aria-label="重做下一步"]').isDisabled()));
+    await page.locator('.hist-btn[aria-label="重做下一步"]').click();
+    await page.waitForTimeout(120);
+    const afterRedo = await page.evaluate(() => document.querySelector(".canvas-svg").querySelectorAll("path").length);
+    record("重做生效", afterRedo === inkCount, `path=${afterRedo}`);
+
+    // ---------- 4. 套索判定：只圈中一个图形 ----------
+    await clickRailTool(page, "圆");
+    const c1 = worldToPage(box, -4.5, 3);
+    const c2 = worldToPage(box, -2.5, 1);
+    await svgDrag(page, c1, c2);
+    const c3 = worldToPage(box, 2, -1);
+    const c4 = worldToPage(box, 4.5, -3.5);
+    await svgDrag(page, c3, c4);
+    await page.waitForTimeout(120);
+    const circleCount = await page.evaluate(() => document.querySelectorAll(".canvas-svg circle").length);
+    record("画两个圆生效", circleCount >= 2, `circle=${circleCount}`);
+
+    await clickRailTool(page, "套索");
+    // 只圈住第一个矩形的小圈
+    const l1 = worldToPage(box, -5.5, 4.5);
+    const l2 = worldToPage(box, -1.5, 0.5);
+    await svgDrag(page, l1, l2);
+    await page.waitForTimeout(120);
+    const selCount = await page.evaluate(() =>
+      document.querySelectorAll(".canvas-svg rect[stroke-dasharray='4 4']").length,
+    );
+    record("套索只选中目标图形", selCount === 1, `selected=${selCount}`);
+
+    // ---------- 5. 框选整组拖动 ----------
+    const selBoxBefore = await page.evaluate(() => {
+      const r = document.querySelector(".canvas-svg rect[stroke-dasharray='4 4']");
+      return r ? `${r.getAttribute("x")},${r.getAttribute("y")}` : "none";
+    });
+    const mid = worldToPage(box, -3.5, 2.5);
+    const moved = worldToPage(box, -1.0, 0.0);
+    await svgDrag(page, mid, moved);
+    await page.waitForTimeout(150);
+    const selBoxAfter = await page.evaluate(() => {
+      const r = document.querySelector(".canvas-svg rect[stroke-dasharray='4 4']");
+      return r ? `${r.getAttribute("x")},${r.getAttribute("y")}` : "none";
+    });
+    record("框选整组拖动生效", selBoxBefore !== selBoxAfter, `${selBoxBefore} → ${selBoxAfter}`);
+
+    // ---------- 6. 选中图形改色 ----------
+    await page.locator(".rail-btn[title^='绘图选项']").click();
+    await page.waitForSelector(".drawer");
+    await page.locator(".swatch").nth(2).click();
+    await page.waitForTimeout(120);
+    const selShapeColor = await page.evaluate(() => {
+      const sel = document.querySelector(".canvas-svg .shape-sel, .canvas-svg [data-selected]");
+      const rects = [...document.querySelectorAll(".canvas-svg rect")].filter((r) => r.getAttribute("stroke-width") && r.getAttribute("fill") !== "none");
+      return rects.length > 0 ? rects[rects.length - 1].getAttribute("stroke") || rects[rects.length - 1].getAttribute("fill") : "unknown";
+    });
+    record("选中图形改色生效", selShapeColor !== "#2563eb", `color=${selShapeColor}`);
+    await page.locator(".drawer-close").click();
+
+    // ---------- 7. 图片锁定 ----------
+    // 通过选项抽屉导入文件图片（绕过卡片渲染走 onImportImage）
+    await page.locator(".rail-btn[title^='绘图选项']").click();
+    await page.waitForSelector(".drawer");
+    const fileChooserP = page.waitForEvent("filechooser");
+    await page.locator("button:has-text('从文件导入图片')").click();
+    const chooser = await fileChooserP;
+    // 生成 1x1 png 文件
+    const png64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    await chooser.setFiles({ name: "t.png", mimeType: "image/png", buffer: Buffer.from(png64, "base64") });
+    await page.waitForTimeout(400);
+    await page.locator(".drawer-close").click();
+    await page.waitForTimeout(150);
+    const badgeLocked = await page.evaluate(() => {
+      const g = document.querySelector(".canvas-svg .img-lock rect[fill*='37, 99, 235']");
+      return Boolean(g);
+    });
+    record("图片导入默认锁定", badgeLocked);
+    // 点锁定徽标解锁
+    const gBox = await page.locator(".canvas-svg .img-lock").first().boundingBox();
+    if (gBox) {
+      await page.mouse.click(gBox.x + 9, gBox.y + 9);
+      await page.waitForTimeout(150);
+    const unlocked = await page.evaluate(() => {
+      const g = document.querySelector(".canvas-svg .img-lock rect[fill*='37, 99, 235']");
+      return !g;
+    });
+      record("点击徽标解锁", unlocked);
+    } else {
+      record("点击徽标解锁", false, "未找到徽标");
+    }
+
+    // ---------- 8. 写入卡片（批注参数） ----------
+    await page.evaluate(() => { window.__mnCalls.length = 0; });
+    await page.locator(".appnav button:has-text('设置')").click();
+    await page.waitForTimeout(250);
+    await page.locator(".settings-chips button:has-text('导出')").click();
+    await page.waitForTimeout(200);
+    const settingsWrite = page.locator(":text('写入构图说明')").first();
+    await settingsWrite.click();
+    await page.waitForTimeout(300);
+    const commentCall = await page.evaluate(() =>
+      window.__mnCalls.find((c) => c.path.endsWith("/comments") && c.options?.method === "POST"),
+    );
+    record("批注参数合规", Boolean(commentCall) && commentCall.options.body?.confirm === true && commentCall.options.body?.format === "text",
+      commentCall ? `format=${commentCall.options.body?.format} confirm=${commentCall.options.body?.confirm}` : "未调用");
+
+    // ---------- 9. 卡片图导入（工具栏按钮） ----------
+    await page.locator(".appnav button:has-text('画布')").click();
+    await page.waitForTimeout(200);
+    await page.evaluate(() => { window.__mnCalls.length = 0; });
+    await page.locator(".rail-btn[title='插入图片']").click();
+    await page.waitForTimeout(500);
+    const imgShape = await page.evaluate(() => Boolean(document.querySelector(".canvas-svg image")));
+    record("卡片图导入成功", imgShape);
+
+    await page.screenshot({ path: join(root, "shots", "95-v021-regression.png"), fullPage: true });
+    await context.close();
+  }
+
+  await browser.close();
+  const failed = results.filter((r) => !r.ok);
+  console.log(`\n== ${results.length - failed.length}/${results.length} 通过 ==`);
+  process.exit(failed.length > 0 ? 1 : 0);
+}
+
+main().catch((e) => { console.error("FATAL", e); process.exit(2); });

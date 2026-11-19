@@ -37,11 +37,13 @@ import { PanelHeader } from "./PanelHeader";
 import { ToolRail } from "./stage/ToolRail";
 import { OptionsDrawer } from "./stage/OptionsDrawer";
 import { SolidStage } from "./stage/SolidStage";
-import { QuickBall, type QuickAction } from "./stage/QuickBall";
 import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
-import { AngleIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon, WriteIcon } from "./icons";
 import { useLassoClipboard } from "./useLassoClipboard";
+import { useHistoryShapes, useUndoHotkeys } from "./useHistoryShapes";
+import { HistoryButtons } from "./stage/HistoryButtons";
+import { HiddenFileInputs } from "./HiddenFileInputs";
+import { readDocumentFile, toExportDoc } from "./io/documents";
 import { fileToImageShape, imageSrcToShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
@@ -59,7 +61,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // ---- 文档状态 ----
   const [doc, setDoc] = useState<SketchDocument>(() => structuredClone(DEFAULT_DOCUMENT));
   const shapes = doc.shapes;
-  const setShapes = useCallback(
+  const rawSetShapes = useCallback(
     (updater: React.SetStateAction<Shape[]>) => {
       setDoc((prev) => ({
         ...prev,
@@ -68,6 +70,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     },
     [],
   );
+
+  // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
+  const { commit: setShapes, undo, redo, canUndo, canRedo } = useHistoryShapes(shapes, rawSetShapes);
 
   const [viewport, setViewport] = useState<Viewport>({
     width: VIEW_W,
@@ -81,7 +86,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [tab, setTab] = useState<"2d" | "fn" | "3d">("2d");
   const [tool, setTool] = useState<Tool>("select");
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formulaMsg, setFormulaMsg] = useState("");
   // 正在输入法里打字：暂停自动高度，避免键盘弹起/收起引发反复 mn.fit
@@ -140,15 +144,18 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     inkSmoothing: settings.inkSmoothing,
     specialAngleSnap: settings.specialAngleSnap,
     dashStyle: settings.dashStyle,
+    allowTouchDraw: settings.allowTouchDraw,
   }), [settings]);
 
-  // 面板尺寸记忆与收起/关闭；窗口缩放把手已按用户要求移除
-  const { resetSize, collapse, expand, close } = useResizablePanel({
+  // 面板尺寸记忆与收起/关闭（右下角把手拖动缩放）
+  const { resetSize, collapse, expand, close, onResizePointerDown } = useResizablePanel({
     remember: settings.rememberWindowSize,
   });
   // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度
   const [collapsed, setCollapsed] = useState(false);
   const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing);
+  // 快捷键（Ctrl/Cmd+Z / Shift+Z / Ctrl+Y）监听挂在面板根元素上
+  useUndoHotkeys(autoFitRef, undo, redo);
 
   const onCollapse = useCallback(() => {
     setCollapsed(true);
@@ -232,15 +239,19 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       showToast("请先通过「下一张卡片」或设置页选定一张卡片");
       return;
     }
-    const rendered = await renderCardImage(targetCard);
-    if (!rendered) {
-      showToast("卡片渲染失败（可能没有内容或超过像素上限）");
-      return;
+    try {
+      const rendered = await renderCardImage(targetCard);
+      if (!rendered) {
+        showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
+        return;
+      }
+      const shape = await imageSrcToShape(rendered.src, viewport, color, true);
+      setShapes((prev) => [...prev, shape]);
+      setSelectedId(shape.id);
+      showToast("已插入卡片图，可在图上直接作图");
+    } catch (e) {
+      showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-    const shape = await imageSrcToShape(rendered.src, viewport, color, true);
-    setShapes((prev) => [...prev, shape]);
-    setSelectedId(shape.id);
-    showToast("已插入卡片图，可在图上直接作图");
   }, [targetCard, viewport, color, setShapes, showToast]);
 
   /** 切换某个已有图形的虚线线型 */
@@ -252,6 +263,16 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }));
   }, [setShapes]);
 
+  /** 切换图片锁定（锁定后橡皮擦不掉，仍可拖动缩放） */
+  const onToggleImageLock = useCallback((id: string) => {
+    setShapes((prev) => prev.map((x) => {
+      if (x.id !== id || x.type !== "image") return x;
+      const nowLocked = !x.locked;
+      showToast(nowLocked ? "图片已锁定" : "图片已解锁");
+      return { ...x, locked: nowLocked };
+    }));
+  }, [setShapes, showToast]);
+
   // 清除所有「函数面板」绘制的图形；手画的图元/笔迹不受影响
   const onClearCurves = useCallback(() => {
     const removed = new Set(shapes.filter(isFormulaShape).map((x) => x.id));
@@ -261,29 +282,32 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     showToast(`已清除 ${removed.size} 条函数曲线`);
   }, [shapes, setShapes, showToast]);
 
+  /** 色板点击：选中图形时直接改它的颜色（同时记住为新图形默认色） */
+  const onShapeColor = useCallback((c: string) => {
+    updateSettings({ shapeColor: c });
+    if (selectedId) {
+      setShapes((prev) => prev.map((s) => (s.id === selectedId && "color" in s ? { ...s, color: c } : s)));
+    }
+  }, [updateSettings, selectedId, setShapes]);
+
   // ---- 文件导入 ----
-  const onImportFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as SketchDocument;
-        if (!parsed || !Array.isArray(parsed.shapes)) throw new Error("格式不正确");
-        setDoc(parsed);
-        setViewport({
-          width: VIEW_W,
-          height: VIEW_H,
-          xRange: [...parsed.view.xRange] as [number, number],
-          yRange: [...parsed.view.yRange] as [number, number],
-        });
-        setTab(parsed.shapes.some((s) => s.type === "solid") ? "3d" : "2d");
-        const coordShape = parsed.shapes.find((s) => s.type === "coord");
-        if (coordShape && coordShape.type === "coord") updateSettings({ gridStep: coordShape.grid });
-        showToast("导入成功");
-      } catch (e) {
-        showToast(`导入失败：${e instanceof Error ? e.message : "未知错误"}`);
-      }
-    };
-    reader.readAsText(file);
+  const onImportFile = useCallback(async (file: File) => {
+    try {
+      const parsed = await readDocumentFile(file);
+      setDoc(parsed);
+      setViewport({
+        width: VIEW_W,
+        height: VIEW_H,
+        xRange: [...parsed.view.xRange] as [number, number],
+        yRange: [...parsed.view.yRange] as [number, number],
+      });
+      setTab(parsed.shapes.some((s) => s.type === "solid") ? "3d" : "2d");
+      const coordShape = parsed.shapes.find((s) => s.type === "coord");
+      if (coordShape && coordShape.type === "coord") updateSettings({ gridStep: coordShape.grid });
+      showToast("导入成功");
+    } catch (e) {
+      showToast(`导入失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
   }, [updateSettings, showToast]);
 
   // ---- 导出 PNG ----
@@ -318,8 +342,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       .map((s) => (s.type === "solid" ? `立体模型：${s.kind} ${JSON.stringify(s.params)}` : describeShape(s)));
 
     const text = `【数学模型构图】\n${summaries.join("\n") || "（空）"}\n\n配图请从相册/文件手动插入已导出的 PNG。`;
-    const res = await addComment(targetCard, text);
-    showToast(res.ok ? "已写入批注" : `写入失败：${res.error ?? ""}`);
+    try {
+      const res = await addComment(targetCard, text);
+      showToast(res.ok ? "已写入批注" : `写入失败：${res.error ?? ""}`);
+    } catch (e) {
+      showToast(`写入失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
   };
 
   const updateSolidParam = (key: string, value: number) => {
@@ -343,32 +371,20 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     const card = cards[index];
     if (!card) return;
     setTargetCard(card.noteid);
-    const res = await focusCard(card.noteid, topic ?? undefined);
-    showToast(res.ok ? `${index + 1}/${cards.length} · ${card.title}` : `跳转失败：${res.error ?? ""}`);
+    try {
+      const res = await focusCard(card.noteid, topic ?? undefined);
+      showToast(res.ok ? `${index + 1}/${cards.length} · ${card.title}` : `跳转失败：${res.error ?? ""}`);
+    } catch (e) {
+      showToast(`跳转失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
   }, [cards, targetCard, topic, showToast]);
-
-  // 快捷浮球：把最常用的几个动作做成按钮，点完自动收起
-  const quickActions: QuickAction[] = [
-    { id: "pen", label: "画笔", icon: <PenIcon size={17} />, run: () => { setTool("pen"); setOptionsOpen(false); setQuickOpen(false); } },
-    { id: "eraser", label: "橡皮", icon: <EraserIcon size={17} />, run: () => { setTool("eraser"); setOptionsOpen(false); setQuickOpen(false); } },
-    { id: "angle", label: "画角度", icon: <AngleIcon size={17} />, run: () => { setTool("angle"); setOptionsOpen(false); setQuickOpen(false); } },
-    { id: "place", label: "插入图形", icon: <ShapesIcon size={17} />, run: () => { setTool("place"); setOptionsOpen(true); setQuickOpen(false); } },
-    { id: "formula", label: "函数计算器", icon: <SigmaIcon size={17} />, run: () => { setTab("fn"); setQuickOpen(false); } },
-    { id: "write", label: "写入卡片", icon: <WriteIcon size={17} />, run: () => { void onWriteToMN(); setQuickOpen(false); } },
-    { id: "settings", label: "设置", icon: <GearIcon size={17} />, run: () => { setView("settings"); setQuickOpen(false); } },
-  ];
 
   const resolvedTheme = resolveTheme(settings.theme, systemDark, mnTheme);
 
-  const docToExport = useMemo(() => ({
-    ...doc,
-    shapes: doc.shapes.map((s) => (s.type === "coord" ? { ...s, grid: settings.gridStep } : s)),
-    view: {
-      xRange: viewport.xRange,
-      yRange: viewport.yRange,
-      grid: settings.gridStep,
-    },
-  }), [doc, viewport, settings.gridStep]);
+  const docToExport = useMemo(
+    () => toExportDoc(doc, viewport, settings.gridStep),
+    [doc, viewport, settings.gridStep],
+  );
 
   return (
     <main className={`panel theme-${resolvedTheme}`} ref={autoFitRef}>
@@ -450,6 +466,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               <button className={tab === "fn" ? "on" : ""} onClick={() => setTab("fn")}>函数</button>
               <button className={tab === "3d" ? "on" : ""} onClick={() => setTab("3d")}>3D</button>
             </div>
+            {tab !== "3d" ? (
+              <HistoryButtons canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+            ) : null}
             {cards.length > 0 ? (
               <span className="stage-topic">
                 {Math.max(1, cards.findIndex((c) => c.noteid === targetCard) + 1)}/{cards.length}
@@ -497,13 +516,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             </>
           ) : null}
 
-          <QuickBall
-            open={quickOpen}
-            onToggle={() => setQuickOpen((v) => !v)}
-            actions={quickActions}
-            className={tab === "2d" ? "" : "above-sheet"}
-          />
-
           {tab === "2d" ? (
             <p className="stage-hint">双指拖动平移 · 捏合缩放</p>
           ) : null}
@@ -520,12 +532,13 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               penWidth={penWidth}
               onPenWidth={(n) => updateSettings({ penWidth: n })}
               color={color}
-              onColor={(c) => updateSettings({ shapeColor: c })}
+              onColor={onShapeColor}
               shapes={shapes}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onDeleteShape={onDeleteShape}
               onToggleDashed={onToggleDashed}
+              onToggleImageLock={onToggleImageLock}
               dashStyle={settings.dashStyle}
               onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
               onExportPng={() => { void onExportPng(); }}
@@ -537,22 +550,27 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         </div>
       )}
 
-      <input
-        ref={fileInputRef} type="file" accept="application/json,.json" hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImportFile(f);
-          e.target.value = "";
-        }}
+      <HiddenFileInputs
+        jsonInputRef={fileInputRef}
+        imageInputRef={imageInputRef}
+        onJsonFile={onImportFile}
+        onImageFile={(f) => { void onImportImage(f); }}
       />
-      <input
-        ref={imageInputRef} type="file" accept="image/*" hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void onImportImage(f);
-          e.target.value = "";
-        }}
-      />
+
+      {/* 右下角拖动缩放窗口；开启「跟随内容」时高度交给 mn.fit() */}
+      {settings.autoFitHeight ? null : (
+        <button
+          type="button"
+          className="resize-handle"
+          aria-label="右下角拖动缩放窗口"
+          title="拖动缩放；点击恢复默认尺寸"
+          onPointerDown={onResizePointerDown}
+        >
+          <svg viewBox="0 0 44 44" aria-hidden="true">
+            <path d="M12 35C27 35 35 27 35 12" />
+          </svg>
+        </button>
+      )}
 
     </main>
   );

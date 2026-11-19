@@ -210,6 +210,8 @@ export interface ImageShape {
   h: number;
   src: string;
   color: string;
+  /** 锁定保护：橡皮擦不掉（导入默认锁定，图片左上角徽标可切换） */
+  locked?: boolean;
 }
 
 export type SolidKind =

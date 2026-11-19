@@ -51,6 +51,8 @@ export async function imageSrcToShape(
     h: hWorld,
     src,
     color,
+    // 导入即锁定：题目底图不会被橡皮误擦（左上角徽标可解锁）
+    locked: true,
   };
 }
 

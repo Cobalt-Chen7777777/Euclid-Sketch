@@ -33,6 +33,8 @@ interface Props {
   onSelect: (id: string | null) => void;
   onDeleteShape: (id: string) => void;
   onToggleDashed: (id: string) => void;
+  /** 切换图片锁定（锁定后橡皮擦不掉） */
+  onToggleImageLock: (id: string) => void;
   /** 线型样式开关（画布上画什么都是虚线） */
   dashStyle: boolean;
   onDashStyle: (v: boolean) => void;
@@ -50,7 +52,7 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, dashStyle, onDashStyle, onExportPng, onImportImageFile,
+    onToggleDashed, onToggleImageLock, dashStyle, onDashStyle, onExportPng, onImportImageFile,
   } = props;
 
   return (
@@ -174,6 +176,15 @@ export function OptionsDrawer(props: Props) {
                   {/* 坐标系是画布的基准，不给删除入口（与画布上的橡皮规则一致） */}
                   {s.type === "coord" ? null : (
                     <>
+                      {s.type === "image" ? (
+                        <button
+                          type="button"
+                          className={`lock-btn${"locked" in s && s.locked ? " on" : ""}`}
+                          onClick={() => onToggleImageLock(s.id)}
+                          aria-label={"locked" in s && s.locked ? "解锁图片" : "锁定图片"}
+                          title={"locked" in s && s.locked ? "已锁定：橡皮擦不掉，点击解锁" : "未锁定：点击锁定防误擦"}
+                        >{"locked" in s && s.locked ? "🔒" : "🔓"}</button>
+                      ) : null}
                       {DASHABLE.has(s.type) ? (
                         <button
                           type="button"

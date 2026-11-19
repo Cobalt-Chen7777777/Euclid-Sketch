@@ -333,16 +333,6 @@ export function SlidersIcon({ size = 18 }: IconProps) {
   );
 }
 
-/** 快捷球：闪电 */
-export function BoltIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M13 2.5 L5.5 13.5 L11 13.5 L10.5 21.5 L18.5 10 L13 10 Z" />
-    </svg>
-  );
-}
-
 /** 退格 */
 export function DeleteIcon({ size = 18 }: IconProps) {
   return (

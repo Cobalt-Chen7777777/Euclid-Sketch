@@ -23,6 +23,8 @@ export interface SketchSettings {
   snapEnabled: boolean;
   /** 画布：网格密度（世界坐标单位） */
   gridStep: number;
+  /** 手指触控作图：关闭后只有 Apple Pencil / 鼠标能画图（双指平移缩放保留） */
+  allowTouchDraw: boolean;
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
   /** 工具栏显示的工具按钮（顺序即显示顺序） */
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   showTicks: true,
   snapEnabled: true,
   gridStep: 1,
+  allowTouchDraw: true,
   dashStyle: false,
   railTools: ["select", "pen", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"],
   railPresets: [
@@ -143,6 +146,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     showTicks: readBoolean(source.showTicks, DEFAULT_SETTINGS.showTicks),
     snapEnabled: readBoolean(source.snapEnabled, DEFAULT_SETTINGS.snapEnabled),
     gridStep: readNumber(source.gridStep, DEFAULT_SETTINGS.gridStep, 0.25, 5),
+    allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),
     railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
     railPresets: readRailPresets(source.railPresets, DEFAULT_SETTINGS.railPresets),

@@ -63,32 +63,30 @@ export function FunctionPad(props: Props) {
   // 草稿放在面板内部：每敲一个字只重渲染这个面板，
   // 不再牵动画布整棵树（之前逐字上抛状态，输入法下会明显卡顿）。
   const [expr, setExprState] = useState("");
-  // 小窗：可拖动、两档尺寸、函数 / 算式两种模式
+  // 小窗：可拖动（仅顶部拖动浮条）、两档尺寸、函数 / 算式两种模式
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [compact, setCompact] = useState(false);
   const [mode, setMode] = useState<"fn" | "calc">("fn");
-  const headDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
-  /**
-   * 整面板可拖动：按住面板任意空白处（非输入框 / 按钮 / 键盘 / 列表）即可拖。
-   * 拖动源元素要 capture，避免指针移出面板后事件丢失。
-   */
-  const onPadDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    const t = e.target as HTMLElement;
-    // 交互元素不作为拖动源；标题栏交给自己的 handler（它会更早收到事件并 stopPropagation？不——head 也走这套）
-    if (t.closest("input, button, select, .chips, .fnpad-keys, .fnpad-fnkeys, .fnpad-list, .fnbar, .drawer-close")) return;
+  /** 拖动浮条：按住它才能移动面板（真机验证：整面板任意处拖动会被 MN 宿主手势干扰，不灵敏） */
+  const barDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const onBarDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    e.preventDefault();
+    e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    const rect = e.currentTarget.getBoundingClientRect();
-    headDrag.current = { px: e.clientX, py: e.clientY, ox: rect.left, oy: rect.top };
+    const panel = e.currentTarget.closest(".fnpad");
+    const rect = (panel ?? e.currentTarget).getBoundingClientRect();
+    barDrag.current = { px: e.clientX, py: e.clientY, ox: rect.left, oy: rect.top };
   };
-  const onPadDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = headDrag.current;
+  const onBarDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = barDrag.current;
     if (!d) return;
     setPos({
       x: d.ox + e.clientX - d.px,
       y: Math.max(4, d.oy + e.clientY - d.py),
     });
   };
-  const onPadDragEnd = () => { headDrag.current = null; };
+  const onBarDragEnd = () => { barDrag.current = null; };
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
   const curves = shapes.filter(isFormulaShape);
 
@@ -177,13 +175,18 @@ export function FunctionPad(props: Props) {
       className={`fnpad${compact ? " fnpad-compact" : ""}`}
       role="dialog"
       aria-label="函数输入"
-      onPointerDown={onPadDragStart}
-      onPointerMove={onPadDragMove}
-      onPointerUp={onPadDragEnd}
-      onPointerCancel={onPadDragEnd}
       style={pos ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" } : undefined}
     >
-      <div className="fnpad-head" title="按住面板任意空白处拖动">
+      {/* 拖动浮条：按住这里移动面板 */}
+      <div
+        className="fnpad-dragbar"
+        title="按住这里拖动，移动面板"
+        onPointerDown={onBarDragStart}
+        onPointerMove={onBarDragMove}
+        onPointerUp={onBarDragEnd}
+        onPointerCancel={onBarDragEnd}
+      />
+      <div className="fnpad-head" title="面板工具：切换模式 / 缩放 / 退格 / 收起">
         <b>{mode === "fn" ? "函数" : "计算器"}</b>
         <div className="fnpad-head-right">
           <div className="seg small" role="group" aria-label="面板模式" onPointerDown={(e) => e.stopPropagation()}>
