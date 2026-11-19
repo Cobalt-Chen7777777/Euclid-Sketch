@@ -57,8 +57,7 @@ async function newPage(browser) {
   });
   // /bridge/v1 渲染图请求 → PNG（记录 URL 验证目标卡）
   await page.route("**/bridge/v1/notes/**", (route) => {
-    void page.evaluate((u) => { (window.__renderUrls as string[]).push(u); }, route.request().url()).catch(() => {});
-    route.fulfill({
+    void page.evaluate((u) => { window.__renderUrls.push(u); }, route.request().url()).catch(() => {});
     route.fulfill({
       status: 200,
       contentType: "image/png",
