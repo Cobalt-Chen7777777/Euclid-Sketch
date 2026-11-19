@@ -1,8 +1,7 @@
-import { useRef, useCallback, useEffect, useMemo, useState } from "react";
-
+import { useRef, useCallback, useMemo, useState } from "react";
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
 import type { Viewport } from "./canvas/viewport";
-import { addComment, focusCard, getCapabilities, hasImageWriteCapability, renderCardImage } from "./bridge";
+import { addComment, focusCard, renderCardImage } from "./bridge";
 import {
   downloadDocument,
   downloadBlob,
@@ -21,7 +20,7 @@ import {
   type SolidShape,
 } from "./model/types";
 import { createSolid } from "./solid/solids";
-import { getCurrentContext, listCards, type Card } from "./topic";
+import { useMnContext } from "./useMnContext";
 import { useResizablePanel } from "./useResizablePanel";
 import {
   DEFAULT_SETTINGS,
@@ -43,6 +42,7 @@ import { useHistoryShapes, useUndoHotkeys } from "./useHistoryShapes";
 import { HistoryButtons } from "./stage/HistoryButtons";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
+import { fitImageInList, resizeImageInList, toggleImageLock } from "./canvas/imageOps";
 import { fileToImageShape, imageSrcToShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
@@ -98,12 +98,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [solid, setSolid] = useState<SolidShape | null>(null);
   const captureRef = useRef<(() => string) | null>(null);
 
-  // MN 卡片
-  const [topic, setTopic] = useState<string | null>(null);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [targetCard, setTargetCard] = useState<string>("");
-  const [canWriteImage, setCanWriteImage] = useState(false);
-
   const svgRef = useRef<SVGSVGElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,6 +105,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setToast(msg);
     setTimeout(() => setToast((cur) => (cur === msg ? "" : cur)), 2200);
   }, []);
+
+  // MN 卡片：学习集 + 焦点卡（写入/导入目标） + 能力探测
+  const { topic, cards, targetCard, setTargetCard, canWriteImage } = useMnContext(showToast);
 
   // ---- 设置：本地持久化，改一项存一项 ----
   const [settings, setSettings] = useState<SketchSettings>(loadSettings);
@@ -164,30 +161,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setCollapsed(false);
     expand();
   }, [expand]);
-
-  // 初始化：读取当前学习集与焦点卡（写入/导入的目标 = 用户正在看的卡，而非列表第一张）
-  useEffect(() => {
-    let active = true;
-    getCurrentContext()
-      .then(async ({ topicid, focusNoteid }) => {
-        if (!active) return;
-        setTopic(topicid);
-        if (topicid) {
-          const items = await listCards(topicid);
-          if (!active) return;
-          setCards(items);
-          setTargetCard((cur) => cur || focusNoteid || items[0]?.noteid || "");
-        } else if (focusNoteid) {
-          setTargetCard((cur) => cur || focusNoteid);
-        }
-        const caps = await getCapabilities();
-        setCanWriteImage(await hasImageWriteCapability(caps));
-      })
-      .catch((e: unknown) => showToast(e instanceof Error ? e.message : String(e)));
-    return () => {
-      active = false;
-    };
-  }, [showToast]);
 
   // ---- 公式添加（由函数面板传入表达式，返回是否成功） ----
   const onAddFormula = useCallback((src: string): { ok: boolean } => {
@@ -266,13 +239,19 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
   /** 切换图片锁定（锁定后橡皮擦不掉，仍可拖动缩放） */
   const onToggleImageLock = useCallback((id: string) => {
-    setShapes((prev) => prev.map((x) => {
-      if (x.id !== id || x.type !== "image") return x;
-      const nowLocked = !x.locked;
-      showToast(nowLocked ? "图片已锁定" : "图片已解锁");
-      return { ...x, locked: nowLocked };
-    }));
+    setShapes((prev) => toggleImageLock(prev, id, showToast));
   }, [setShapes, showToast]);
+
+  /** 等比缩放选中图片（factor > 1 放大） */
+  const onResizeImage = useCallback((id: string, factor: number) => {
+    setShapes((prev) => resizeImageInList(prev, id, factor));
+  }, [setShapes]);
+
+  /** 图片重置到默认宽度（可视宽一半，等比） */
+  const onFitImage = useCallback((id: string) => {
+    const targetW = Math.min((viewport.xRange[1] - viewport.xRange[0]) / 2, 6);
+    setShapes((prev) => fitImageInList(prev, id, targetW));
+  }, [setShapes, viewport]);
 
   // 清除所有「函数面板」绘制的图形；手画的图元/笔迹不受影响
   const onClearCurves = useCallback(() => {
@@ -363,7 +342,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     } catch (e) {
       showToast(`跳转失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [cards, targetCard, topic, showToast]);
+  }, [cards, targetCard, topic, setTargetCard, showToast]);
 
   const resolvedTheme = resolveTheme(settings.theme, systemDark, mnTheme);
 
@@ -538,6 +517,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onDeleteShape={onDeleteShape}
               onToggleDashed={onToggleDashed}
               onToggleImageLock={onToggleImageLock}
+              onResizeImage={onResizeImage}
+              onFitImage={onFitImage}
               dashStyle={settings.dashStyle}
               onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
               onExportPng={() => { void onExportPng(); }}

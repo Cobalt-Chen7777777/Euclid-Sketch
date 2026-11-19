@@ -29,10 +29,43 @@ export function describeShape(s: Shape): string {
   }
 }
 
-/** 批注正文：整份构图清单（写入卡片用） */
+/** 批注正文：整份草图清单（写入卡片用）——分组结构化，函数带可复现公式 */
 export function buildSketchReport(shapes: Shape[]): string {
-  const summaries = shapes
-    .filter((s) => s.type !== "coord")
-    .map((s) => (s.type === "solid" ? `立体模型：${s.kind} ${JSON.stringify(s.params)}` : describeShape(s)));
-  return `【数学模型构图】\n${summaries.join("\n") || "（空）"}\n\n配图请从相册/文件手动插入已导出的 PNG。`;
+  const total = shapes.filter((s) => s.type !== "coord").length;
+  const lines: string[] = [`【Euclid Sketch 草图 · 共 ${total} 项】`];
+
+  const section = (title: string, items: string[]) => {
+    if (items.length === 0) return;
+    lines.push("", `〔${title}〕`, ...items.map((t, i) => `${i + 1}. ${t}`));
+  };
+
+  const fns: string[] = [];
+  const geos: string[] = [];
+  const imgs: string[] = [];
+  const inks: string[] = [];
+  const solids: string[] = [];
+  for (const s of shapes) {
+    if (s.type === "coord") continue;
+    if (s.type === "function") {
+      fns.push(`f(x) = ${s.source || s.expr}（可在插件函数面板复现）`);
+    } else if (s.type === "parametric") {
+      fns.push(`参数方程 x=${s.xExpr}, y=${s.yExpr}`);
+    } else if (s.type === "image") {
+      imgs.push(`题目/素材底图（${Math.round(s.w)}×${Math.round(s.h)} 世界单位${s.locked ? "，已锁定" : ""}）`);
+    } else if (s.type === "ink") {
+      inks.push(`手写笔迹（${s.points.length} 个采样点）`);
+    } else if (s.type === "solid") {
+      solids.push(`${describeShape(s)} ${JSON.stringify(s.params)}`);
+    } else {
+      geos.push(describeShape(s));
+    }
+  }
+  section("函数曲线（可在插件中复现）", fns);
+  section("几何图形", geos);
+  section("图片", imgs);
+  section("手写笔迹", inks);
+  section("立体模型", solids);
+
+  lines.push("", "草图配图：请用插件「导出 PNG」保存，再在 MN 里作为图片或子卡插图插入。");
+  return lines.join("\n");
 }

@@ -35,6 +35,10 @@ interface Props {
   onToggleDashed: (id: string) => void;
   /** 切换图片锁定（锁定后橡皮擦不掉） */
   onToggleImageLock: (id: string) => void;
+  /** 等比缩放选中图片 */
+  onResizeImage: (id: string, factor: number) => void;
+  /** 图片重置到默认宽度 */
+  onFitImage: (id: string) => void;
   /** 线型样式开关（画布上画什么都是虚线） */
   dashStyle: boolean;
   onDashStyle: (v: boolean) => void;
@@ -52,8 +56,11 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, onToggleImageLock, dashStyle, onDashStyle, onExportPng, onImportImageFile,
+    onToggleDashed, onToggleImageLock, onResizeImage, onFitImage,
+    dashStyle, onDashStyle, onExportPng, onImportImageFile,
   } = props;
+
+  const selectedShape = shapes.find((s) => s.id === selectedId) ?? null;
 
   return (
     <aside className="drawer" aria-label="绘图选项">
@@ -94,6 +101,20 @@ export function OptionsDrawer(props: Props) {
           </div>
           <p className="drawer-hint">虚线开启后，新画的线段 / 圆 / 矩形等都是虚线；已有图形在下方列表可单独切换</p>
         </section>
+
+        {/* 图片调整：选中图片时显示（等比缩放 + 文件导入备用入口） */}
+        {selectedShape?.type === "image" ? (
+          <section className="drawer-sec">
+            <h3>图片调整</h3>
+            <div className="chips">
+              <button type="button" className="chip" onClick={() => onResizeImage(selectedShape.id, 1.25)}>放大</button>
+              <button type="button" className="chip" onClick={() => onResizeImage(selectedShape.id, 0.8)}>缩小</button>
+              <button type="button" className="chip" onClick={() => onFitImage(selectedShape.id)}>默认大小</button>
+            </div>
+            <p className="drawer-hint">拖动图片中心移动 · 右下角控制点自由拉伸 · 点图片左上角锁图标切换防误擦</p>
+            <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
+          </section>
+        ) : null}
 
         {/* 图元类型 */}
         <section className="drawer-sec">

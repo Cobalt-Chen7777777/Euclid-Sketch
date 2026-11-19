@@ -54,6 +54,12 @@ export function ToolRail({
             onImportImage();
             return;
           }
+          if (item.id === "place") {
+            // 全部图形：进入 place 并自动弹出抽屉选类型（点击即有响应，不至像无效果）
+            onTool("place");
+            if (!optionsOpen) onToggleOptions();
+            return;
+          }
           if (isPlace) {
             onPlaceType(item.id as PrimitiveType);
             onTool("place");
