@@ -593,6 +593,14 @@ button.with-icon svg { flex: none; }
   background: transparent; color: var(--ink);
 }
 .hist-btn:disabled { color: var(--muted); opacity: .45; }
+/* 写入卡片：与撤销/重做同排的快捷入口 */
+.write-btn {
+  padding: 4px 10px; font-size: 11.5px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--chrome);
+  color: var(--ink); font-weight: 600;
+  box-shadow: 0 2px 8px rgba(30, 25, 18, .10);
+}
 .stage-topic {
   font-size: 10.5px; color: var(--muted);
   background: var(--chrome-soft);

@@ -59,3 +59,14 @@ export function downloadDocument(doc: SketchDocument, filename = "sketch.json"):
   const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
   downloadBlob(blob, filename);
 }
+
+/** 渲染当前页面的导出图：3D 用抓帧回调，2D 用 SVG 转栅格 */
+export async function renderExportDataUrl(
+  tab: string,
+  capture: (() => string) | null,
+  svg: SVGSVGElement | null,
+): Promise<{ dataUrl: string; name: string }> {
+  if (tab === "3d" && capture) return { dataUrl: capture(), name: "solid-model.png" };
+  if (svg) return { dataUrl: await svgToPng(svgToDataURL(svg), 2), name: "math-sketch.png" };
+  throw new Error("没有可导出的画布");
+}

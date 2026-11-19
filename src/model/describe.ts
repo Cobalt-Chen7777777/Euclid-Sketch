@@ -28,3 +28,11 @@ export function describeShape(s: Shape): string {
     default: return "图形";
   }
 }
+
+/** 批注正文：整份构图清单（写入卡片用） */
+export function buildSketchReport(shapes: Shape[]): string {
+  const summaries = shapes
+    .filter((s) => s.type !== "coord")
+    .map((s) => (s.type === "solid" ? `立体模型：${s.kind} ${JSON.stringify(s.params)}` : describeShape(s)));
+  return `【数学模型构图】\n${summaries.join("\n") || "（空）"}\n\n配图请从相册/文件手动插入已导出的 PNG。`;
+}

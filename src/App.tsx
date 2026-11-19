@@ -7,10 +7,9 @@ import {
   downloadDocument,
   downloadBlob,
   dataUrlToBlob,
-  svgToDataURL,
-  svgToPng,
+  renderExportDataUrl,
 } from "./export/image";
-import { describeShape } from "./model/describe";
+import { buildSketchReport } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
 import { DASHABLE } from "./model/types";
 import {
@@ -313,19 +312,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // ---- 导出 PNG ----
   const onExportPng = async () => {
     try {
-      let dataUrl: string;
-      let name: string;
-      if (tab === "3d" && captureRef.current) {
-        dataUrl = captureRef.current();
-        name = "solid-model.png";
-      } else if (svgRef.current) {
-        dataUrl = await svgToPng(svgToDataURL(svgRef.current), 2);
-        name = "math-sketch.png";
-      } else {
-        throw new Error("没有可导出的画布");
-      }
+      const { dataUrl, name } = await renderExportDataUrl(tab, captureRef.current, svgRef.current);
       downloadBlob(dataUrlToBlob(dataUrl), name);
-      showToast("PNG 已导出，可在 MN 中手动插入");
+      showToast("PNG 已导出；想作为子卡插图，可在 MN 里给当前卡添加子卡后插入该图");
     } catch (e) {
       showToast(`导出失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
@@ -337,13 +326,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       showToast("请先选择一个笔记卡片");
       return;
     }
-    const summaries = shapes
-      .filter((s) => s.type !== "coord")
-      .map((s) => (s.type === "solid" ? `立体模型：${s.kind} ${JSON.stringify(s.params)}` : describeShape(s)));
-
-    const text = `【数学模型构图】\n${summaries.join("\n") || "（空）"}\n\n配图请从相册/文件手动插入已导出的 PNG。`;
     try {
-      const res = await addComment(targetCard, text);
+      const res = await addComment(targetCard, buildSketchReport(shapes));
       showToast(res.ok ? "已写入批注" : `写入失败：${res.error ?? ""}`);
     } catch (e) {
       showToast(`写入失败：${e instanceof Error ? e.message : "未知错误"}`);
@@ -468,6 +452,15 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             </div>
             {tab !== "3d" ? (
               <HistoryButtons canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+            ) : null}
+            {tab !== "3d" ? (
+              <button
+                type="button"
+                className="write-btn"
+                onClick={() => { void onWriteToMN(); }}
+                aria-label="写入卡片"
+                title="把画布构图说明写入当前选定卡片的批注"
+              >写入</button>
             ) : null}
             {cards.length > 0 ? (
               <span className="stage-topic">
