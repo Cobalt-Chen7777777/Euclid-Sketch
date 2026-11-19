@@ -14,7 +14,7 @@
  *   - mn.height(h) 只改高度、无动画
  *   - mn.mode('mini' | 'workspace') 只改模式标记，不改尺寸，必须自己配 size
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** 面板尺寸（CSS 逻辑像素，≈ pt） */
 export interface PanelSize {
@@ -100,6 +100,9 @@ export function useResizablePanel(options?: { remember?: boolean }) {
       : { width: PANEL_LIMITS.defaultWidth, height: PANEL_LIMITS.defaultHeight },
   );
 
+  /** 正在拖动把手：App 据此暂停 autoFit，避免 mn.fit() 与缩放拉锯 */
+  const [isResizing, setResizing] = useState(false);
+
   const appliedRef = useRef<PanelSize | null>(null);
   const applySize = useCallback((size: PanelSize) => {
     const last = appliedRef.current;
@@ -133,6 +136,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
 
       const handle = event.currentTarget;
       handle.setPointerCapture(event.pointerId);
+      setResizing(true);
 
       const origin = {
         pointerId: event.pointerId,
@@ -143,14 +147,16 @@ export function useResizablePanel(options?: { remember?: boolean }) {
       };
       let moved = false;
       let latest: PanelSize = { width: origin.width, height: origin.height };
-      let pending: PanelSize | null = null;
+      let pendingH: number | null = null;
       let timer: ReturnType<typeof setTimeout> | null = null;
 
-      const flush = () => {
+      const flushH = () => {
         timer = null;
-        if (!pending) return;
-        applySize(pending);
-        pending = null;
+        if (pendingH == null) return;
+        // 拖动中只调 mn.height：官方明确无动画，连续调用不会像 mn.size 那样
+        // 反复重启过渡动画导致面板乱动。宽度松手时随 mn.size 一次到位。
+        if (isMnAvailable()) mn.height(pendingH);
+        pendingH = null;
       };
 
       const onMove = (moveEvent: PointerEvent) => {
@@ -162,9 +168,8 @@ export function useResizablePanel(options?: { remember?: boolean }) {
           width: clamp(origin.width + dx, PANEL_LIMITS.minWidth, PANEL_LIMITS.maxWidth),
           height: clamp(origin.height + dy, PANEL_LIMITS.minHeight, PANEL_LIMITS.maxHeight),
         };
-        pending = latest;
-        // 70ms 节流：mn.size 带过渡动画，逐帧调用会互相打断
-        if (!timer) timer = setTimeout(flush, 70);
+        pendingH = latest.height;
+        if (!timer) timer = setTimeout(flushH, 90);
       };
 
       const cleanup = () => {
@@ -172,7 +177,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
           clearTimeout(timer);
           timer = null;
         }
-        pending = null;
+        pendingH = null;
         handle.removeEventListener("pointermove", onMove);
         handle.removeEventListener("pointerup", onUp);
         handle.removeEventListener("pointercancel", onCancel);
@@ -180,12 +185,13 @@ export function useResizablePanel(options?: { remember?: boolean }) {
         if (handle.hasPointerCapture(origin.pointerId)) {
           handle.releasePointerCapture(origin.pointerId);
         }
+        setResizing(false);
       };
 
       const onUp = (upEvent: PointerEvent) => {
         if (upEvent.pointerId !== origin.pointerId) return;
         cleanup();
-        // 没移动过 = 点击：恢复默认尺寸；否则提交拖动结束时的尺寸
+        // 没移动过 = 点击：恢复默认尺寸；否则 mn.size 一次提交最终宽高（宽度在此生效）
         if (!moved) {
           commit({ width: PANEL_LIMITS.defaultWidth, height: PANEL_LIMITS.defaultHeight });
           return;
@@ -199,7 +205,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
       handle.addEventListener("pointercancel", onCancel);
       handle.addEventListener("lostpointercapture", onCancel);
     },
-    [applySize, commit],
+    [commit],
   );
 
   const resetSize = useCallback(() => {
@@ -239,5 +245,5 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     if (isMnAvailable()) mn.reload();
   }, []);
 
-  return { onResizePointerDown, resetSize, collapse, expand, close, reload };
+  return { onResizePointerDown, isResizing, resetSize, collapse, expand, close, reload };
 }

@@ -147,12 +147,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }), [settings]);
 
   // 面板尺寸记忆与收起/关闭（右下角把手拖动缩放）
-  const { resetSize, collapse, expand, close, onResizePointerDown } = useResizablePanel({
+  const { resetSize, collapse, expand, close, onResizePointerDown, isResizing } = useResizablePanel({
     remember: settings.rememberWindowSize,
   });
-  // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度
+  // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度；拖动把手缩放时也暂停（避免 mn.fit 拉锯）
   const [collapsed, setCollapsed] = useState(false);
-  const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing);
+  const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing && !isResizing);
   // 快捷键（Ctrl/Cmd+Z / Shift+Z / Ctrl+Y）监听挂在面板根元素上
   useUndoHotkeys(autoFitRef, undo, redo);
 
