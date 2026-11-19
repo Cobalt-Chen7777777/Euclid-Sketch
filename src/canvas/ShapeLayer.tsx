@@ -2,7 +2,7 @@
 import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
-import type { AngleShape, ArcShape, PolyShape, EllipseShape, InkShape, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
+import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
 import {
   gridLines,
   radiusToScreen,
@@ -52,13 +52,15 @@ const sy = (v: Viewport) => v.height / (v.yRange[1] - v.yRange[0]);
 function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2) {
   const stroke = "color" in shape ? shape.color : "#2563eb";
   const sw = selected ? baseWidth + 1 : baseWidth;
+  // 虚线线型：图形带 dashed 标记时描边用 dash
+  const dashA = "dashed" in shape && shape.dashed ? "7 5" : undefined;
   switch (shape.type) {
     case "coord":
       return null;
     case "circle": {
       const c = toScreen({ x: shape.cx, y: shape.cy }, v);
       const r = radiusToScreen(shape.r, v);
-      return <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={stroke} strokeWidth={sw} />;
+      return <circle cx={c.x} cy={c.y} r={r} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
     }
     case "ellipse": {
       const e = shape as EllipseShape;
@@ -67,7 +69,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
         <ellipse
           cx={c.x} cy={c.y}
           rx={Math.abs(e.rx * sx(v))} ry={Math.abs(e.ry * sy(v))}
-          fill="none" stroke={stroke} strokeWidth={sw}
+          fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
     }
@@ -89,7 +91,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       return (
         <path
           d={`M ${p1.x} ${p1.y} A ${rx} ${ry} 0 ${largeArc} 0 ${p2.x} ${p2.y}`}
-          fill="none" stroke={stroke} strokeWidth={sw}
+          fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
     }
@@ -104,14 +106,14 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
         <rect
           x={a.x} y={a.y}
           width={Math.abs(w * sx(v))} height={Math.abs(h * sy(v))}
-          fill="none" stroke={stroke} strokeWidth={sw}
+          fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
     }
     case "polygon": {
       const p = shape as PolygonShape;
       const d = pathFromPoints(polygonPoints(p), v);
-      return <path d={`${d} Z`} fill="none" stroke={stroke} strokeWidth={sw} />;
+      return <path d={`${d} Z`} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
     }
     case "ray": {
       const l = shape as RayShape;
@@ -121,18 +123,33 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const b = toScreen(far, v);
       return (
         <g>
-          <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={sw} markerEnd="url(#arrow)" />
+          <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} markerEnd="url(#arrow)" />
         </g>
       );
     }
     case "line": {
       const a = toScreen({ x: shape.x1, y: shape.y1 }, v);
       const b = toScreen({ x: shape.x2, y: shape.y2 }, v);
-      return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={sw} />;
+      return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
     }
     case "point": {
       const p = toScreen({ x: shape.x, y: shape.y }, v);
       return <circle cx={p.x} cy={p.y} r={6} fill={stroke} />;
+    }
+    case "image": {
+      const im = shape as ImageShape;
+      const bl = toScreen({ x: im.x, y: im.y }, v);
+      const tr = toScreen({ x: im.x + im.w, y: im.y + im.h }, v);
+      return (
+        <image
+          href={im.src}
+          x={bl.x}
+          y={tr.y}
+          width={tr.x - bl.x}
+          height={bl.y - tr.y}
+          preserveAspectRatio="none"
+        />
+      );
     }
     case "poly": {
       const p = shape as PolyShape;
@@ -140,7 +157,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       return (
         <path
           d={p.closed ? `${d} Z` : d}
-          fill="none" stroke={stroke} strokeWidth={sw}
+          fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
           strokeLinejoin="round" strokeLinecap="round"
         />
       );
@@ -171,20 +188,20 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
         const c3 = toScreen({ x: a.vx + ux2 * d, y: a.vy + uy2 * d }, v);
         return (
           <path d={`M ${c1.x} ${c1.y} L ${c2.x} ${c2.y} L ${c3.x} ${c3.y}`}
-            fill="none" stroke={stroke} strokeWidth={sw} />
+            fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />
         );
       })() : (
         <path
           d={`M ${p1.x} ${p1.y} A ${Math.abs(a.r * sx(v))} ${Math.abs(a.r * sy(v))} 0 0 0 ${p2.x} ${p2.y}`}
-          fill="none" stroke={stroke} strokeWidth={sw}
+          fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
 
       const mid = at(start + span / 2, a.r * 1.55);
       return (
         <g>
-          <line x1={vertex.x} y1={vertex.y} x2={reach1.x} y2={reach1.y} stroke={stroke} strokeWidth={sw} />
-          <line x1={vertex.x} y1={vertex.y} x2={reach2.x} y2={reach2.y} stroke={stroke} strokeWidth={sw} />
+          <line x1={vertex.x} y1={vertex.y} x2={reach1.x} y2={reach1.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />
+          <line x1={vertex.x} y1={vertex.y} x2={reach2.x} y2={reach2.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />
           {mark}
           <text x={mid.x} y={mid.y + 4} fontSize={11} fill={stroke} textAnchor="middle" fontWeight={600}>{label}</text>
         </g>
@@ -202,11 +219,11 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     }
     case "function": {
       const pts = sampleFunction(shape, 320);
-      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} />;
+      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
     }
     case "parametric": {
       const pts = sampleParametric(shape, 360);
-      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} />;
+      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
     }
     default:
       return null;

@@ -1,55 +1,93 @@
 /**
- * 左侧悬浮工具栏：只放工具，不占画布布局空间。
- * 图标排成一列，竖在画布左边缘，画布因此可以铺满整个面板。
+ * 左侧悬浮工具栏：按钮内容可在「设置 → 工具栏」里自定义。
+ * 线 / 点 / 圆等常用图元直接做成按钮，点击即进入对应绘制模式（原生体验）。
  */
 import type { Tool } from "../canvas/Canvas2D";
+import { RAIL_CATALOG } from "../settings/model";
+import type { PrimitiveType } from "../model/types";
 import { SlidersIcon, ToolIcon, type ToolIconName } from "../icons";
 
-const TOOLS: { tool: Tool; icon: ToolIconName; label: string }[] = [
-  { tool: "select", icon: "select", label: "选择" },
-  { tool: "pen", icon: "pen", label: "画笔" },
-  { tool: "eraser", icon: "eraser", label: "橡皮" },
-  { tool: "compass", icon: "compass", label: "圆规" },
-  { tool: "place", icon: "place", label: "绘制图元" },
-  { tool: "angle", icon: "angle", label: "画角度" },
-  { tool: "pan", icon: "pan", label: "平移" },
-];
+/** id → 图标（目录里的每一项都要有图标） */
+const ICONS: Record<string, ToolIconName> = {
+  select: "select", pen: "pen", eraser: "eraser", lasso: "lasso", angle: "angle",
+  line: "line", point: "point", circle: "circle",
+  ellipse: "place", rect: "place", polygon: "place", arc: "place",
+  place: "place", compass: "compass", image: "image",
+};
+
+/** 图元类按钮：点击进入 place 模式并切换 placeType */
+const PLACE_TOOLS = new Set(["line", "point", "circle", "ellipse", "rect", "polygon", "arc"]);
 
 interface Props {
   tool: Tool;
+  placeType: PrimitiveType;
+  railTools: string[];
   onTool: (tool: Tool) => void;
+  onPlaceType: (t: PrimitiveType) => void;
+  onImportImage: () => void;
   lockRadius: boolean;
   onToggleLock: () => void;
   optionsOpen: boolean;
   onToggleOptions: () => void;
 }
 
-export function ToolRail({ tool, onTool, lockRadius, onToggleLock, optionsOpen, onToggleOptions }: Props) {
+export function ToolRail({
+  tool, placeType, railTools, onTool, onPlaceType, onImportImage,
+  lockRadius, onToggleLock, optionsOpen, onToggleOptions,
+}: Props) {
+  // 「选择」永远显示，避免配置后无法返回选择模式
+  const items = RAIL_CATALOG.filter((c) => c.id === "select" || railTools.includes(c.id));
+
   return (
     <div className="rail" role="toolbar" aria-label="绘图工具">
-      {TOOLS.map((item) => (
+      {items.map((item) => {
+        const isPlace = PLACE_TOOLS.has(item.id);
+        const active = item.id === "image"
+          ? false
+          : isPlace
+            ? tool === "place" && placeType === item.id
+            : item.id === "place"
+              ? tool === "place" && !PLACE_TOOLS.has(placeType)
+              : tool === item.id;
+        const onClick = () => {
+          if (item.id === "image") {
+            onImportImage();
+            return;
+          }
+          if (isPlace) {
+            onPlaceType(item.id as PrimitiveType);
+            onTool("place");
+            return;
+          }
+          onTool(item.id as Tool);
+        };
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className={`rail-btn${active ? " on" : ""}`}
+            aria-label={item.label}
+            aria-pressed={active}
+            title={item.label}
+            onClick={onClick}
+          >
+            <ToolIcon name={ICONS[item.id] ?? "place"} size={19} />
+          </button>
+        );
+      })}
+
+      {railTools.includes("compass") ? (
         <button
-          key={item.tool}
           type="button"
-          className={`rail-btn${tool === item.tool ? " on" : ""}`}
-          aria-label={item.label}
-          aria-pressed={tool === item.tool}
-          title={item.label}
-          onClick={() => onTool(item.tool)}
+          className={`rail-btn${lockRadius ? " on" : ""}`}
+          aria-label="锁定半径"
+          aria-pressed={lockRadius}
+          title="锁定半径（先画一个圆）"
+          onClick={onToggleLock}
         >
-          <ToolIcon name={item.icon} size={19} />
+          <ToolIcon name="lock" size={19} />
         </button>
-      ))}
-      <button
-        type="button"
-        className={`rail-btn${lockRadius ? " on" : ""}`}
-        aria-label="锁定半径"
-        aria-pressed={lockRadius}
-        title="锁定半径（先画一个圆）"
-        onClick={onToggleLock}
-      >
-        <ToolIcon name="lock" size={19} />
-      </button>
+      ) : null}
 
       <span className="rail-sep" aria-hidden="true" />
 
@@ -58,7 +96,7 @@ export function ToolRail({ tool, onTool, lockRadius, onToggleLock, optionsOpen, 
         className={`rail-btn${optionsOpen ? " on" : ""}`}
         aria-label="绘图选项"
         aria-expanded={optionsOpen}
-        title="绘图选项（图元 / 笔宽 / 颜色 / 公式）"
+        title="绘图选项（背景 / 图形 / 笔宽 / 颜色）"
         onClick={onToggleOptions}
       >
         <SlidersIcon size={19} />

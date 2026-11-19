@@ -109,6 +109,8 @@ export default tseslint.config(
       "vite.config.*",
       // native 层留档（已停用）：JSB 环境代码 var / 空 catch 是刻意的，不按页面规则检查
       "docs/native-hybrid",
+      // 临时验证脚本（下划线前缀）
+      "_*.mjs",
     ],
   },
 

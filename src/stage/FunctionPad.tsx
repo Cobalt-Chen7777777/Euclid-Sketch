@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- 小窗拖动位置必须动态 style */
 /**
  * 函数面板：科学计算器式界面。
  *
@@ -62,6 +63,24 @@ export function FunctionPad(props: Props) {
   // 草稿放在面板内部：每敲一个字只重渲染这个面板，
   // 不再牵动画布整棵树（之前逐字上抛状态，输入法下会明显卡顿）。
   const [expr, setExprState] = useState("");
+  // 小窗：可拖动、两档尺寸、函数 / 算式两种模式
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [compact, setCompact] = useState(false);
+  const [mode, setMode] = useState<"fn" | "calc">("fn");
+  const headDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const onHeadDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const pad = e.currentTarget.closest(".fnpad") as HTMLElement | null;
+    if (!pad) return;
+    const rect = pad.getBoundingClientRect();
+    headDrag.current = { px: e.clientX, py: e.clientY, ox: rect.left, oy: rect.top };
+  };
+  const onHeadMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = headDrag.current;
+    if (!d) return;
+    setPos({ x: d.ox + e.clientX - d.px, y: Math.max(4, d.oy + e.clientY - d.py) });
+  };
+  const onHeadUp = () => { headDrag.current = null; };
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
   const curves = shapes.filter(isFormulaShape);
 
@@ -87,6 +106,23 @@ export function FunctionPad(props: Props) {
     if (res.ok) {
       setExpr("");
       setResult(null);
+    }
+  };
+
+  /** 算式模式：不代入 x，直接求值四则/函数表达式 */
+  const calcNow = () => {
+    if (!expr.trim()) {
+      setResult({ ok: false, text: "先输入算式，如 2+3×4" });
+      return;
+    }
+    try {
+      const value = compileExpr(expr)({ x: 0, t: 0, pi: Math.PI, e: Math.E });
+      const text = Number.isFinite(value)
+        ? `= ${Math.abs(value) >= 1e6 || (Math.abs(value) < 1e-4 && value !== 0) ? value.toExponential(6) : String(Math.round(value * 1e6) / 1e6)}`
+        : "无法计算";
+      setResult({ ok: Number.isFinite(value), text });
+    } catch {
+      setResult({ ok: false, text: "算式有误" });
     }
   };
 
@@ -129,14 +165,26 @@ export function FunctionPad(props: Props) {
   };
 
   return (
-    <div className="fnpad" role="dialog" aria-label="函数输入">
-      <div className="fnpad-head">
-        <b>函数</b>
+    <div
+      className={`fnpad${compact ? " fnpad-compact" : ""}`}
+      role="dialog"
+      aria-label="函数输入"
+      style={pos ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" } : undefined}
+    >
+      <div className="fnpad-head" onPointerDown={onHeadDown} onPointerMove={onHeadMove} onPointerUp={onHeadUp} title="拖动移动面板">
+        <b>{mode === "fn" ? "函数" : "计算器"}</b>
         <div className="fnpad-head-right">
-          <button type="button" className="fnpad-quick-btn" onClick={() => setExpr(expr.slice(0, -1))} aria-label="退格">
+          <div className="seg small" role="group" aria-label="面板模式" onPointerDown={(e) => e.stopPropagation()}>
+            <button className={mode === "fn" ? "on" : ""} onClick={() => setMode("fn")}>函数</button>
+            <button className={mode === "calc" ? "on" : ""} onClick={() => setMode("calc")}>算式</button>
+          </div>
+          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCompact((v) => !v)} aria-label="切换面板大小" title="放大 / 缩小面板">
+            ⤢
+          </button>
+          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setExpr(expr.slice(0, -1))} aria-label="退格">
             <DeleteIcon size={16} />
           </button>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="收起函数面板">
+          <button type="button" className="drawer-close" onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label="收起函数面板">
             <CloseIcon size={14} />
           </button>
         </div>
@@ -194,7 +242,9 @@ export function FunctionPad(props: Props) {
           spellCheck={false}
           enterKeyHint="done"
         />
-        <span className="fnbar-label">x</span>
+        {mode === "calc" ? null : (
+          <>
+            <span className="fnbar-label">x</span>
         <input
           className="fnbar-x"
           value={xValue}
@@ -206,13 +256,21 @@ export function FunctionPad(props: Props) {
           spellCheck={false}
           aria-label="代入的 x 值"
         />
-        <button type="button" className="fnbar-eq" onClick={evaluate} aria-label="求值">=</button>
-        <button type="button" className="primary fnbar-draw" onClick={draw}>绘制</button>
+          </>
+        )}
+        {mode === "calc" ? null : (
+          <button type="button" className="fnbar-eq" onClick={evaluate} aria-label="求值">=</button>
+        )}
+        <button
+          type="button"
+          className="primary fnbar-draw"
+          onClick={mode === "calc" ? calcNow : draw}
+        >{mode === "calc" ? "=" : "绘制"}</button>
       </div>
 
       {/* 结果行：高度固定，没有结果时显示占位文字，避免出现时撑高 */}
       <p className={`fnbar-result${result && !result.ok ? " bad" : ""}`}>
-        {result ? result.text : "代入 x 后按 = 求值"}
+        {result ? result.text : mode === "calc" ? "输入算式后按 = 计算" : "代入 x 后按 = 求值"}
       </p>
 
       {message ? <p className="error fnpad-error">{message}</p> : null}

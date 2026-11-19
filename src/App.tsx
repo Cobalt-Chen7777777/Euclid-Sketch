@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
 import type { Viewport } from "./canvas/viewport";
@@ -12,6 +12,7 @@ import {
 } from "./export/image";
 import { describeShape } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
+import { DASHABLE } from "./model/types";
 import {
   DEFAULT_DOCUMENT,
   type PrimitiveType,
@@ -39,7 +40,10 @@ import { SolidStage } from "./stage/SolidStage";
 import { QuickBall, type QuickAction } from "./stage/QuickBall";
 import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
-import { AngleIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon } from "./icons";
+import { AngleIcon, EraserIcon, GearIcon, PenIcon, ShapesIcon, SigmaIcon, WriteIcon } from "./icons";
+import { useLassoClipboard } from "./useLassoClipboard";
+import { fileToImageShape } from "./model/image";
+import { LassoBar } from "./stage/LassoBar";
 
 const VIEW_W = 400;
 const VIEW_H = 240;
@@ -135,6 +139,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     eraserRadius: settings.eraserRadius,
     inkSmoothing: settings.inkSmoothing,
     specialAngleSnap: settings.specialAngleSnap,
+    dashedDefault: settings.dashedDefault,
   }), [settings]);
 
   // 面板尺寸：右下角拖动缩放 + 收起/关闭（实现方式同 CardLink）
@@ -203,6 +208,31 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const onDeleteShape = useCallback((id: string) => {
     setShapes((prev) => prev.filter((x) => x.id !== id));
     setSelectedId((cur) => (cur === id ? null : cur));
+  }, [setShapes]);
+
+  // 套索多选 + 剪贴板（复制 / 剪切 / 粘贴 / 删除）
+  const lasso = useLassoClipboard(shapes, setShapes, showToast);
+
+  // 图片导入（题目照片等）
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const onImportImage = useCallback(async (file: File) => {
+    try {
+      const shape = await fileToImageShape(file, viewport, color);
+      setShapes((prev) => [...prev, shape]);
+      setSelectedId(shape.id);
+      showToast(`已插入图片（约 ${Math.round(shape.src.length / 1024)}KB）`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "图片导入失败");
+    }
+  }, [viewport, color, setShapes, showToast]);
+
+  /** 切换某个已有图形的虚线线型 */
+  const onToggleDashed = useCallback((id: string) => {
+    setShapes((prev) => prev.map((x) => {
+      if (x.id !== id || !DASHABLE.has(x.type)) return x;
+      const cur = "dashed" in x && x.dashed;
+      return { ...x, dashed: !cur } as typeof x;
+    }));
   }, [setShapes]);
 
   // 清除所有「函数面板」绘制的图形；手画的图元/笔迹不受影响
@@ -301,14 +331,15 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, [cards, targetCard, topic, showToast]);
 
   // 快捷浮球：把最常用的几个动作做成按钮，点完自动收起
-  const quickActions: QuickAction[] = useMemo(() => [
+  const quickActions: QuickAction[] = [
     { id: "pen", label: "画笔", icon: <PenIcon size={17} />, run: () => { setTool("pen"); setOptionsOpen(false); setQuickOpen(false); } },
     { id: "eraser", label: "橡皮", icon: <EraserIcon size={17} />, run: () => { setTool("eraser"); setOptionsOpen(false); setQuickOpen(false); } },
     { id: "angle", label: "画角度", icon: <AngleIcon size={17} />, run: () => { setTool("angle"); setOptionsOpen(false); setQuickOpen(false); } },
     { id: "place", label: "插入图形", icon: <ShapesIcon size={17} />, run: () => { setTool("place"); setOptionsOpen(true); setQuickOpen(false); } },
     { id: "formula", label: "函数计算器", icon: <SigmaIcon size={17} />, run: () => { setTab("fn"); setQuickOpen(false); } },
+    { id: "write", label: "写入卡片", icon: <WriteIcon size={17} />, run: () => { void onWriteToMN(); setQuickOpen(false); } },
     { id: "settings", label: "设置", icon: <GearIcon size={17} />, run: () => { setView("settings"); setQuickOpen(false); } },
-  ], []);
+  ];
 
   const resolvedTheme = resolveTheme(settings.theme, systemDark, mnTheme);
 
@@ -376,6 +407,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onToast={showToast}
+              dashedDefault={settings.dashedDefault}
+              selectionIds={lasso.selectionIds}
+              onSelectionChange={lasso.setSelectionIds}
               placeType={placeType}
               placeSides={placeSides}
               penWidth={penWidth}
@@ -419,14 +453,30 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
           ) : null}
 
           {tab !== "3d" ? (
+            <>
             <ToolRail
               tool={tool}
+              placeType={placeType}
+              railTools={settings.railTools}
               onTool={setTool}
+              onPlaceType={setPlaceType}
+              onImportImage={() => imageInputRef.current?.click()}
               lockRadius={lockRadius}
               onToggleLock={onToggleLock}
               optionsOpen={optionsOpen}
               onToggleOptions={() => setOptionsOpen((v) => !v)}
             />
+
+            <LassoBar
+              count={lasso.selectionIds.length}
+              clipCount={lasso.clipboard.length}
+              onCopy={lasso.copy}
+              onCut={lasso.cut}
+              onPaste={lasso.paste}
+              onDelete={() => { lasso.erasePicked(); setSelectedId(null); }}
+              onClear={lasso.clear}
+            />
+            </>
           ) : null}
 
           <QuickBall
@@ -437,7 +487,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
           />
 
           {tab === "2d" ? (
-            <p className="stage-hint">双指捏合缩放 · 右下角拖动改窗口</p>
+            <p className="stage-hint">双指拖动平移 · 捏合缩放 · 右下角改窗口</p>
           ) : null}
 
           {tab === "2d" && optionsOpen ? (
@@ -457,6 +507,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               selectedId={selectedId}
               onSelect={setSelectedId}
               onDeleteShape={onDeleteShape}
+              onToggleDashed={onToggleDashed}
               lockRadius={lockRadius}
               lockedRadius={lockedRadius}
             />
@@ -469,6 +520,14 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) onImportFile(f);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={imageInputRef} type="file" accept="image/*" hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onImportImage(f);
           e.target.value = "";
         }}
       />

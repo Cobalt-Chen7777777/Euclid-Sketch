@@ -354,6 +354,51 @@ export function DeleteIcon({ size = 18 }: IconProps) {
   );
 }
 
+/** 套索：虚线套圈 */
+export function LassoIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4.5 12c0-3.6 3.4-6.5 7.5-6.5s7.5 2.9 7.5 6.5-3.4 6.5-7.5 6.5c-1.8 0-3.4-.5-4.7-1.4" strokeDasharray="3 2.6" />
+      <path d="M4.5 12c0 1.9 1 3.6 2.6 4.8L4 20" />
+    </svg>
+  );
+}
+
+/** 线段工具 */
+export function LineToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" aria-hidden="true">
+      <path d="M5 19 L19 5" />
+      <circle cx="5" cy="19" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="5" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** 点工具 */
+export function PointToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
+      <circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="7" opacity={0.45} />
+    </svg>
+  );
+}
+
+/** 圆工具 */
+export function CircleToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
+      <circle cx="12" cy="12" r="7.5" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** 公式：Σ */
 export function SigmaIcon({ size = 18 }: IconProps) {
   return (
@@ -364,7 +409,7 @@ export function SigmaIcon({ size = 18 }: IconProps) {
   );
 }
 
-export type ToolIconName = "select" | "pen" | "eraser" | "compass" | "place" | "angle" | "pan" | "lock";
+export type ToolIconName = "select" | "pen" | "eraser" | "compass" | "place" | "angle" | "lasso" | "line" | "point" | "circle" | "image" | "lock";
 /** 按名称取工具栏图标 */
 export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: number }) {
   switch (name) {
@@ -374,7 +419,11 @@ export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: numbe
     case "compass": return <CompassIcon size={size} />;
     case "place": return <ShapesIcon size={size} />;
     case "angle": return <AngleIcon size={size} />;
-    case "pan": return <PanIcon size={size} />;
+    case "lasso": return <LassoIcon size={size} />;
+    case "line": return <LineToolIcon size={size} />;
+    case "point": return <PointToolIcon size={size} />;
+    case "circle": return <CircleToolIcon size={size} />;
+    case "image": return <ImageIcon size={size} />;
     case "lock": return <LockIcon size={size} />;
   }
 }

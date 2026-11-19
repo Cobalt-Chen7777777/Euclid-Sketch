@@ -4,7 +4,7 @@
  * 放的是「画画时会调的东西」——图元类型、笔宽、颜色、公式、图形列表。
  * 导入导出、写入批注这类低频操作放在设置页，避免挤占画布。
  */
-import type { PrimitiveType, Shape } from "../model/types";
+import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
@@ -32,6 +32,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onDeleteShape: (id: string) => void;
+  onToggleDashed: (id: string) => void;
   lockRadius: boolean;
   lockedRadius: number | null;
 }
@@ -42,6 +43,7 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
+    onToggleDashed,
   } = props;
 
   return (
@@ -154,7 +156,18 @@ export function OptionsDrawer(props: Props) {
                   </button>
                   {/* 坐标系是画布的基准，不给删除入口（与画布上的橡皮规则一致） */}
                   {s.type === "coord" ? null : (
-                    <button type="button" onClick={() => onDeleteShape(s.id)} aria-label="删除">✕</button>
+                    <>
+                      {DASHABLE.has(s.type) ? (
+                        <button
+                          type="button"
+                          className={`dash-btn${"dashed" in s && s.dashed ? " on" : ""}`}
+                          onClick={() => onToggleDashed(s.id)}
+                          aria-label="切换虚线"
+                          title="切换虚线 / 实线"
+                        >┄</button>
+                      ) : null}
+                      <button type="button" className="del-btn" onClick={() => onDeleteShape(s.id)} aria-label="删除">✕</button>
+                    </>
                   )}
                 </div>
               ))}

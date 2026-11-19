@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createAngle } from "../model/angle";
+import { lassoSelect, shapeBBox } from "../model/lasso";
 import { createPrimitiveByDrag, getHandles, hitTest, type Handle } from "../model/geometry";
 import { smoothPoints } from "../model/ink";
 import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
@@ -27,7 +28,7 @@ import {
   type Viewport,
 } from "./viewport";
 
-export type Tool = "select" | "compass" | "place" | "pen" | "eraser" | "angle" | "pan";
+export type Tool = "select" | "compass" | "place" | "pen" | "eraser" | "angle" | "lasso";
 
 /** 来自设置页的画布行为开关 */
 export interface CanvasOptions {
@@ -40,6 +41,8 @@ export interface CanvasOptions {
   inkSmoothing: boolean;
   /** 画角度时第二条边吸附到特殊角（30/45/60/90…） */
   specialAngleSnap: boolean;
+  /** 线型：新画图元默认虚线 */
+  dashedDefault: boolean;
 }
 
 interface Props {
@@ -57,6 +60,11 @@ interface Props {
   onSelect: (id: string | null) => void;
   onToast?: (msg: string) => void;
   /** place 工具要绘制的图元类型与边数 */
+  /** 线型：新画图元默认虚线 */
+  dashedDefault: boolean;
+  /** 套索/多选：当前选中的图形 id 集合 */
+  selectionIds: string[];
+  onSelectionChange: (ids: string[]) => void;
   placeType: PrimitiveType;
   placeSides: number;
   /** pen 工具笔宽（屏幕像素） */
@@ -67,7 +75,7 @@ interface Props {
 
 type DragState =
   | { kind: "none" }
-  | { kind: "pan"; startScreen: Point2; startVp: Viewport }
+  | { kind: "lasso"; points: Point2[] }
   | { kind: "handle"; id: string; handle: Handle }
   | { kind: "compass"; center: Point2; current: Point2 }
   | { kind: "draw"; start: Point2; current: Point2 }
@@ -81,6 +89,7 @@ export function Canvas2D(props: Props) {
     shapes, setShapes, viewport: v, setViewport, tool, color,
     lockRadius, lockedRadius, onLockedRadiusChange,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
+    selectionIds, onSelectionChange,
   } = props;
 
   const [drag, setDrag] = useState<DragState>({ kind: "none" });
@@ -213,12 +222,15 @@ export function Canvas2D(props: Props) {
       return;
     }
 
-    if (tool === "pan") {
-      setDrag({ kind: "pan", startScreen: sp, startVp: v });
+    if (tool === "lasso") {
+      setDrag({ kind: "lasso", points: [toWorld(sp, v)] });
       return;
     }
 
     const worldRaw = toWorld(sp, v);
+    if (tool === "select") {
+      onSelectionChange([]);
+    }
 
     if (tool === "eraser") {
       setDrag({ kind: "erase" });
@@ -244,7 +256,8 @@ export function Canvas2D(props: Props) {
         const { shape, deg, snapped } = createAngle(
           angleDraft.v, angleDraft.arm1, world, color, options.specialAngleSnap,
         );
-        setShapes((prev) => [...prev, shape]);
+        const styled = options.dashedDefault ? ({ ...shape, dashed: true } as Shape) : shape;
+        setShapes((prev) => [...prev, styled]);
         onSelect(shape.id);
         setAngleDraft(null);
         onToast?.(`角度 ${deg.toFixed(1)}°${snapped ? "（已吸附特殊角）" : ""}`);
@@ -304,9 +317,30 @@ export function Canvas2D(props: Props) {
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
         const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
         const factor = pinch.current.dist / (dist || 1);
-        setViewport((prev) => zoomViewport(prev, center, factor));
+        const prevCenter = pinch.current.center;
+        setViewport((prev) => {
+          let next = zoomViewport(prev, center, factor);
+          // 双指整体拖动：中心位移换算成世界平移，捏合与拖动可同时进行
+          const spanX = next.xRange[1] - next.xRange[0];
+          const spanY = next.yRange[1] - next.yRange[0];
+          const dx = ((center.x - prevCenter.x) / v.width) * spanX;
+          const dy = ((center.y - prevCenter.y) / v.height) * spanY;
+          next = { ...next, xRange: panRange(next.xRange, -dx), yRange: panRange(next.yRange, dy) };
+          return next;
+        });
         pinch.current = { dist, center };
       }
+      return;
+    }
+
+    if (drag.kind === "lasso") {
+      const world = toWorld(sp, v);
+      setDrag((d) => {
+        if (d.kind !== "lasso") return d;
+        const last = d.points[d.points.length - 1];
+        if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.15) return d;
+        return { ...d, points: [...d.points, world] };
+      });
       return;
     }
 
@@ -317,18 +351,6 @@ export function Canvas2D(props: Props) {
 
     setDrag((d) => {
       switch (d.kind) {
-        case "pan": {
-          const dx = (sp.x - d.startScreen.x) / v.width;
-          const dy = (sp.y - d.startScreen.y) / v.height;
-          const spanX = d.startVp.xRange[1] - d.startVp.xRange[0];
-          const spanY = d.startVp.yRange[1] - d.startVp.yRange[0];
-          setViewport({
-            ...d.startVp,
-            xRange: panRange(d.startVp.xRange, -dx * spanX),
-            yRange: panRange(d.startVp.yRange, dy * spanY),
-          });
-          return d;
-        }
         case "handle": {
           const world = snap(toWorld(sp, v));
           setShapes((prev) => prev.map((s) => (s.id === d.id ? d.handle.apply(s, world) : s)));
@@ -367,11 +389,16 @@ export function Canvas2D(props: Props) {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size < 2) pinch.current = null;
 
-    if (drag.kind === "compass" && !lockRadius) {
+    if (drag.kind === "lasso") {
+      const ids = lassoSelect(shapes, drag.points);
+      onSelectionChange(ids);
+      onToast?.(ids.length > 0 ? `已框选 ${ids.length} 个图形` : "框选区域内没有图形");
+    } else if (drag.kind === "compass" && !lockRadius) {
       const r = Math.hypot(drag.current.x - drag.center.x, drag.current.y - drag.center.y);
       if (r > 0.15) {
         setShapes((prev) => [...prev, {
           id: newId("circle"), type: "circle", cx: drag.center.x, cy: drag.center.y, r, color,
+          dashed: options.dashedDefault || undefined,
         } as CircleShape]);
         onLockedRadiusChange(r);
         onToast?.(`圆规画圆 r=${r.toFixed(2)}`);
@@ -379,8 +406,9 @@ export function Canvas2D(props: Props) {
     } else if (drag.kind === "draw") {
       const shape = createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides);
       if (shape) {
-        setShapes((prev) => [...prev, shape]);
-        onSelect(shape.id);
+        const styled = options.dashedDefault ? ({ ...shape, dashed: true } as Shape) : shape;
+        setShapes((prev) => [...prev, styled]);
+        onSelect(styled.id);
       }
     } else if (drag.kind === "ink") {
       if (drag.points.length >= 1) {
@@ -435,7 +463,7 @@ export function Canvas2D(props: Props) {
         : null);
 
   const cursor =
-    tool === "pan" ? "grab"
+    tool === "lasso" ? "crosshair"
       : tool === "eraser" ? "cell"
       : tool === "pen" ? "crosshair"
       : tool === "compass" || tool === "place" || tool === "angle" ? "crosshair"
@@ -457,6 +485,26 @@ export function Canvas2D(props: Props) {
         xmlns="http://www.w3.org/2000/svg"
       >
         <rect width={v.width} height={v.height} fill="var(--canvas-bg, #fffdf8)" />
+        {drag.kind === "lasso" && drag.points.length > 1 ? (
+          <polygon
+            points={drag.points.map((q) => { const p2 = toScreen(q, v); return `${p2.x},${p2.y}`; }).join(" ")}
+            fill="rgba(37, 99, 235, .08)"
+            stroke="#2563eb"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+          />
+        ) : null}
+        {selectionIds.map((id) => {
+          const sh = shapes.find((q) => q.id === id);
+          if (!sh) return null;
+          const b = shapeBBox(sh);
+          const p1 = toScreen({ x: b.x1, y: b.y2 }, v);
+          const p2 = toScreen({ x: b.x2, y: b.y1 }, v);
+          return (
+            <rect key={`sel-${id}`} x={p1.x} y={p1.y} width={p2.x - p1.x} height={p2.y - p1.y}
+              fill="none" stroke="#2563eb" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.8} />
+          );
+        })}
         <ShapeLayer
           shapes={shapes}
           viewport={v}

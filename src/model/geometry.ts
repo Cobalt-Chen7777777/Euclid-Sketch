@@ -3,6 +3,8 @@
  * 每个控制点携带 apply 闭包，画布层遍历即可，无需为每种图形写 switch。
  */
 import { angleHandles, angleHitTest } from "./angle";
+import type { ImageShape } from "./types";
+import { imageHandles, imageHitTest } from "./image";
 import { createPoly, isPolyKind, polyHandles, polyHitTest } from "./poly";
 import type {
   Point2,
@@ -229,6 +231,8 @@ export function getHandles(shape: Shape): Handle[] {
       return angleHandles(shape as AngleShape);
     case "poly":
       return polyHandles(shape as PolyShape);
+    case "image": return imageHandles(shape as ImageShape);
+
     default:
       return [];
   }
@@ -296,6 +300,7 @@ export function hitTest(shape: Shape, world: Point2, tol: number): boolean {
       return angleHitTest(shape as AngleShape, world, tol);
     case "poly":
       return polyHitTest(shape as PolyShape, world, tol);
+    case "image": return imageHitTest(shape as ImageShape, world, tol);
     case "ink": {
       const ink = shape as InkShape;
       if (ink.points.length === 1) return dist(world, ink.points[0]!) <= tol;

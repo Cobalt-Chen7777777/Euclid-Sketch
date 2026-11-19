@@ -28,6 +28,8 @@ export interface CircleShape {
   r: number;
   /** 公式来源（如 x²+y²=r²），手动绘制时为空 */
   source?: string;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -39,6 +41,8 @@ export interface FunctionShape {
   xRange: Range;
   /** 公式来源（由函数面板绘制时写入，用于统一列出与清除） */
   source?: string;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -51,6 +55,8 @@ export interface ParametricShape {
   tRange: Range;
   /** 公式来源（由函数面板绘制时写入） */
   source?: string;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -69,6 +75,8 @@ export interface LineShape {
   y1: number;
   x2: number;
   y2: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -81,6 +89,8 @@ export interface EllipseShape {
   ry: number;
   /** 公式来源（由函数面板绘制时写入；手动拖出的椭圆为空） */
   source?: string;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -93,6 +103,8 @@ export interface ArcShape {
   /** 起止角（弧度） */
   startAngle: number;
   endAngle: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -104,6 +116,8 @@ export interface RectShape {
   y1: number;
   x2: number;
   y2: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -117,6 +131,8 @@ export interface PolygonShape {
   sides: number;
   /** 起始旋转角（弧度） */
   rotation: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -128,6 +144,8 @@ export interface RayShape {
   y1: number;
   x2: number;
   y2: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -150,6 +168,8 @@ export interface PolyShape {
   points: Point2[];
   /** 是否闭合（箭头为开放折线） */
   closed: boolean;
+  /** 线型：虚线 */
+  dashed?: boolean;
   color: string;
 }
 
@@ -169,6 +189,26 @@ export interface AngleShape {
   a2: number;
   /** 标注弧半径（世界单位） */
   r: number;
+  /** 线型：虚线 */
+  dashed?: boolean;
+  color: string;
+}
+
+/** 支持虚线线型的图形类型（描边类） */
+export const DASHABLE = new Set([
+  "circle", "ellipse", "arc", "rect", "polygon", "poly", "ray", "line", "angle", "function", "parametric",
+]);
+
+/** 画布图片（题目照片等；导入时压缩为 dataURL） */
+export interface ImageShape {
+  id: string;
+  type: "image";
+  /** 左下角 */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  src: string;
   color: string;
 }
 
@@ -200,6 +240,7 @@ export type Shape =
   | InkShape
   | AngleShape
   | PolyShape
+  | ImageShape
   | SolidShape;
 
 /** 可拖拽/可创建的 2D 图元类型（不含坐标系、函数、参数方程、3D、点） */

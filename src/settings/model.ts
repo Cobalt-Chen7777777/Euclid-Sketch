@@ -23,6 +23,10 @@ export interface SketchSettings {
   snapEnabled: boolean;
   /** 画布：网格密度（世界坐标单位） */
   gridStep: number;
+  /** 线型：新画图元默认为虚线 */
+  dashedDefault: boolean;
+  /** 工具栏显示的工具按钮（顺序即显示顺序） */
+  railTools: string[];
   /** 图元：描边线宽 */
   strokeWidth: number;
   /** 画笔：默认笔宽 */
@@ -50,6 +54,8 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   showTicks: true,
   snapEnabled: true,
   gridStep: 1,
+  dashedDefault: false,
+  railTools: ["select", "pen", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"],
   strokeWidth: 2,
   penWidth: 3,
   inkSmoothing: true,
@@ -76,6 +82,27 @@ function readBoolean(raw: unknown, fallback: boolean): boolean {
   return typeof raw === "boolean" ? raw : fallback;
 }
 
+/** 工具栏可选按钮目录（设置页展示 + ToolRail 图标映射共用 id） */
+export const RAIL_CATALOG: { id: string; label: string }[] = [
+  { id: "select", label: "选择" }, { id: "pen", label: "画笔" }, { id: "eraser", label: "橡皮" },
+  { id: "lasso", label: "套索" }, { id: "angle", label: "画角度" }, { id: "line", label: "线段" },
+  { id: "point", label: "点" }, { id: "circle", label: "圆" }, { id: "ellipse", label: "椭圆" },
+  { id: "rect", label: "矩形" }, { id: "polygon", label: "多边形" }, { id: "arc", label: "圆弧" },
+  { id: "place", label: "全部图形" }, { id: "compass", label: "圆规" }, { id: "image", label: "插入图片" },
+];
+
+const RAIL_TOOL_IDS = new Set([
+  "select", "pen", "eraser", "lasso", "angle", "line", "point", "circle",
+  "ellipse", "arc", "rect", "polygon", "star", "rhombus", "trapezoid", "arrow",
+  "place", "compass", "image",
+]);
+
+function readRailTools(raw: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(raw)) return fallback;
+  const picked = raw.filter((x): x is string => typeof x === "string" && RAIL_TOOL_IDS.has(x));
+  return picked.length > 0 ? picked : fallback;
+}
+
 function readTheme(raw: unknown, fallback: ThemeMode): ThemeMode {
   return raw === "light" || raw === "dark" || raw === "auto" ? raw : fallback;
 }
@@ -98,6 +125,8 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     showTicks: readBoolean(source.showTicks, DEFAULT_SETTINGS.showTicks),
     snapEnabled: readBoolean(source.snapEnabled, DEFAULT_SETTINGS.snapEnabled),
     gridStep: readNumber(source.gridStep, DEFAULT_SETTINGS.gridStep, 0.25, 5),
+    dashedDefault: readBoolean(source.dashedDefault, DEFAULT_SETTINGS.dashedDefault),
+    railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
     strokeWidth: readNumber(source.strokeWidth, DEFAULT_SETTINGS.strokeWidth, 1, 6),
     penWidth: readNumber(source.penWidth, DEFAULT_SETTINGS.penWidth, 1, 12),
     inkSmoothing: readBoolean(source.inkSmoothing, DEFAULT_SETTINGS.inkSmoothing),

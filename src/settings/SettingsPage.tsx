@@ -7,6 +7,7 @@ import { useState } from "react";
 import { checkUpdate } from "../update";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
+import { RAIL_CATALOG } from "../settings/model";
 import {
   AngleIcon, ChevronIcon, EraserIcon, ExportIcon, GridIcon, ImageIcon, ImportIcon, InfoIcon, MagnetIcon,
   PaletteIcon, PenIcon, PolygonIcon, ResetIcon, RulerIcon, SmoothIcon,
@@ -110,6 +111,45 @@ export function SettingsPage({
 
       {section === "canvas" ? (
         <>
+          <SettingsGroup title="工具栏与线型" accent="violet">
+            <SettingRow
+              icon={<RulerIcon />}
+              title="新图元默认虚线"
+              subtitle="线段 / 圆 / 矩形等直接画成虚线；已有图形在「绘图选项 → 图形列表」里切换"
+              trailing={
+                <Toggle
+                  checked={settings.dashedDefault}
+                  label="新图元默认虚线"
+                  onChange={(dashedDefault) => onChange({ dashedDefault })}
+                />
+              }
+            />
+            <div className="rail-pick">
+              <span className="rail-pick-label">工具栏按钮 · 点选显示 / 隐藏（「选择」始终显示）</span>
+              <div className="chips">
+                {RAIL_CATALOG.map((c) => {
+                  const on = settings.railTools.includes(c.id) || c.id === "select";
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`chip${on ? " on" : ""}`}
+                      onClick={() => {
+                        if (c.id === "select") return;
+                        const next = on
+                          ? settings.railTools.filter((x) => x !== c.id)
+                          : [...settings.railTools, c.id];
+                        onChange({ railTools: next.length > 0 ? next : ["select"] });
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </SettingsGroup>
+
           <SettingsGroup title="画布显示" accent="blue">
             <SettingRow
               icon={<PaletteIcon />}
@@ -300,7 +340,7 @@ export function SettingsPage({
             />
           </SettingsGroup>
 
-          <SettingsGroup title="写入批注（可选）" accent="teal">
+          <SettingsGroup title="写入卡片" accent="teal">
             <SettingRow
               icon={<WriteIcon />}
               title="写入到卡片"
@@ -328,7 +368,7 @@ export function SettingsPage({
             <SettingRow
               icon={<WriteIcon />}
               title="写入构图说明"
-              subtitle={data.topic ? `目标学习集：${data.topic}` : "未识别到当前学习集"}
+              subtitle="把画布图形清单写进目标卡片批注；图片用「导出 PNG」手动插入（MN 未开放图片直写接口）。也可用快捷浮球里的「写入卡片」"
               onClick={data.onWrite}
             />
           </SettingsGroup>
