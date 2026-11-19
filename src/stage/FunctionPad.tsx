@@ -74,9 +74,10 @@ export function FunctionPad(props: Props) {
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    const panel = e.currentTarget.closest(".fnpad");
-    const rect = (panel ?? e.currentTarget).getBoundingClientRect();
-    barDrag.current = { px: e.clientX, py: e.clientY, ox: rect.left, oy: rect.top };
+    // 起点 = 面板相对定位父级（.stage）的偏移。不能用视口 rect：
+    // style.left/top 是相对 .stage 的，用视口坐标会把 header 高度算进去，首次拖动整块跳变
+    const panel = (e.currentTarget.closest(".fnpad") as HTMLElement | null) ?? e.currentTarget;
+    barDrag.current = { px: e.clientX, py: e.clientY, ox: panel.offsetLeft, oy: panel.offsetTop };
   };
   const onBarDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = barDrag.current;

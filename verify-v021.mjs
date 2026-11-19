@@ -30,6 +30,7 @@ async function newPage(browser) {
       api: async (path, options) => {
         calls.push({ path, options });
         if (path === "/capabilities") return { routes: ["image/import"] };
+        if (path === "/context") return { available: true, studySet: { id: "t-1" }, focusedNote: "n-2" };
         if (path === "/ui-state") return { state: { topicid: "t-1" } };
         if (path.startsWith("/study-sets/t-1/tree")) {
           return { nodes: [
@@ -47,14 +48,17 @@ async function newPage(browser) {
     };
     // 1x1 蓝色 PNG：卡片渲染图
     window.__cardPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    window.__renderUrls = [];
   });
   // MN 部署路径 /pkg/assets/* → 本地 dist/assets/*（file:// 下 pathname 含盘符，取最后一段）
   await page.route("**/pkg/assets/*", (route) => {
     const file = route.request().url().split("/").pop();
     return route.fulfill({ path: join(root, "dist", "assets", file) });
   });
-  // /bridge/v1 渲染图请求 → PNG
+  // /bridge/v1 渲染图请求 → PNG（记录 URL 验证目标卡）
   await page.route("**/bridge/v1/notes/**", (route) => {
+    void page.evaluate((u) => { (window.__renderUrls as string[]).push(u); }, route.request().url()).catch(() => {});
+    route.fulfill({
     route.fulfill({
       status: 200,
       contentType: "image/png",
@@ -246,8 +250,10 @@ async function main() {
     );
     record("批注参数合规", Boolean(commentCall) && commentCall.options.body?.confirm === true && commentCall.options.body?.format === "text",
       commentCall ? `format=${commentCall.options.body?.format} confirm=${commentCall.options.body?.confirm}` : "未调用");
+    record("写入目标 = 焦点卡", Boolean(commentCall) && commentCall.path.includes("/notes/n-2/"),
+      commentCall ? commentCall.path : "未调用");
 
-    // ---------- 9. 卡片图导入（工具栏按钮） ----------
+    // ---------- 9. 卡片图导入（工具栏按钮，渲染目标 = 焦点卡） ----------
     await page.locator(".appnav button:has-text('画布')").click();
     await page.waitForTimeout(200);
     await page.evaluate(() => { window.__mnCalls.length = 0; });
@@ -255,6 +261,9 @@ async function main() {
     await page.waitForTimeout(500);
     const imgShape = await page.evaluate(() => Boolean(document.querySelector(".canvas-svg image")));
     record("卡片图导入成功", imgShape);
+    const renderUrls = await page.evaluate(() => (window as unknown as { __renderUrls: string[] }).__renderUrls);
+    const hitFocus = renderUrls.some((u) => u.includes("/notes/n-2/render"));
+    record("渲染目标 = 焦点卡", hitFocus, renderUrls.join(" | ") || "无请求");
 
     await page.screenshot({ path: join(root, "shots", "95-v021-regression.png"), fullPage: true });
     await context.close();

@@ -21,7 +21,7 @@ import {
   type SolidShape,
 } from "./model/types";
 import { createSolid } from "./solid/solids";
-import { getCurrentTopic, listCards, type Card } from "./topic";
+import { getCurrentContext, listCards, type Card } from "./topic";
 import { useResizablePanel } from "./useResizablePanel";
 import {
   DEFAULT_SETTINGS,
@@ -165,18 +165,20 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     expand();
   }, [expand]);
 
-  // 初始化：读取当前学习集与能力
+  // 初始化：读取当前学习集与焦点卡（写入/导入的目标 = 用户正在看的卡，而非列表第一张）
   useEffect(() => {
     let active = true;
-    getCurrentTopic()
-      .then(async (tid) => {
+    getCurrentContext()
+      .then(async ({ topicid, focusNoteid }) => {
         if (!active) return;
-        setTopic(tid);
-        if (tid) {
-          const items = await listCards(tid);
+        setTopic(topicid);
+        if (topicid) {
+          const items = await listCards(topicid);
           if (!active) return;
           setCards(items);
-          setTargetCard((cur) => cur || items[0]?.noteid || "");
+          setTargetCard((cur) => cur || focusNoteid || items[0]?.noteid || "");
+        } else if (focusNoteid) {
+          setTargetCard((cur) => cur || focusNoteid);
         }
         const caps = await getCapabilities();
         setCanWriteImage(await hasImageWriteCapability(caps));
@@ -464,8 +466,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             ) : null}
             {cards.length > 0 ? (
               <span className="stage-topic">
-                {Math.max(1, cards.findIndex((c) => c.noteid === targetCard) + 1)}/{cards.length}
-                {cards.find((c) => c.noteid === targetCard)?.title ? ` · ${cards.find((c) => c.noteid === targetCard)?.title}` : ""}
+                {(() => {
+                  const idx = cards.findIndex((c) => c.noteid === targetCard);
+                  const card = cards[idx];
+                  if (idx < 0 || !card) return "当前卡";
+                  return `${idx + 1}/${cards.length} · ${card.title}`;
+                })()}
               </span>
             ) : topic ? <span className="stage-topic">{topic}</span> : null}
           </div>

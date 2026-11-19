@@ -7,6 +7,7 @@ export interface Card {
 interface UiState {
   state?: {
     topicid?: string;
+    focusnoteid?: string;
   };
 }
 
@@ -19,12 +20,43 @@ interface TopicTree {
   nextCursor?: string | null;
 }
 
-export async function getCurrentTopic(): Promise<string | null> {
+interface AppContext {
+  available?: boolean;
+  /** 学习集信息（id 为 topicid） */
+  studySet?: { id?: string };
+  /** 当前焦点卡（用户正在看的卡） */
+  focusedNote?: string;
+}
+
+export interface CurrentContext {
+  topicid: string | null;
+  focusNoteid: string | null;
+}
+
+/**
+ * 当前操作上下文：学习集 + 焦点卡。
+ * 官方 GET /context 返回整理过的语义（focusedNote = 用户正在看的卡）；
+ * 失败或不可用时回退 GET /ui-state 的原始键值。
+ */
+export async function getCurrentContext(): Promise<CurrentContext> {
+  try {
+    const ctx = await mn.api<AppContext>("/context");
+    if (!ctx.error && ctx.available !== false) {
+      const topicid = typeof ctx.studySet?.id === "string" ? ctx.studySet.id : null;
+      const focusNoteid = typeof ctx.focusedNote === "string" && ctx.focusedNote ? ctx.focusedNote : null;
+      if (topicid || focusNoteid) return { topicid, focusNoteid };
+    }
+  } catch {
+    // /context 不可用，回退 ui-state
+  }
   const state = await mn.api<UiState>("/ui-state");
   if (state.error) {
     throw new Error(`${state.error.code}：${state.error.message}`);
   }
-  return state.state?.topicid ?? null;
+  return {
+    topicid: state.state?.topicid ?? null,
+    focusNoteid: state.state?.focusnoteid ?? null,
+  };
 }
 
 export async function listCards(topicid: string): Promise<Card[]> {
