@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createAngle } from "../model/angle";
 import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
+import { isEraseable, isSelectable, sortForRender } from "../model/layers";
 import { createPrimitiveByDrag, getHandles, hitTest, type Handle } from "../model/geometry";
 import { smoothPoints } from "../model/ink";
 import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
@@ -78,6 +79,8 @@ interface Props {
   penWidth: number;
   /** 设置页下发的外观与行为开关 */
   options: CanvasOptions;
+  /** 新建图形归属的图层 */
+  currentLayer: number;
 }
 
 type DragState =
@@ -95,7 +98,7 @@ const SNAP_PX = 16;
 export function Canvas2D(props: Props) {
   const {
     shapes, setShapes, viewport: v, setViewport, tool, color,
-    lockRadius, lockedRadius, onLockedRadiusChange,
+    lockRadius, lockedRadius, onLockedRadiusChange, currentLayer,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
     selectionIds, onSelectionChange, onToggleImageLock, frozen = false,
   } = props;
@@ -196,14 +199,13 @@ export function Canvas2D(props: Props) {
     return world;
   }, [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
 
-  /** 橡皮擦：删除命中的图形（坐标系与锁定图片不可删），命中范围来自设置 */
+  /** 橡皮擦：删除命中的图形（坐标轴、隐藏层与锁定图形不可删），命中范围来自设置 */
   const eraseAt = useCallback((world: Point2) => {
     const tolWorld = (options.eraserRadius / v.width) * (v.xRange[1] - v.xRange[0]);
-    const hit = [...shapes].reverse().find((s) => {
-      if (s.type === "coord") return false;
-      if (s.type === "image" && s.locked) return false;
-      return hitTest(s, world, tolWorld);
-    });
+    const hit = sortForRender(shapes)
+      .filter(isEraseable)
+      .reverse()
+      .find((s) => s.type !== "coord" && hitTest(s, world, tolWorld));
     if (hit) {
       setShapes((prev) => prev.filter((s) => s.id !== hit.id));
       if (selectedId === hit.id) onSelect(null);
@@ -310,7 +312,7 @@ export function Canvas2D(props: Props) {
           angleDraft.v, angleDraft.arm1, world, color, options.specialAngleSnap,
         );
         const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
-        setShapes((prev) => [...prev, styled]);
+        setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
         onSelect(shape.id);
         setAngleDraft(null);
         onToast?.(`角度 ${deg.toFixed(1)}°${snapped ? "（已吸附特殊角）" : ""}`);
@@ -324,7 +326,7 @@ export function Canvas2D(props: Props) {
       if (placeType === "point") {
         const shape = createPrimitiveByDrag("point", world, world, color, placeSides);
         if (shape) {
-          setShapes((prev) => [...prev, shape]);
+          setShapes((prev) => [...prev, { ...shape, layer: currentLayer }]);
           onSelect(shape.id);
         }
         return;
@@ -338,7 +340,7 @@ export function Canvas2D(props: Props) {
     if (tool === "compass") {
       if (lockRadius && lockedRadius != null) {
         setShapes((prev) => [...prev, {
-          id: newId("circle"), type: "circle", cx: world.x, cy: world.y, r: lockedRadius, color,
+          id: newId("circle"), type: "circle", cx: world.x, cy: world.y, r: lockedRadius, color, layer: currentLayer,
         } as CircleShape]);
         onToast?.(`已画圆 r=${lockedRadius.toFixed(2)}`);
         return;
@@ -354,7 +356,7 @@ export function Canvas2D(props: Props) {
       return;
     }
     const tolWorld = (14 / v.width) * (v.xRange[1] - v.xRange[0]);
-    const hitShape = [...shapes].reverse().find((s) => hitTest(s, worldRaw, tolWorld));
+    const hitShape = sortForRender(shapes).filter(isSelectable).reverse().find((s) => hitTest(s, worldRaw, tolWorld));
     onSelect(hitShape ? hitShape.id : null);
   };
 
@@ -455,14 +457,14 @@ export function Canvas2D(props: Props) {
     if (pointers.current.size < 2) pinch.current = null;
 
     if (drag.kind === "lasso") {
-      const ids = lassoSelect(shapes, drag.points);
+      const ids = lassoSelect(shapes.filter(isSelectable), drag.points);
       onSelectionChange(ids);
       onToast?.(ids.length > 0 ? `已框选 ${ids.length} 个图形` : "框选区域内没有图形");
     } else if (drag.kind === "compass" && !lockRadius) {
       const r = Math.hypot(drag.current.x - drag.center.x, drag.current.y - drag.center.y);
       if (r > 0.15) {
         setShapes((prev) => [...prev, {
-          id: newId("circle"), type: "circle", cx: drag.center.x, cy: drag.center.y, r, color,
+          id: newId("circle"), type: "circle", cx: drag.center.x, cy: drag.center.y, r, color, layer: currentLayer,
           dashed: options.dashStyle || undefined,
         } as CircleShape]);
         onLockedRadiusChange(r);
@@ -472,7 +474,7 @@ export function Canvas2D(props: Props) {
       const shape = createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides);
       if (shape) {
         const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
-        setShapes((prev) => [...prev, styled]);
+        setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
         onSelect(styled.id);
       }
     } else if (drag.kind === "ink") {
@@ -484,7 +486,7 @@ export function Canvas2D(props: Props) {
           color,
           width: penWidth,
         };
-        setShapes((prev) => [...prev, ink]);
+        setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
       }
     }
     setDrag({ kind: "none" });

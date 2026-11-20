@@ -229,7 +229,17 @@ export interface SolidShape {
   color: string;
 }
 
-export type Shape =
+/** 图层与可见性：所有图形通用（缺省 = 图层 0 / 可见 / 未锁） */
+export interface LayerProps {
+  /** 图层序号：0 起，越大越靠上 */
+  layer?: number;
+  /** 隐藏：不渲染、不参与命中与导出 */
+  hidden?: boolean;
+  /** 锁定：不可选中、拖动、擦除（图片的 locked 语义为「防误擦」，仍可选中以解锁） */
+  locked?: boolean;
+}
+
+export type Shape = (
   | CoordShape
   | CircleShape
   | EllipseShape
@@ -245,7 +255,9 @@ export type Shape =
   | AngleShape
   | PolyShape
   | ImageShape
-  | SolidShape;
+  | SolidShape
+) &
+  LayerProps;
 
 /** 可拖拽/可创建的 2D 图元类型（不含坐标系、函数、参数方程、3D、点） */
 export type PrimitiveType =

@@ -3,6 +3,7 @@ import { memo } from "react";
 import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
+import { isVisible, sortForRender } from "../model/layers";
 import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
 import {
   gridLines,
@@ -291,7 +292,7 @@ const StaticLayer = memo(function StaticLayer({
       })() : null}
 
       {/* 图形 */}
-      {shapes.map((shape) => (
+      {sortForRender(shapes).filter(isVisible).map((shape) => (
         <g key={shape.id}>{renderShape(shape, v, shape.id === highlightId, strokeWidth)}</g>
       ))}
 

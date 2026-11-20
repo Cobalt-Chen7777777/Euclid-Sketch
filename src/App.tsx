@@ -42,6 +42,7 @@ import { useHistoryShapes, useUndoHotkeys } from "./useHistoryShapes";
 import { StageTopBar } from "./stage/StageTopBar";
 import { ImagePreviewLayer } from "./stage/ImagePreviewLayer";
 import { useCopySketch } from "./useCopySketch";
+import { useLayers } from "./useLayers";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useImageActions } from "./useImageActions";
@@ -107,6 +108,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setTimeout(() => setToast((cur) => (cur === msg ? "" : cur)), 2200);
   }, []);
 
+  const [currentLayer, setCurrentLayer] = useState(0);
+  const layerOps = useLayers(shapes, setShapes, currentLayer, setCurrentLayer);
   const { preview, copy: onCopyPng, closePreview } = useCopySketch(tab, captureRef, svgRef, (ok) =>
     showToast(ok ? "草图图片已复制：去卡片批注长按粘贴即可" : "复制受限：已改为长按保存"));
 
@@ -442,6 +445,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               placeSides={placeSides}
               penWidth={penWidth}
               options={canvasOptions}
+              currentLayer={currentLayer}
             />
           ) : (
             <SolidStage
@@ -531,6 +535,10 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onDeleteShape={onDeleteShape}
               onToggleDashed={onToggleDashed}
               onUpdateShape={onUpdateShape}
+              layers={layerOps}
+              currentLayer={currentLayer}
+              onSelectLayer={setCurrentLayer}
+              selectionIds={lasso.selectionIds.length > 0 ? lasso.selectionIds : selectedId ? [selectedId] : []}
               onToggleImageLock={onToggleImageLock}
               onResizeImage={onResizeImage}
               onFitImage={onFitImage}

@@ -9,6 +9,7 @@ import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
 import { circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
+import { layerName } from "../model/layers";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
 const PRIMITIVES: [PrimitiveType, string][] = [
@@ -36,6 +37,12 @@ interface Props {
   onToggleDashed: (id: string) => void;
   /** 通用图形补丁（数值输入用） */
   onUpdateShape: (id: string, updater: (s: Shape) => Shape) => void;
+  /** 图层 */
+  layers: { rows: { id: number; count: number; hidden: boolean; locked: boolean }[]; addLayer: () => void; toggleHidden: (id: number) => void; toggleLocked: (id: number) => void; moveSelected: (ids: string[], layer: number) => void; };
+  currentLayer: number;
+  onSelectLayer: (layer: number) => void;
+  /** 当前选中图形 id（移到图层用） */
+  selectionIds: string[];
   /** 切换图片锁定（锁定后橡皮擦不掉） */
   onToggleImageLock: (id: string) => void;
   /** 等比缩放选中图片 */
@@ -63,7 +70,7 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, onUpdateShape, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
+    onToggleDashed, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
     dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile,
   } = props;
 
@@ -235,6 +242,36 @@ export function OptionsDrawer(props: Props) {
               />
             ))}
           </div>
+        </section>
+
+        {/* 图层：切换当前绘制层 / 整层隐藏锁定 / 选中项移层 */}
+        <section className="drawer-sec">
+          <h3>图层</h3>
+          <div className="layer-list">
+            {layers.rows.map((row) => (
+              <div key={row.id} className={`layer-row${currentLayer === row.id ? " cur" : ""}`}>
+                <button type="button" className="layer-pick" onClick={() => onSelectLayer(row.id)}>
+                  <span className="layer-name">{layerName(row.id)}</span>
+                  <span className="layer-count">{row.count}</span>
+                </button>
+                <button type="button" className={`layer-btn${row.hidden ? " off" : ""}`} onClick={() => layers.toggleHidden(row.id)}>
+                  {row.hidden ? "已隐" : "显示"}
+                </button>
+                <button type="button" className={`layer-btn${row.locked ? " off" : ""}`} onClick={() => layers.toggleLocked(row.id)}>
+                  {row.locked ? "已锁" : "锁定"}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="chips">
+            <button type="button" className="chip" onClick={layers.addLayer}>+ 新建图层</button>
+            {selectionIds.length > 0 ? (
+              <button type="button" className="chip" onClick={() => layers.moveSelected(selectionIds, currentLayer)}>
+                选中项移到本层
+              </button>
+            ) : null}
+          </div>
+          <p className="drawer-hint">点图层名切换「新图形画在哪层」，层次越高越靠上；隐藏后不渲染也不导出，锁定后不可选中与擦除</p>
         </section>
 
         {/* 图形列表 */}
