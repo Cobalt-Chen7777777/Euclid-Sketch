@@ -1,6 +1,8 @@
 name: release
 
-# 打 tag（如 v0.1.0）即自动构建并挂到 GitHub Release
+# 打 tag（如 v0.2.0）即把仓库里已构建好的安装包挂到 GitHub Release。
+# 设计取舍：CI 不重复打包——上传仓库 release/ 里的包，
+# 保证「仓库 / Release / 分发渠道」三处字节完全一致（此前 CI 重建导致同版本包相差 11 字节）。
 on:
   push:
     tags: ["v*"]
@@ -9,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  package:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,9 +26,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      # 只做静态检查，确认打的 tag 代码是通过检查的
       - run: pnpm check
-      - run: pnpm build
-      - run: pnpm package
+
+      - name: Generate release notes from CHANGELOG
+        run: node scripts/release-body.mjs
 
       - name: Attach packages to release
         uses: softprops/action-gh-release@v2
@@ -34,4 +38,5 @@ jobs:
           files: |
             release/*.mnaddon
             release/*.mntemplate
-          generate_release_notes: true
+          body_path: release-body.md
+          overwrite_files: true
