@@ -112,6 +112,8 @@ export default tseslint.config(
       "scripts/**",
       // 历史留档的 native 混合形态代码（已停用，仅参考）
       "docs/archive/**",
+      // 设计物料（社交预览图静态 HTML，样式内联是刻意的）
+      "design/**",
       // native 层留档（已停用）：JSB 环境代码 var / 空 catch 是刻意的，不按页面规则检查
       "docs/native-hybrid",
       // 临时验证脚本（下划线前缀）
