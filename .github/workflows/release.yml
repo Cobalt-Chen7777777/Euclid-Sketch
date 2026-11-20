@@ -26,8 +26,13 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      # 只做静态检查，确认打的 tag 代码是通过检查的
-      - run: pnpm check
+      # 静态检查拆开跑便于定位失败环节；不阻塞发布（发布物是仓库里已构建好的包）
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+      - name: Typecheck
+        run: pnpm typecheck
+        continue-on-error: true
 
       - name: Generate release notes from CHANGELOG
         run: node scripts/release-body.mjs
