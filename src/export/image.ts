@@ -72,15 +72,18 @@ export async function renderExportDataUrl(
 }
 
 /** 把图片 dataURL 写入剪贴板（用于直接粘贴进 MN 批注/卡片）；失败返回 false */
-export async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
+export async function copyImageToClipboard(
+  blobPromise: Promise<Blob>,
+): Promise<{ ok: boolean; reason: string | undefined }> {
+  if (typeof navigator.clipboard?.write !== "function" || typeof ClipboardItem === "undefined") {
+    return { ok: false, reason: "clipboard-unavailable" };
+  }
   try {
-    if (typeof navigator.clipboard?.write !== "function" || typeof ClipboardItem === "undefined") {
-      return false;
-    }
-    const blob = dataUrlToBlob(dataUrl);
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    return true;
-  } catch {
-    return false;
+    // 不做任何 await：保持用户手势有效（ClipboardItem 支持 Promise 值）
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+    return { ok: true, reason: undefined };
+  } catch (e) {
+    const reason = e instanceof DOMException ? e.name : e instanceof Error ? e.message : String(e);
+    return { ok: false, reason };
   }
 }

@@ -37,11 +37,17 @@ jobs:
       - name: Generate release notes from CHANGELOG
         run: node scripts/release-body.mjs
 
+      # 只挑当前版本的包上传，避免 history 包混进 Release
+      - name: Collect packages for this version
+        run: |
+          VERSION=$(node -p "require('./mnaddon.json').version")
+          echo "version=$VERSION"
+          mkdir -p .rel
+          cp "release/Euclid Sketch-$VERSION.mnaddon" "release/Euclid Sketch-$VERSION.mntemplate" .rel/
+
       - name: Attach packages to release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/*.mnaddon
-            release/*.mntemplate
+          files: .rel/*
           body_path: release-body.md
           overwrite_files: true

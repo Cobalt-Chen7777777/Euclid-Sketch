@@ -7,7 +7,6 @@ import {
   downloadBlob,
   dataUrlToBlob,
   renderExportDataUrl,
-  copyImageToClipboard,
 } from "./export/image";
 import { buildSketchReport } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
@@ -41,6 +40,8 @@ import { resolveTheme } from "./theme";
 import { useLassoClipboard } from "./useLassoClipboard";
 import { useHistoryShapes, useUndoHotkeys } from "./useHistoryShapes";
 import { StageTopBar } from "./stage/StageTopBar";
+import { ImagePreviewLayer } from "./stage/ImagePreviewLayer";
+import { useCopySketch } from "./useCopySketch";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useImageActions } from "./useImageActions";
@@ -105,6 +106,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     setToast(msg);
     setTimeout(() => setToast((cur) => (cur === msg ? "" : cur)), 2200);
   }, []);
+
+  const { preview, copy: onCopyPng, closePreview } = useCopySketch(tab, captureRef, svgRef, (ok) =>
+    showToast(ok ? "草图图片已复制：去卡片批注长按粘贴即可" : "复制受限：已改为长按保存"));
 
   // 卡片菜单命令通道的转发 ref：hook 回调只引用 ref，实际行为在后面绑定（避免闭包 TDZ）
   const cardImportRef = useRef<((nid: string) => void) | null>(null);
@@ -288,16 +292,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   }, [updateSettings, selectedId, setShapes]);
 
-  /** 复制草图图片到剪贴板：直接粘贴进 MN 卡片的批注/子卡，是图片入卡的最短路径 */
-  const onCopyPng = async () => {
-    try {
-      const { dataUrl } = await renderExportDataUrl(tab, captureRef.current, svgRef.current);
-      const ok = await copyImageToClipboard(dataUrl);
-      showToast(ok ? "草图图片已复制：去卡片批注长按粘贴即可" : "复制失败（系统限制），请改用「导出 PNG」");
-    } catch {
-      showToast("复制失败：没有可导出的画布");
-    }
-  };
 
   // ---- 文件导入 ----
   const onImportFile = useCallback(async (file: File) => {
@@ -387,6 +381,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       />
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
+      <ImagePreviewLayer src={preview?.src ?? null} reason={preview?.reason} onClose={closePreview} onExport={() => { void onExportPng(); }} />
       {/* 窗口拖动缩放中：尺寸预览 HUD（拖动期间不调宿主接口，松手才生效） */}
       {previewSize ? (
         <div className="size-hud" role="status">
