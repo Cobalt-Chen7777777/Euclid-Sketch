@@ -291,9 +291,11 @@ const StaticLayer = memo(function StaticLayer({
         );
       })() : null}
 
-      {/* 图形 */}
+      {/* 图形：锁定的图层淡化显示（一眼能看出哪些不可操作） */}
       {sortForRender(shapes).filter(isVisible).map((shape) => (
-        <g key={shape.id}>{renderShape(shape, v, shape.id === highlightId, strokeWidth)}</g>
+        <g key={shape.id} opacity={shape.locked && shape.type !== "image" ? 0.45 : 1}>
+          {renderShape(shape, v, shape.id === highlightId, strokeWidth)}
+        </g>
       ))}
 
       {/* 选中图形的控制点：缩放点用绿色 + 对角双箭头（与蓝色移动/端点区分），

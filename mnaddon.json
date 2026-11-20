@@ -2,7 +2,7 @@
   "addonid": "com.mathsketch.addon",
   "author": "MathSketch",
   "title": "Euclid Sketch",
-  "version": "0.2.1-beta.3",
+  "version": "0.2.1-beta.4",
   "marginnote_version_min": "4.5.0",
   "immersiveOnly": true,
   "panel": "index.html",
