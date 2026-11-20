@@ -11,9 +11,15 @@ import { newId } from "./types";
 const MAX_SIDE = 1200;
 
 /** 从文件导入（读为 dataURL 后走同一压缩管线） */
-export async function fileToImageShape(file: File, viewport: Viewport, color: string): Promise<ImageShape> {
+export async function fileToImageShape(
+  file: File,
+  viewport: Viewport,
+  color: string,
+  existing: Shape[] = [],
+  offsetIndex = 0,
+): Promise<ImageShape> {
   const src = await readAsDataURL(file);
-  return imageSrcToShape(src, viewport, color);
+  return imageSrcToShape(src, viewport, color, false, existing, offsetIndex);
 }
 
 /** 把一张图片 dataURL 压缩并生成画布图形（卡片渲染图 / 文件导入共用） */
@@ -23,6 +29,10 @@ export async function imageSrcToShape(
   color: string,
   /** 非空时沿用原图（已是压缩好的 PNG，如卡片渲染图） */
   reuseSrc = false,
+  /** 画布已有图形：按其中图片数量错开位置，避免叠在一起 */
+  existing: Shape[] = [],
+  /** 本次批量导入中的序号（0 起），同批多图错位用 */
+  offsetIndex = 0,
 ): Promise<ImageShape> {
   const img = await loadImage(rawSrc);
 
@@ -51,11 +61,20 @@ export async function imageSrcToShape(
   }
   const cx = (viewport.xRange[0] + viewport.xRange[1]) / 2;
   const cy = (viewport.yRange[0] + viewport.yRange[1]) / 2;
+  // 位置：以视口中心为基准，按「已有图片数 + 本次导入序号」阶梯错开。
+  // 之前所有图片都插在正中心，连续导入会完全叠在一起，看起来像「导入乱了」。
+  const imageCount = existing.filter((it) => it.type === "image").length + offsetIndex;
+  // 每张错开 0.6 个图宽 / 0.6 个图高：像把纸斜着一层层叠放，一眼能看出是几张图
+  const stepX = wWorld * 0.6;
+  const stepY = hWorld * 0.6;
+  const x = cx - wWorld / 2 + imageCount * stepX;
+  const y = cy - hWorld / 2 - imageCount * stepY;
+
   return {
     id: newId("image"),
     type: "image",
-    x: cx - wWorld / 2,
-    y: cy - hWorld / 2,
+    x,
+    y,
     w: wWorld,
     h: hWorld,
     src,

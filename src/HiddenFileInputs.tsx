@@ -8,7 +8,8 @@ interface Props {
   jsonInputRef: React.RefObject<HTMLInputElement | null>;
   imageInputRef: React.RefObject<HTMLInputElement | null>;
   onJsonFile: (file: File) => void;
-  onImageFile: (file: File) => void;
+  /** 图片可多选：按顺序回调，第二个参数是本批序号（0 起） */
+  onImageFile: (file: File, index: number) => void;
 }
 
 export function HiddenFileInputs({ jsonInputRef, imageInputRef, onJsonFile, onImageFile }: Props): ReactNode {
@@ -23,10 +24,10 @@ export function HiddenFileInputs({ jsonInputRef, imageInputRef, onJsonFile, onIm
         }}
       />
       <input
-        ref={imageInputRef} type="file" accept="image/*" hidden
+        ref={imageInputRef} type="file" accept="image/*" multiple hidden
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImageFile(f);
+          const files = [...(e.target.files ?? [])];
+          files.forEach((f, i) => onImageFile(f, i));
           e.target.value = "";
         }}
       />

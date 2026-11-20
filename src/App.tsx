@@ -229,16 +229,16 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
   // 图片导入（题目照片等）
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const onImportImage = useCallback(async (file: File) => {
+  const onImportImage = useCallback(async (file: File, index = 0) => {
     try {
-      const shape = await fileToImageShape(file, viewport, color);
+      const shape = await fileToImageShape(file, viewport, color, shapes, index);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
       showToast(`已插入图片（约 ${Math.round(shape.src.length / 1024)}KB）`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "图片导入失败");
     }
-  }, [viewport, color, setShapes, showToast]);
+  }, [viewport, color, shapes, setShapes, showToast]);
 
   /** 从当前目标卡渲染长图，插入画布（noteidArg 供卡片菜单命令直接指定目标卡） */
   const onImportCardImage = useCallback(async (noteidArg?: string) => {
@@ -253,14 +253,14 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
         return;
       }
-      const shape = await imageSrcToShape(rendered.src, viewport, color, true);
+      const shape = await imageSrcToShape(rendered.src, viewport, color, true, shapes);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
       showToast("已插入卡片图；卡片上若残留草图批注文字会一并显示，可在 MN 里删除该批注");
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [targetCard, viewport, color, setShapes, showToast]);
+  }, [targetCard, viewport, color, shapes, setShapes, showToast]);
 
   /** 通用图形补丁：抽屉里的数值输入（线段长度 / 圆半径）调用 */
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
@@ -559,7 +559,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         jsonInputRef={fileInputRef}
         imageInputRef={imageInputRef}
         onJsonFile={onImportFile}
-        onImageFile={(f) => { void onImportImage(f); }}
+        onImageFile={(f, i) => { void onImportImage(f, i); }}
       />
 
       {/* 右下角拖动缩放窗口；开启「跟随内容」时高度交给 mn.fit() */}
