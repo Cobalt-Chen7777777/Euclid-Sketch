@@ -15,6 +15,8 @@ export interface UpdateResult {
   url?: string | undefined;
   /** 是否有新版本 */
   hasUpdate?: boolean | undefined;
+  /** 可直接下载的安装包（Release 资产，模板包优先） */
+  asset?: UpdateAsset | undefined;
   /** 失败原因（ok=false 时） */
   error?: string | undefined;
 }
@@ -55,7 +57,7 @@ export async function checkUpdate(timeoutMs = 8000): Promise<UpdateResult> {
     if (res.status === 404) return { ok: false, error: "仓库不存在，或还没有发布 Release" };
     if (!res.ok) return { ok: false, error: `GitHub 返回 ${res.status}` };
 
-    const data = (await res.json()) as { tag_name?: string; html_url?: string };
+    const data = (await res.json()) as { tag_name?: string; html_url?: string; assets?: ReleaseRow[] };
     const latest = (data.tag_name ?? "").replace(/^v/i, "");
     if (!latest) return { ok: false, error: "Release 缺少版本号" };
 
@@ -72,3 +74,24 @@ export async function checkUpdate(timeoutMs = 8000): Promise<UpdateResult> {
     clearTimeout(timer);
   }
 }
+
+/** Release 里的安装包资产（优先模板包：导入模板会连带安装/替换插件） */
+export interface UpdateAsset {
+  url: string;
+  name: string;
+}
+
+interface ReleaseRow {
+  name?: string;
+  browser_download_url?: string;
+}
+
+/** 从 release 资产中挑包：.mntemplate 优先，其次 .mnaddon */
+export function pickUpdateAsset(assets: ReleaseRow[]): UpdateAsset | null {
+  for (const ext of [".mntemplate", ".mnaddon"]) {
+    const hit = assets.find((a) => a.name?.endsWith(ext) && a.browser_download_url);
+    if (hit?.name && hit.browser_download_url) return { url: hit.browser_download_url, name: hit.name };
+  }
+  return null;
+}
+

@@ -172,7 +172,7 @@ export function Canvas2D(props: Props) {
     return { x: (e.clientX - rect.left) * (v.width / rect.width), y: (e.clientY - rect.top) * (v.height / rect.height) };
   }, [svgRef, v.width, v.height]);
 
-  /** 吸附到已有点 / 圆心 / 控制点（设置里可关闭） */
+  /** 吸附：优先已有点 / 圆心 / 控制点，其次网格交点（设置里可关闭） */
   const snap = useCallback((world: Point2): Point2 => {
     if (!options.snapEnabled) return world;
     const sp = toScreen(world, v);
@@ -185,8 +185,16 @@ export function Canvas2D(props: Props) {
         if (d < bestD) { bestD = d; best = h.at; }
       }
     }
-    return best ?? world;
-  }, [shapes, v, options.snapEnabled]);
+    if (best) return best;
+    // 网格交点吸附：让点 / 圆心能落到整齐坐标上（空白画布无网格时不吸附）
+    if (options.showGrid) {
+      const step = options.gridStep > 0 ? options.gridStep : 1;
+      const grid = { x: Math.round(world.x / step) * step, y: Math.round(world.y / step) * step };
+      const gp = toScreen(grid, v);
+      if (Math.hypot(gp.x - sp.x, gp.y - sp.y) <= SNAP_PX) return grid;
+    }
+    return world;
+  }, [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
 
   /** 橡皮擦：删除命中的图形（坐标系与锁定图片不可删），命中范围来自设置 */
   const eraseAt = useCallback((world: Point2) => {

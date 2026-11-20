@@ -8,6 +8,7 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
+import { circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
 const PRIMITIVES: [PrimitiveType, string][] = [
@@ -33,6 +34,8 @@ interface Props {
   onSelect: (id: string | null) => void;
   onDeleteShape: (id: string) => void;
   onToggleDashed: (id: string) => void;
+  /** 通用图形补丁（数值输入用） */
+  onUpdateShape: (id: string, updater: (s: Shape) => Shape) => void;
   /** 切换图片锁定（锁定后橡皮擦不掉） */
   onToggleImageLock: (id: string) => void;
   /** 等比缩放选中图片 */
@@ -60,7 +63,7 @@ export function OptionsDrawer(props: Props) {
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
+    onToggleDashed, onUpdateShape, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
     dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile,
   } = props;
 
@@ -105,6 +108,53 @@ export function OptionsDrawer(props: Props) {
           </div>
           <p className="drawer-hint">虚线开启后，新画的线段 / 圆 / 矩形等都是虚线；已有图形在下方列表可单独切换</p>
         </section>
+
+        {/* 几何参数：选中线段 / 圆时可精确输入 */}
+        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle") ? (
+          <section className="drawer-sec">
+            <h3>几何参数</h3>
+            {selectedShape.type === "line" ? (
+              <label className="param-row">
+                <span>长度</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  min="0.1"
+                  value={lineLength(selectedShape).toFixed(2)}
+                  onChange={(e) => {
+                    const len = Number(e.target.value);
+                    if (Number.isFinite(len) && len > 0) {
+                      onUpdateShape(selectedShape.id, (s) =>
+                        s.type === "line" ? { ...s, ...lineLengthPatch(s, len) } : s);
+                    }
+                  }}
+                />
+                <span className="param-unit">格</span>
+              </label>
+            ) : (
+              <label className="param-row">
+                <span>半径</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  min="0.05"
+                  value={selectedShape.r.toFixed(2)}
+                  onChange={(e) => {
+                    const r = Number(e.target.value);
+                    if (Number.isFinite(r) && r > 0) {
+                      onUpdateShape(selectedShape.id, (s) =>
+                        s.type === "circle" ? { ...s, ...circleRadiusPatch(r) } : s);
+                    }
+                  }}
+                />
+                <span className="param-unit">格</span>
+              </label>
+            )}
+            <p className="drawer-hint">数值以网格为单位；线段固定起点、只改长度，圆只改半径</p>
+          </section>
+        ) : null}
 
         {/* 图片调整：选中图片时显示（等比缩放 + 文件导入备用入口） */}
         {selectedShape?.type === "image" ? (

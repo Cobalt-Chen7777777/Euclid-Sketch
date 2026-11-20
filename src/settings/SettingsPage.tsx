@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 
-import { checkUpdate } from "../update";
+import { checkUpdate, type UpdateAsset } from "../update";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
 import { RailCustomizer } from "./RailCustomizer";
@@ -61,7 +61,9 @@ export function SettingsPage({
 }: Props) {
   const [section, setSection] = useState<SectionId>("canvas");
   // 更新检查：idle / checking / 结果
-  const [update, setUpdate] = useState<{ checking: boolean; text: string; bad: boolean }>({
+  const [update, setUpdate] = useState<{
+    checking: boolean; text: string; bad: boolean; asset?: UpdateAsset | undefined;
+  }>({
     checking: false, text: "", bad: false,
   });
 
@@ -73,7 +75,7 @@ export function SettingsPage({
       return;
     }
     if (res.hasUpdate) {
-      setUpdate({ checking: false, text: `发现新版本 v${res.latest}，可在 GitHub Releases 下载`, bad: false });
+      setUpdate({ checking: false, text: `发现新版本 v${res.latest}，点下方「下载更新包」`, bad: false, asset: res.asset });
       onToast(`发现新版本 v${res.latest}`);
       return;
     }
@@ -197,12 +199,12 @@ export function SettingsPage({
           <SettingsGroup title="绘制辅助" accent="blue">
             <SettingRow
               icon={<MagnetIcon />}
-              title="吸附到已有点"
-              subtitle="自动对齐圆心、端点与已画图形"
+              title="吸附到点与网格"
+              subtitle="自动对齐圆心、端点、已画图形与网格交点"
               trailing={
                 <Toggle
                   checked={settings.snapEnabled}
-                  label="吸附到已有点"
+                  label="吸附到点与网格"
                   onChange={(snapEnabled) => onChange({ snapEnabled })}
                 />
               }
@@ -410,7 +412,21 @@ export function SettingsPage({
               onClick={() => { if (!update.checking) void onCheckUpdate(); }}
               trailing={<ChevronIcon />}
             />
-            <SettingRow
+            {update.asset ? (
+              <a
+                className="set-row tappable"
+                href={update.asset.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span className="set-tile"><ExportIcon /></span>
+                <span className="set-text">
+                  <b>下载更新包</b>
+                  <small>{update.asset.name} → 浏览器下载后用 MarginNote 打开（或 设置 → 场景模板 → 导入）</small>
+                </span>
+                <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
+              </a>
+            ) : null}            <SettingRow
               icon={<InfoIcon />}
               title="更新日志"
               subtitle="CHANGELOG.md"

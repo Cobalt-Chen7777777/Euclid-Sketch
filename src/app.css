@@ -1175,3 +1175,32 @@ html:has(.panel.theme-dark) body { background: #17150f; }
 .preview-actions { display: flex; gap: 10px; justify-content: center; padding: 12px 0 4px; }
 .preview-actions .chip { background: rgba(255, 255, 255, .14); color: #f7f4ec; border-color: rgba(255, 255, 255, .26); }
 .preview-actions .chip.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+/* 设置页里的下载链接行（a 标签复用 set-row 布局） */
+a.set-row {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 抽屉里的数值参数行（长度 / 半径） */
+.param-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--ink);
+}
+.param-row > span:first-child { flex: none; width: 34px; color: var(--muted); }
+.param-row input {
+  flex: 1; min-width: 0;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.param-row input:focus { outline: none; border-color: #2563eb; }
+.param-unit { flex: none; font-size: 11.5px; color: var(--muted); }

@@ -259,6 +259,11 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   }, [targetCard, viewport, color, setShapes, showToast]);
 
+  /** 通用图形补丁：抽屉里的数值输入（线段长度 / 圆半径）调用 */
+  const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
+    setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));
+  }, [setShapes]);
+
   /** 切换某个已有图形的虚线线型 */
   const onToggleDashed = useCallback((id: string) => {
     setShapes((prev) => prev.map((x) => {
@@ -525,6 +530,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onSelect={setSelectedId}
               onDeleteShape={onDeleteShape}
               onToggleDashed={onToggleDashed}
+              onUpdateShape={onUpdateShape}
               onToggleImageLock={onToggleImageLock}
               onResizeImage={onResizeImage}
               onFitImage={onFitImage}
