@@ -52,9 +52,11 @@ export async function imageSrcToShape(
   const spanY = viewport.yRange[1] - viewport.yRange[0];
   const iw = img.naturalWidth || img.width || 1;
   const ih = img.naturalHeight || img.height || 1;
-  let wWorld = Math.min(spanX * 0.5, 6);
+  // 初始尺寸：宽度先按视口 80%（不再限制 6 个单位——那会让题目图小到看不清），
+  // 若因此过高（长图），改为按高度 90% 适配，宽度按真实比例缩
+  let wWorld = spanX * 0.8;
   let hWorld = wWorld * (ih / iw);
-  const maxH = spanY * 0.85;
+  const maxH = spanY * 0.9;
   if (hWorld > maxH) {
     hWorld = maxH;
     wWorld = hWorld * (iw / ih);

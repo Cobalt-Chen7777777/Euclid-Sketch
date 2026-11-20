@@ -106,3 +106,23 @@ export function zoomViewport(v: Viewport, anchor: Point2, factor: number): Viewp
     yRange: [worldAnchor.y - newH * ry, worldAnchor.y + newH * (1 - ry)],
   };
 }
+
+/**
+ * 缩放到刚好包住某个世界矩形（四周留边距）。
+ * 世界范围宽高比必须与画布一致，否则图形会被拉伸变形。
+ */
+export function zoomToBox(
+  v: Viewport,
+  box: { x: number; y: number; w: number; h: number },
+  padRatio = 0.08,
+): Viewport {
+  if (v.width < 40 || v.height < 40 || box.w <= 0 || box.h <= 0) return v;
+  const canvasRatio = v.width / v.height;
+  let w = box.w * (1 + padRatio * 2);
+  let h = box.h * (1 + padRatio * 2);
+  if (w / h > canvasRatio) h = w / canvasRatio;
+  else w = h * canvasRatio;
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  return { ...v, xRange: [cx - w / 2, cx + w / 2], yRange: [cy - h / 2, cy + h / 2] };
+}

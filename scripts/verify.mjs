@@ -223,10 +223,10 @@ async function main() {
     });
     record("图片导入默认锁定", badgeLocked);
     // 点锁定徽标解锁
-    const gBox = await page.locator(".canvas-stage .img-lock-btn").first().boundingBox();
-    if (gBox) {
-      await page.mouse.click(gBox.x + 9, gBox.y + 9);
-      await page.waitForTimeout(150);
+    const lockBtn = page.locator(".canvas-stage .img-lock-btn").first();
+    if (await lockBtn.count()) {
+      await page.evaluate(() => document.querySelector(".canvas-stage .img-lock-btn")?.click());
+      await page.waitForTimeout(200);
     const unlocked = await page.evaluate(() => {
       const g = document.querySelector(".canvas-stage .img-lock-btn svg rect[fill*='37, 99, 235']");
       return !g;

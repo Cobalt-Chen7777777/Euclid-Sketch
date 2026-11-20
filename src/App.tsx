@@ -1,13 +1,8 @@
 import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
-import type { Viewport } from "./canvas/viewport";
+import { zoomToBox, type Viewport } from "./canvas/viewport";
 import { renderCardImage, upsertComment } from "./bridge";
-import {
-  downloadDocument,
-  downloadBlob,
-  dataUrlToBlob,
-  renderExportDataUrl,
-} from "./export/image";
+import { downloadDocument, downloadBlob, dataUrlToBlob, renderExportDataUrl } from "./export/image";
 import { buildSketchReport } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
 import { DASHABLE } from "./model/types";
@@ -227,20 +222,20 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // 套索多选 + 剪贴板（复制 / 剪切 / 粘贴 / 删除）
   const lasso = useLassoClipboard(shapes, setShapes, showToast);
 
-  // 图片导入（题目照片等）
   const imageInputRef = useRef<HTMLInputElement>(null);
   const onImportImage = useCallback(async (file: File, index = 0) => {
     try {
       const shape = await fileToImageShape(file, viewport, color, shapes, index);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
+      setViewport((vp) => zoomToBox(vp, shape));
       showToast(`已插入图片（约 ${Math.round(shape.src.length / 1024)}KB）`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "图片导入失败");
     }
   }, [viewport, color, shapes, setShapes, showToast]);
 
-  /** 从当前目标卡渲染长图，插入画布（noteidArg 供卡片菜单命令直接指定目标卡） */
+  /** 从当前目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定目标卡） */
   const onImportCardImage = useCallback(async (noteidArg?: string) => {
     const nid = noteidArg ?? targetCard;
     if (!nid) {
@@ -256,13 +251,13 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       const shape = await imageSrcToShape(rendered.src, viewport, color, true, shapes);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
+      setViewport((vp) => zoomToBox(vp, shape));
       showToast("已插入卡片图；卡片上若残留草图批注文字会一并显示，可在 MN 里删除该批注");
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
   }, [targetCard, viewport, color, shapes, setShapes, showToast]);
 
-  /** 通用图形补丁：抽屉里的数值输入（线段长度 / 圆半径）调用 */
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));
   }, [setShapes]);
@@ -301,7 +296,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, [updateSettings, selectedId, setShapes]);
 
 
-  // ---- 文件导入 ----
   const onImportFile = useCallback(async (file: File) => {
     try {
       const parsed = await readDocumentFile(file);
