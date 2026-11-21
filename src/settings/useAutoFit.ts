@@ -24,17 +24,17 @@ export function useAutoFitHeight(enabled: boolean) {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastHeight = -1;
 
-    // 护栏：高度差小于 2px 不触发；且 200ms 内只触发一次。
+    // 护栏：高度差小于 8px 不触发（切换开关引起的细微重排不该改面板高度）；且 350ms 内只触发一次。
     // 键盘弹起/收起会让面板高度来回变化，没有护栏时 mn.fit() 会和宿主反复拉锯。
     const schedule = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
         const height = element.getBoundingClientRect().height;
-        if (Math.abs(height - lastHeight) < 2) return;
+        if (Math.abs(height - lastHeight) < 8) return;
         lastHeight = height;
         fitPanelHeight();
-      }, 200);
+      }, 350);
     };
 
     // 首次开启立刻对齐一次，后续交给尺寸观察

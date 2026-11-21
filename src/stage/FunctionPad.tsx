@@ -269,7 +269,7 @@ export function FunctionPad(props: Props) {
           </div>
         </div>
       ) : (
-        <p className="fnpad-empty">输入表达式后点「绘制」</p>
+        <p className="fnpad-empty">输入表达式后点「绘制」· 三角函数用弧度，写角度加 °（如 tan60°）</p>
       )}
 
       {/* 单行工具条：标签/输入/求值/绘制全部固定高度，永不换行 */}

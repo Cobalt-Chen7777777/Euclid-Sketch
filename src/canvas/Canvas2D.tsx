@@ -141,7 +141,8 @@ export function Canvas2D(props: Props) {
       const rect = svgEl.getBoundingClientRect();
       if (rect.width < 40 || rect.height < 40) return;
       setViewport((prev) => {
-        if (Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5) return prev;
+        // 小于 6px 的抖动不重算视口：切换设置导致的重排不该让画布看起来「自己缩放」
+        if (Math.abs(prev.width - rect.width) < 6 && Math.abs(prev.height - rect.height) < 6) return prev;
         return fitViewport(prev, rect.width, rect.height);
       });
     };
@@ -176,7 +177,7 @@ export function Canvas2D(props: Props) {
   }, [svgRef, v.width, v.height]);
 
   /** 吸附：优先已有点 / 圆心 / 控制点，其次网格交点（设置里可关闭） */
-  const snap = useCallback((world: Point2): Point2 => {
+  const snap = useCallback((world: Point2, allowGrid = true): Point2 => {
     if (!options.snapEnabled) return world;
     const sp = toScreen(world, v);
     let best: Point2 | null = null;
@@ -190,7 +191,7 @@ export function Canvas2D(props: Props) {
     }
     if (best) return best;
     // 网格交点吸附：让点 / 圆心能落到整齐坐标上（空白画布无网格时不吸附）
-    if (options.showGrid) {
+    if (allowGrid && options.showGrid) {
       const step = options.gridStep > 0 ? options.gridStep : 1;
       const grid = { x: Math.round(world.x / step) * step, y: Math.round(world.y / step) * step };
       const gp = toScreen(grid, v);
@@ -419,7 +420,8 @@ export function Canvas2D(props: Props) {
     setDrag((d) => {
       switch (d.kind) {
         case "handle": {
-          const world = snap(toWorld(sp, v));
+          // 拖动已有图形：只吸附已有点，不吸网格（否则笔一靠近就跳格，无法微调）
+          const world = snap(toWorld(sp, v), false);
           setShapes((prev) => prev.map((s) => (s.id === d.id ? d.handle.apply(s, world) : s)));
           return d;
         }

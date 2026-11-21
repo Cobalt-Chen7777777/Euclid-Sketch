@@ -4,6 +4,8 @@
  * 放的是「画画时会调的东西」——图元类型、笔宽、颜色、公式、图形列表。
  * 导入导出、写入批注这类低频操作放在设置页，避免挤占画布。
  */
+import { useState } from "react";
+
 import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
@@ -62,6 +64,27 @@ interface Props {
   onImportImageFile: () => void;
   lockRadius: boolean;
   lockedRadius: number | null;
+}
+
+/** 数值输入：允许清空重输（清空期间不改图形，失焦后回填当前值） */
+function ParamInput({ value, step, onCommit }: { value: number; step: string; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      step={step}
+      min="0.01"
+      value={draft ?? value.toFixed(2)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value.trim() !== "" && Number.isFinite(n) && n > 0) onCommit(n);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+    />
+  );
 }
 
 export function OptionsDrawer(props: Props) {
@@ -123,38 +146,22 @@ export function OptionsDrawer(props: Props) {
             {selectedShape.type === "line" ? (
               <label className="param-row">
                 <span>长度</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
+                <ParamInput
+                  value={lineLength(selectedShape)}
                   step="0.5"
-                  min="0.1"
-                  value={lineLength(selectedShape).toFixed(2)}
-                  onChange={(e) => {
-                    const len = Number(e.target.value);
-                    if (Number.isFinite(len) && len > 0) {
-                      onUpdateShape(selectedShape.id, (s) =>
-                        s.type === "line" ? { ...s, ...lineLengthPatch(s, len) } : s);
-                    }
-                  }}
+                  onCommit={(len) => onUpdateShape(selectedShape.id, (s) =>
+                    s.type === "line" ? { ...s, ...lineLengthPatch(s, len) } : s)}
                 />
                 <span className="param-unit">格</span>
               </label>
             ) : (
               <label className="param-row">
                 <span>半径</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
+                <ParamInput
+                  value={selectedShape.r}
                   step="0.5"
-                  min="0.05"
-                  value={selectedShape.r.toFixed(2)}
-                  onChange={(e) => {
-                    const r = Number(e.target.value);
-                    if (Number.isFinite(r) && r > 0) {
-                      onUpdateShape(selectedShape.id, (s) =>
-                        s.type === "circle" ? { ...s, ...circleRadiusPatch(r) } : s);
-                    }
-                  }}
+                  onCommit={(r) => onUpdateShape(selectedShape.id, (s) =>
+                    s.type === "circle" ? { ...s, ...circleRadiusPatch(r) } : s)}
                 />
                 <span className="param-unit">格</span>
               </label>

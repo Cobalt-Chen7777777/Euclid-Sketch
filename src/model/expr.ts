@@ -173,7 +173,17 @@ function parse(tokens: Token[]): EvalFn {
   return fn;
 }
 
+/**
+ * 度数 → 弧度：60° / 60deg / 60 deg 都改写成 (60*pi/180)。
+ * 三角函数一律用弧度，但写角度更符合做题习惯，这里统一在编译前转换。
+ */
+export function normalizeDegrees(source: string): string {
+  return source
+    .replace(/(\d+(?:\.\d+)?)\s*°/g, "($1*pi/180)")
+    .replace(/(\d+(?:\.\d+)?)\s*deg\b/gi, "($1*pi/180)");
+}
+
 /** 编译表达式为可重复求值的闭包（带调用方缓存更佳） */
 export function compileExpr(source: string): EvalFn {
-  return parse(tokenize(source));
+  return parse(tokenize(normalizeDegrees(source)));
 }
