@@ -4,6 +4,7 @@ import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
 import { isVisible, sortForRender } from "../model/layers";
+import { shapeBBox } from "../model/lasso";
 import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
 import {
   gridLines,
@@ -45,6 +46,25 @@ function pathFromPoints(points: { x: number; y: number }[], v: Viewport): string
     penDown = true;
   }
   return d.trim();
+}
+
+/** 绘制中的实时参数：按图形类型给出最有用的数值 */
+function previewLabel(shape: Shape): string {
+  const f = (n: number) => n.toFixed(2);
+  switch (shape.type) {
+    case "circle": return `r = ${f(shape.r)}`;
+    case "ellipse": return `a ${f(shape.rx)} · b ${f(shape.ry)}`;
+    case "rect": return `${f(Math.abs(shape.x2 - shape.x1))} × ${f(Math.abs(shape.y2 - shape.y1))}`;
+    case "line": case "ray": return `长 ${f(Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1))}`;
+    case "polygon": return `${shape.sides} 边 · r ${f(shape.r)}`;
+    case "arc": return `r ${f(shape.r)} · ${Math.round(Math.abs(shape.endAngle - shape.startAngle) * 180 / Math.PI)}°`;
+    case "point": return `(${f(shape.x)}, ${f(shape.y)})`;
+    case "poly": {
+      const bb = shapeBBox(shape);
+      return `${f(bb.x2 - bb.x1)} × ${f(bb.y2 - bb.y1)}`;
+    }
+    default: return "";
+  }
 }
 
 /**
@@ -384,17 +404,21 @@ export function ShapeLayer({
 
       {/* 拖动绘制 / 笔迹实时预览 */}
       {(() => {
-        // 画圆时实时显示半径（圆规拖半径 / 画圆拖大小都算）
-        const tip = preview ?? (previewShape?.type === "circle" ? { cx: previewShape.cx, cy: previewShape.cy, r: previewShape.r } : null);
-        if (!tip) return null;
-        const anchor = toScreen({ x: tip.cx + tip.r * 0.72, y: tip.cy - tip.r * 0.72 }, rest.viewport);
+        // 绘制中的实时参数：圆看半径、线段看长度、矩形看宽高、圆弧看半径与跨度……
+        const label = previewShape ? previewLabel(previewShape) : preview ? `r = ${preview.r.toFixed(2)}` : "";
+        if (!label) return null;
+        const box = previewShape
+          ? shapeBBox(previewShape)
+          : { x1: (preview?.cx ?? 0) - (preview?.r ?? 0), y1: (preview?.cy ?? 0) - (preview?.r ?? 0),
+              x2: (preview?.cx ?? 0) + (preview?.r ?? 0), y2: (preview?.cy ?? 0) + (preview?.r ?? 0) };
+        const at = toScreen({ x: box.x2, y: box.y1 }, rest.viewport);
         return (
           <text
-            className="radius-tip" x={anchor.x} y={anchor.y}
+            className="preview-tip" x={at.x + 8} y={at.y - 6}
             fontSize={12} fontWeight={600} fill="#b45309" stroke="#fff" strokeWidth={3}
-            paintOrder="stroke" textAnchor="middle"
+            paintOrder="stroke" textAnchor="start"
           >
-            {`r = ${tip.r.toFixed(2)}`}
+            {label}
           </text>
         );
       })()}

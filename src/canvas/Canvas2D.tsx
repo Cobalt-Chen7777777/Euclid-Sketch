@@ -80,7 +80,7 @@ type DragState =
   | { kind: "lasso"; points: Point2[] }
   | { kind: "handle"; id: string; handle: Handle }
   | { kind: "compass"; center: Point2; current: Point2 }
-  | { kind: "draw"; start: Point2; current: Point2 }
+  | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
   | { kind: "ink"; points: Point2[] }
   | { kind: "curve"; points: Point2[] }
   | { kind: "erase" }
@@ -169,7 +169,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
 
 
-  /** 橡皮擦：删除命中的图形（坐标轴、隐藏层与锁定图形不可删），命中范围来自设置 */
+  /** 橡皮擦：删除命中图形（坐标轴 / 隐藏层 / 锁定图形不可删） */
   const eraseAt = useCallback((world: Point2) => {
     const tolWorld = (options.eraserRadius / v.width) * (v.xRange[1] - v.xRange[0]);
     const hit = sortForRender(shapes)
@@ -182,7 +182,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
   }, [shapes, v, setShapes, selectedId, onSelect, options.eraserRadius]);
 
-  /** 命中选中图形的控制点（屏幕距离） */
   const hitHandle = useCallback((sp: Point2): { id: string; handle: Handle } | null => {
     if (!selectedId) return null;
     const shape = shapes.find((s) => s.id === selectedId);
@@ -194,7 +193,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     return null;
   }, [selectedId, shapes, v]);
 
-  /** 命中已框选集合中的图形（整组拖动入口）：点在图形包围盒内即算（拖动比点选更宽松） */
+  /** 整组拖动命中：点在包围盒内即算（比点选宽松） */
   const hitSelected = useCallback((world: Point2): boolean => {
     if (selectionIds.length === 0) return false;
     const pad = (10 / v.width) * (v.xRange[1] - v.xRange[0]);
@@ -308,7 +307,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         }
         return;
       }
-      setDrag({ kind: "draw", start: world, current: world });
+      setDrag({ kind: "draw", start: world, current: world, raw: world });
       return;
     }
 
@@ -412,8 +411,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           }
           return { ...d, current: world };
         }
-        case "draw":
-          return { ...d, current: snap(toWorld(sp, v)) };
+        case "draw": {
+          const raw = toWorld(sp, v);
+          return { ...d, raw, current: snap(raw) };
+        }
         case "ink": {
           const world = toWorld(sp, v);
           const last = d.points[d.points.length - 1];
@@ -482,11 +483,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
     return { kind: "none" };
   });
-  const finishCurveRef = useRef(finishCurve);
-  finishCurveRef.current = finishCurve;
-  useEffect(() => {
-    if (tool !== "curve" && drag?.kind === "curve") finishCurveRef.current();
-  }, [tool, drag]);
 
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -514,7 +510,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   // 拖动绘制/笔迹的实时预览
   const previewShape: Shape | null = anglePreview ?? (
     drag.kind === "draw"
-      ? createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides)
+      ? createPrimitiveByDrag(placeType, drag.start, drag.raw, color, placeSides)
       : drag.kind === "curve"
         ? ({ id: "preview-curve", type: "ink", points: drag.points, color, width: penWidth, smooth: true } as Shape)
         : drag.kind === "ink"
