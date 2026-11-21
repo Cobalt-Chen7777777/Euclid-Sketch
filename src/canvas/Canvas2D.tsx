@@ -82,7 +82,7 @@ type DragState =
   | { kind: "lasso"; points: Point2[] }
   | { kind: "handle"; id: string; handle: Handle }
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
-  | { kind: "ink"; points: Point2[]; press: number[] }
+  | { kind: "ink"; points: Point2[] }
   | { kind: "curve"; points: Point2[] }
   | { kind: "erase" }
   | { kind: "moveSel"; last: Point2 };
@@ -277,7 +277,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
 
     if (tool === "pen") {
-      setDrag({ kind: "ink", points: [worldRaw], press: [e.pressure || 0.5] });
+      setDrag({ kind: "ink", points: [worldRaw] });
       return;
     }
 
@@ -403,8 +403,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           const world = toWorld(sp, v);
           const last = d.points[d.points.length - 1];
           // 距离阈值采样，避免点过密
-          if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.04) return d;
-          return { ...d, points: [...d.points, world], press: [...d.press, e.pressure || 0.5] };
+          if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.028) return d;
+          return { ...d, points: [...d.points, world] };
         }
         case "erase":
           eraseAt(toWorld(sp, v));
@@ -438,7 +438,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           id: newId("ink"), type: "ink",
           points: options.inkSmoothing ? smoothPoints(drag.points) : drag.points,
           color, width: penWidth,
-          pressures: drag.press, // 平滑不改变点数，压感逐点对应
         };
         setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
       }

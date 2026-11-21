@@ -49,39 +49,6 @@ function pathFromPoints(points: { x: number; y: number }[], v: Viewport): string
 }
 
 /** 绘制中的实时参数：按图形类型给出最有用的数值 */
-/**
- * 压感笔迹：按力度分 3 档，每档合并成一条 path（DOM 只 3 个元素）。
- * 鼠标 / 手指没有真实压力时会返回空数组，退回等宽笔迹。
- */
-function pressuredBands(ink: InkShape, v: Viewport): { d: string; width: number }[] {
-  const pr = ink.pressures;
-  if (!pr || pr.length !== ink.points.length || ink.points.length < 3) return [];
-  const lo = Math.min(...pr);
-  const hi = Math.max(...pr);
-  if (hi - lo < 0.08) return [];
-  const out: { d: string; width: number }[] = [];
-  for (let bin = 0; bin < 3; bin += 1) {
-    const a = lo + ((hi - lo) * bin) / 3;
-    const b = lo + ((hi - lo) * (bin + 1)) / 3;
-    const segs: Point2[][] = [];
-    let cur: Point2[] = [];
-    for (let i = 1; i < ink.points.length; i += 1) {
-      const p = (pr[i]! + pr[i - 1]!) / 2;
-      const hit = p >= a && (bin === 2 ? p <= b : p < b);
-      if (hit) {
-        if (cur.length === 0) cur.push(ink.points[i - 1]!);
-        cur.push(ink.points[i]!);
-      } else if (cur.length > 1) {
-        segs.push(cur);
-        cur = [];
-      } else cur = [];
-    }
-    if (cur.length > 1) segs.push(cur);
-    if (segs.length) out.push({ d: segs.map((sg) => pathFromPoints(sg, v)).join(" "), width: ink.width * (0.55 + ((bin + 0.5) / 3) * 0.95) });
-  }
-  return out;
-}
-
 function previewLabel(shape: Shape): string {
   const f = (n: number) => n.toFixed(2);
   switch (shape.type) {
@@ -300,15 +267,6 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     }
     case "ink": {
       const ink = shape as InkShape;
-      const bands = pressuredBands(ink, v);
-      if (bands.length > 0) {
-        return (
-          <>{bands.map((b, i) => (
-            <path key={i} d={b.d} fill="none" stroke={stroke} strokeWidth={b.width}
-              strokeLinecap="round" strokeLinejoin="round" />
-          ))}</>
-        );
-      }
       return (
         <path
           d={ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathFromPoints(ink.points, v)}
