@@ -71,12 +71,16 @@ export function RailCustomizer({ railTools, railPresets, onChange }: Props) {
   const isPresetActive = (p: Preset): boolean =>
     p.tools.length === railTools.length && p.tools.every((t, i) => railTools[i] === t);
 
-  const pool = RAIL_CATALOG.filter((c) => c.id === "select" || !railTools.includes(c.id));
+  // 「选择」固定显示在工具栏，但只有被移除后才出现在「可添加」里（此前无条件出现，造成重复）
+  const pool = RAIL_CATALOG.filter((c) => !railTools.includes(c.id));
 
   return (
     <div className="rail-customizer">
       {/* 方案 */}
-      <span className="rail-pick-label">方案 · 点选切换，当前组合可保存</span>
+      <div className="rail-sec-head">
+        <span className="rail-pick-label">方案</span>
+        <span className="rail-sec-note">点选切换；当前组合可存为新方案</span>
+      </div>
       <div className="chips">
         {railPresets.map((p) => (
           <span key={p.name} className="preset-wrap">
@@ -102,9 +106,10 @@ export function RailCustomizer({ railTools, railPresets, onChange }: Props) {
       </div>
 
       {/* 显示 / 隐藏 / 排序 */}
-      <span className="rail-pick-label">
-        已选按钮 · 长按拖动排序，点选移除（「选择」始终显示）
-      </span>
+      <div className="rail-sec-head">
+        <span className="rail-pick-label">已选 <b className="rail-count">{railTools.length}</b></span>
+        <span className="rail-sec-note">长按拖动排序 · 点选移除 · 选择始终保留</span>
+      </div>
       <div className="chips">
         {railTools.map((id) => (
           <button
@@ -125,7 +130,10 @@ export function RailCustomizer({ railTools, railPresets, onChange }: Props) {
       </div>
       {pool.length > 0 ? (
         <>
-          <span className="rail-pick-label">可添加</span>
+          <div className="rail-sec-head">
+            <span className="rail-pick-label">可添加 <b className="rail-count">{pool.length}</b></span>
+            <span className="rail-sec-note">点选加入工具栏</span>
+          </div>
           <div className="chips">
             {pool.map((c) => (
               <button key={c.id} type="button" className="chip ghost" onClick={() => toggleTool(c.id)}>

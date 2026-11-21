@@ -158,6 +158,8 @@ export interface InkShape {
   color: string;
   /** 线宽（屏幕像素，随缩放保持稳定） */
   width: number;
+  /** 平滑曲线：多点曲线工具生成，渲染时按 Catmull-Rom 平滑 */
+  smooth?: boolean;
 }
 
 /** 点集图形（星形 / 菱形 / 梯形 / 箭头），统一用顶点列表表达 */
@@ -189,6 +191,8 @@ export interface AngleShape {
   a2: number;
   /** 标注弧半径（世界单位） */
   r: number;
+  /** 两条边的长度（等长）；缺省时按标注弧半径推算 */
+  len?: number;
   /** 线型：虚线 */
   dashed?: boolean;
   color: string;

@@ -32,6 +32,8 @@ export function useMnContext(
   useEffect(() => { targetRef.current = targetCard; }, [targetCard]);
   /** 用户手动指定的卡（卡片菜单命令）：15 秒内不被自动跟随抢走 */
   const manualRef = useRef<{ nid: string; at: number } | null>(null);
+  /** 轮询在途标记：避免请求堆积 */
+  const busyRef = useRef(false);
 
   // 监听只注册一次，回调通过 ref 取最新值（否则每轮重渲染都会累积监听器）
   const handlersRef = useRef(handlers);
@@ -99,22 +101,27 @@ export function useMnContext(
     };
   }, [onToast]);
 
-  /** 静默跟随：读焦点卡，变了才 setTargetCard（不 toast、不打断操作） */
+  /** 静默跟随：每 700ms 读一次焦点卡，变了才 setTargetCard（不 toast、不打断操作） */
   const followFocus = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     try {
+      // 只读 /context：页面推断会多读一次文档树，延迟高几百毫秒，轮询路径不用
       const { focusNoteid } = await getCurrentContext();
-      const nid = focusNoteid ?? (await inferTargetFromPage());
+      const nid = focusNoteid;
       if (!nid || nid === targetRef.current) return;
       const lock = manualRef.current;
       if (lock && Date.now() - lock.at < 15000 && lock.nid !== nid) return;
       setTargetCard(nid);
     } catch {
       // 静默：跟随失败不影响正常使用
+    } finally {
+      busyRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => { void followFocus(); }, 2500);
+    const timer = setInterval(() => { void followFocus(); }, 700);
     return () => clearInterval(timer);
   }, [followFocus]);
 

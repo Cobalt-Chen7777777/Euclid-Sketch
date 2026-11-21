@@ -36,3 +36,9 @@ export function arcAnglePatch(which: "startAngle" | "endAngle", deg: number): Pa
 
 /** 改半径（最小 0.1） */
 export const arcRadiusPatch = (r: number): Partial<{ r: number }> => ({ r: Math.max(0.1, r) });
+
+/** 角度两条边的长度（等长），最小 0.6 格 */
+export const angleLenPatch = (len: number): Partial<{ len: number }> => ({ len: Math.max(0.6, len) });
+
+/** 角度的标注弧半径（与边长联动：约 0.42 倍，与创建时一致） */
+export const angleRadiusFor = (len: number): number => Math.max(0.4, len * 0.42);

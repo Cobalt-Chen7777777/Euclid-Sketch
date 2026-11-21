@@ -1,20 +1,12 @@
-/**
- * 2D 画布：SVG 渲染 + 交互。
- * 工具：
- *  - select 选择/拖拽（遍历图形控制点）
- *  - compass 圆规（点圆心→拖半径→松开成圆，可吸附，可锁定半径）
- *  - place 拖动绘制图元（按下→拖动决定大小→松开成图）
- *  - pen 自由画笔（草稿纸笔迹）
- *  - eraser 橡皮擦（点选/划过删除图形与笔迹）
- *  - pan 平移画布
- * 缩放：滚轮 / 双指捏合
- */
+/** 2D 画布：SVG 渲染 + 交互（选择 / 圆规 / 绘制 / 画笔 / 橡皮 / 套索 / 角度 / 曲线；滚轮与双指缩放）。 */
 /* eslint-disable no-restricted-syntax -- SVG 画布的 touch-action/cursor 需内联样式，其余为声明式渲染 */
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { createAngle } from "../model/angle";
 import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
 import { isEraseable, isSelectable, sortForRender } from "../model/layers";
+import { buildCurve } from "../model/curve";
+import { snapWorld } from "../model/snap";
 import { createPrimitiveByDrag, getHandles, hitTest, type Handle } from "../model/geometry";
 import { smoothPoints } from "../model/ink";
 import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
@@ -30,7 +22,7 @@ import {
   type Viewport,
 } from "./viewport";
 
-export type Tool = "select" | "compass" | "place" | "pen" | "eraser" | "angle" | "lasso";
+export type Tool = "select" | "compass" | "place" | "pen" | "eraser" | "angle" | "lasso" | "curve";
 
 /** 来自设置页的画布行为开关 */
 export interface CanvasOptions {
@@ -90,10 +82,9 @@ type DragState =
   | { kind: "compass"; center: Point2; current: Point2 }
   | { kind: "draw"; start: Point2; current: Point2 }
   | { kind: "ink"; points: Point2[] }
+  | { kind: "curve"; points: Point2[] }
   | { kind: "erase" }
   | { kind: "moveSel"; last: Point2 };
-
-const SNAP_PX = 16;
 
 export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
@@ -125,9 +116,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     };
   }, [svgRef]);
 
-  // 画布铺满容器：直接量 svg 自身尺寸（不是带边框的父容器），
-  // 否则 viewBox 与渲染尺寸有 1–2px 差，x/y 比例不一致会把角度画歪
-  // 拖动窗口缩放期间冻结视口重算：
   // SVG preserveAspectRatio=none 会自行拉伸铺满，松手（frozen→false）时 effect 重跑，
   // 首次 schedule 立即 apply 一次——避免拖动中反复全量重绘网格与图形
   useEffect(() => {
@@ -147,8 +135,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       });
     };
 
-    // 拖动窗口时尺寸每 70ms 变一次，逐次重排会让整个画布闪烁；
-    // 这里等尺寸稳定 120ms 再重算，期间 SVG 自己按新尺寸拉伸。
+    // 尺寸稳定 120ms 后才重算，期间 SVG 自己按新尺寸拉伸（避免逐帧闪烁）
     const schedule = () => {
       if (!measured) {
         measured = true;
@@ -176,29 +163,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     return { x: (e.clientX - rect.left) * (v.width / rect.width), y: (e.clientY - rect.top) * (v.height / rect.height) };
   }, [svgRef, v.width, v.height]);
 
-  /** 吸附：优先已有点 / 圆心 / 控制点，其次网格交点（设置里可关闭） */
-  const snap = useCallback((world: Point2, allowGrid = true): Point2 => {
-    if (!options.snapEnabled) return world;
-    const sp = toScreen(world, v);
-    let best: Point2 | null = null;
-    let bestD = SNAP_PX;
-    for (const s of shapes) {
-      for (const h of getHandles(s)) {
-        const hs = toScreen(h.at, v);
-        const d = Math.hypot(hs.x - sp.x, hs.y - sp.y);
-        if (d < bestD) { bestD = d; best = h.at; }
-      }
-    }
-    if (best) return best;
-    // 网格交点吸附：让点 / 圆心能落到整齐坐标上（空白画布无网格时不吸附）
-    if (allowGrid && options.showGrid) {
-      const step = options.gridStep > 0 ? options.gridStep : 1;
-      const grid = { x: Math.round(world.x / step) * step, y: Math.round(world.y / step) * step };
-      const gp = toScreen(grid, v);
-      if (Math.hypot(gp.x - sp.x, gp.y - sp.y) <= SNAP_PX) return grid;
-    }
-    return world;
-  }, [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
+  const snap = useCallback(
+    (world: Point2, allowGrid = true) => snapWorld(world, { shapes, v, enabled: options.snapEnabled,
+      showGrid: options.showGrid, gridStep: options.gridStep }, allowGrid),
+    [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
+
 
   /** 橡皮擦：删除命中的图形（坐标轴、隐藏层与锁定图形不可删），命中范围来自设置 */
   const eraseAt = useCallback((world: Point2) => {
@@ -296,6 +265,13 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
 
     if (tool === "pen") {
       setDrag({ kind: "ink", points: [worldRaw] });
+      return;
+    }
+
+    if (tool === "curve") {
+      // 曲线：每点一下加一个控制点，双击结束（至少 2 点才成线）
+      const w = snap(worldRaw);
+      setDrag((d) => (d && d.kind === "curve" ? { ...d, points: [...d.points, w] } : { kind: "curve", points: [w] }));
       return;
     }
 
@@ -458,6 +434,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size < 2) pinch.current = null;
 
+    if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
+
     if (drag.kind === "lasso") {
       const ids = lassoSelect(shapes.filter(isSelectable), drag.points);
       onSelectionChange(ids);
@@ -494,6 +472,22 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     setDrag({ kind: "none" });
   };
 
+  /** 双击（或切走工具）结束曲线：去重后落成平滑笔迹 */
+  const finishCurve = () => setDrag((d) => {
+    if (!d || d.kind !== "curve") return d;
+    const ink = buildCurve(d.points, color, penWidth);
+    if (ink) {
+      setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
+      onToast?.(`曲线完成：${ink.points.length} 个控制点`);
+    }
+    return { kind: "none" };
+  });
+  const finishCurveRef = useRef(finishCurve);
+  finishCurveRef.current = finishCurve;
+  useEffect(() => {
+    if (tool !== "curve" && drag?.kind === "curve") finishCurveRef.current();
+  }, [tool, drag]);
+
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     setViewport((prev) => zoomViewport(prev, localPoint(e), e.deltaY > 0 ? 1.1 : 0.9));
@@ -521,7 +515,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const previewShape: Shape | null = anglePreview ?? (
     drag.kind === "draw"
       ? createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides)
-      : drag.kind === "ink"
+      : drag.kind === "curve"
+        ? ({ id: "preview-curve", type: "ink", points: drag.points, color, width: penWidth, smooth: true } as Shape)
+        : drag.kind === "ink"
         ? ({
             id: "preview",
             type: "ink",
@@ -549,6 +545,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onDoubleClick={finishCurve}
         onWheel={onWheel}
         style={{ touchAction: "none", cursor }}
         xmlns="http://www.w3.org/2000/svg"

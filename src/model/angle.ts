@@ -89,7 +89,8 @@ export function createAngle(
   const r = Math.max(0.4, Math.min(r1, r2) * 0.42);
 
   return {
-    shape: { id: newId("angle"), type: "angle", vx: vertex.x, vy: vertex.y, a1, a2, r, color },
+    // 边长取第一边点击距离：两条边等长，画出来像教材里的角
+    shape: { id: newId("angle"), type: "angle", vx: vertex.x, vy: vertex.y, a1, a2, r, len: Math.max(0.6, r1), color },
     deg,
     snapped,
   };

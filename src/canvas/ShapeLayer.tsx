@@ -47,6 +47,26 @@ function pathFromPoints(points: { x: number; y: number }[], v: Viewport): string
   return d.trim();
 }
 
+/**
+ * Catmull-Rom → 三次贝塞尔：多点曲线工具的平滑路径。
+ * 在屏幕坐标里算，缩放/平移时曲率观感稳定。
+ */
+function smoothPath(points: { x: number; y: number }[], v: Viewport): string {
+  const pts = points.map((p) => toScreen(p, v)).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (pts.length < 3) return pathFromPoints(points, v);
+  let d = `M${pts[0]!.x.toFixed(1)},${pts[0]!.y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i === 0 ? 0 : i - 1]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[i + 2 < pts.length ? i + 2 : pts.length - 1]!;
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    d += ` C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
 /** 屏幕半径：分别取 x/y 缩放，用于椭圆/圆弧的非等比投影 */
 const sx = (v: Viewport) => v.width / (v.xRange[1] - v.xRange[0]);
 const sy = (v: Viewport) => v.height / (v.yRange[1] - v.yRange[0]);
@@ -167,15 +187,16 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     case "angle": {
       const a = shape as AngleShape;
       const { start, span } = drawRange(a);
-      const at = (ang: number, len = a.r * 1.3) => toScreen({
+      const armLen = a.len ?? a.r * 1.3;
+      const at = (ang: number, len = armLen) => toScreen({
         x: a.vx + len * Math.cos(ang),
         y: a.vy + len * Math.sin(ang),
       }, v);
       const vertex = toScreen({ x: a.vx, y: a.vy }, v);
       const p1 = at(start, a.r);
       const p2 = at(start + span, a.r);
-      const reach1 = at(start);
-      const reach2 = at(start + span);
+      const reach1 = at(start, armLen);
+      const reach2 = at(start + span, armLen);
       const deg = angleSpanDeg(a);
       const isRight = Math.abs(deg - 90) < 0.6;
       const label = Number.isInteger(Math.round(deg)) ? `${Math.round(deg)}°` : `${deg.toFixed(1)}°`;
@@ -213,7 +234,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const ink = shape as InkShape;
       return (
         <path
-          d={pathFromPoints(ink.points, v)}
+          d={ink.smooth ? smoothPath(ink.points, v) : pathFromPoints(ink.points, v)}
           fill="none" stroke={stroke} strokeWidth={ink.width}
           strokeLinecap="round" strokeLinejoin="round"
         />
@@ -362,6 +383,21 @@ export function ShapeLayer({
       ) : null}
 
       {/* 拖动绘制 / 笔迹实时预览 */}
+      {(() => {
+        // 画圆时实时显示半径（圆规拖半径 / 画圆拖大小都算）
+        const tip = preview ?? (previewShape?.type === "circle" ? { cx: previewShape.cx, cy: previewShape.cy, r: previewShape.r } : null);
+        if (!tip) return null;
+        const anchor = toScreen({ x: tip.cx + tip.r * 0.72, y: tip.cy - tip.r * 0.72 }, rest.viewport);
+        return (
+          <text
+            className="radius-tip" x={anchor.x} y={anchor.y}
+            fontSize={12} fontWeight={600} fill="#b45309" stroke="#fff" strokeWidth={3}
+            paintOrder="stroke" textAnchor="middle"
+          >
+            {`r = ${tip.r.toFixed(2)}`}
+          </text>
+        );
+      })()}
       {previewShape ? (
         <g opacity={0.65}>{renderShape(previewShape, rest.viewport, false, rest.strokeWidth ?? 2)}</g>
       ) : null}
