@@ -3,16 +3,24 @@
  * 用法：node scripts/forum/edit-main-post.mjs
  */
 import { chromium } from "playwright-core";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const PROFILE = join(root, "shots", "bbs-profile");
 const TOPIC = "https://bbs.marginnote.com.cn/t/topic/68960";
-const TITLE = "【MN 插件】Euclid Sketch——在 MarginNote 里给数学题作图，画完直接进卡片";
-const MN = join(root, "release", "Euclid Sketch-0.2.1-beta.1.mnaddon");
-const TPL = join(root, "release", "Euclid Sketch-0.2.1-beta.1.mntemplate");
+const VERSION = JSON.parse(readFileSync(join(root, "mnaddon.json"), "utf8")).version;
+const TITLE = "【第三方MN插件】Euclid Sketch (" + VERSION + ")——数学模型构图：把草稿纸搬进 MarginNote";
+const MN = join(root, "release", "Euclid Sketch-" + VERSION + ".mnaddon");
+const TPL = join(root, "release", "Euclid Sketch-" + VERSION + ".mntemplate");
+/** 历史正式版的包也一并挂到帖子里（GitHub 上每个版本都发布过，社区这边同样保留） */
+const HISTORY = ["0.2.0", "0.1.0"]
+  .flatMap((v) => [
+    join(root, "release", "Euclid Sketch-" + v + ".mnaddon"),
+    join(root, "release", "Euclid Sketch-" + v + ".mntemplate"),
+  ])
+  .filter((p) => existsSync(p));
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
@@ -36,6 +44,8 @@ async function main() {
   }
 
   // ---------- 1) 正文 ----------
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(1000);
   if (!(await page.locator("#reply-control.open").count())) {
     await page.locator("#post_1 .post-controls .edit").first().click();
   }
@@ -52,22 +62,31 @@ async function main() {
   const input = page.locator(".d-editor-input").first();
   await input.waitFor({ timeout: 15000 });
 
+  // 标题字段与正文同在一个 composer：先填标题，避免依赖「编辑标题」弹窗
+  const titleField = page.locator("#reply-title, input.d-editor-title").first();
+  if ((await titleField.count()) && (await titleField.isEditable().catch(() => false))) {
+    await titleField.fill(TITLE);
+    log("… 标题已填入");
+  } else log("… 标题字段不可用，跳过");
   await input.fill("");
   let filled = false;
   const fileInput = page.locator('#reply-control input[type="file"]').first();
   if (await fileInput.count()) {
-    await fileInput.setInputFiles([MN, TPL]);
+    await fileInput.setInputFiles([MN, TPL, ...HISTORY]);
     log("… 上传两个安装包");
     for (let i = 0; i < 20; i += 1) {
       await page.waitForTimeout(2000);
       const draft = await input.inputValue();
       const links = draft.match(/\[[^\]\n]*\]\(upload:\/\/[^)\n]+\)[^\n]*/g) ?? [];
-      if (links.length >= 2) {
+      if (links.length >= 6) {
         log(`✓ 附件链接 ${links.length} 条`);
-        const injected = body.replace(
-          "请下载本帖附件的两个包（见下方附件）：",
-          `请下载本帖附件：\n\n${links[0]}\n\n${links[1]}\n\n两个包分别是：`,
-        );
+        // 按文件名挑链接：主推版本 + 历史版本分别填进两个占位符
+        const pick = (name) => links.find((l) => l.includes(name)) ?? "";
+        const cur = ["0.2.1.mntemplate", "0.2.1.mnaddon"]
+          .map(pick).filter(Boolean).map((l) => "- " + l).join("\n");
+        const hist = ["0.2.0.mntemplate", "0.2.0.mnaddon", "0.1.0.mntemplate", "0.1.0.mnaddon"]
+          .map(pick).filter(Boolean).map((l) => "- " + l).join("\n");
+        const injected = body.replace("{{ATTACH_CURRENT}}", cur).replace("{{ATTACH_HISTORY}}", hist);
         await input.fill(injected);
         filled = true;
         break;
