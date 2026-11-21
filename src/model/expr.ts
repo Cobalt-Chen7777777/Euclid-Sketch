@@ -180,10 +180,19 @@ function parse(tokens: Token[]): EvalFn {
 export function normalizeDegrees(source: string): string {
   return source
     .replace(/(\d+(?:\.\d+)?)\s*°/g, "($1*pi/180)")
-    .replace(/(\d+(?:\.\d+)?)\s*deg\b/gi, "($1*pi/180)");
+    .replace(/(\d+(?:\.\d+)?)\s*deg\b/gi, "($1*pi/180)")
+    // 弧度高数：60 rad 等于 60，直接去掉单位
+    .replace(/\s+rad\b/gi, "");
+}
+
+/** 补全未闭合的右括号：键盘敲 tan(60° 时不必再手点 ) */
+export function autoCloseParens(source: string): string {
+  const open = (source.match(/\(/g) ?? []).length;
+  const close = (source.match(/\)/g) ?? []).length;
+  return open > close ? source + ")".repeat(open - close) : source;
 }
 
 /** 编译表达式为可重复求值的闭包（带调用方缓存更佳） */
 export function compileExpr(source: string): EvalFn {
-  return parse(tokenize(normalizeDegrees(source)));
+  return parse(tokenize(autoCloseParens(normalizeDegrees(source))));
 }
