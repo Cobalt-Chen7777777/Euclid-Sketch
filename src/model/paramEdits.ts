@@ -43,9 +43,3 @@ export const angleLenPatch = (len: number): Partial<{ len: number }> => ({ len: 
 /** 角度的标注弧半径（与边长联动：约 0.42 倍，与创建时一致） */
 export const angleRadiusFor = (len: number): number => Math.max(0.4, len * 0.42);
 
-/** 曲线的弯曲程度：按比例缩放各点切线（100 = 保持，0 = 变直线，200 = 更弯） */
-export function curveBendPatch(shape: { tangents?: { x: number; y: number }[] }, percent: number) {
-  const k = Math.max(0, Math.min(400, percent)) / 100;
-  const base = shape.tangents ?? [];
-  return { tangents: base.map((t) => ({ x: t.x * k, y: t.y * k })) };
-}

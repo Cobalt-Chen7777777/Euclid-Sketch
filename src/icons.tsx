@@ -56,8 +56,10 @@ export function ShapesIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="12" height="12" rx="1.5" />
-      <circle cx="15" cy="15" r="6" />
+      <circle cx="7" cy="7" r="3.4" />
+      <rect x="13.6" y="3.6" width="6.8" height="6.8" rx="1.2" />
+      <path d="M7 13.6 L10.4 20.4 L3.6 20.4 Z" />
+      <line x1="13.8" y1="20.2" x2="20.2" y2="13.8" />
     </svg>
   );
 }
@@ -372,8 +374,7 @@ export function PointToolIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
-      <circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="7" opacity={0.45} />
+      <circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -384,7 +385,8 @@ export function CircleToolIcon({ size = 20 }: IconProps) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
       <circle cx="12" cy="12" r="7.5" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <line x1="12" y1="12" x2="18.9" y2="12" strokeDasharray="2.5 2" strokeWidth={1.4} />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
     </svg>
   );
 }

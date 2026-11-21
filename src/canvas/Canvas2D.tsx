@@ -237,6 +237,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (e.pointerType === "touch" && !options.allowTouchDraw) return;
 
     const worldRaw = toWorld(sp, v);
+    // 先看是否点中当前选中图形的手柄：画完曲线 / 图形后可直接拖手柄调参数，无需切回选择
+    if (tool !== "eraser") {
+      const hh = hitHandle(sp);
+      if (hh) { setDrag({ kind: "handle", id: hh.id, handle: hh.handle }); return; }
+    }
 
     if (tool === "lasso") {
       // 已有框选结果时，按住其中任意图形 → 整组拖动；否则开始新框选
@@ -327,12 +332,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       return;
     }
 
-    // select：控制点优先，否则点选图形
-    const hit = hitHandle(sp);
-    if (hit) {
-      setDrag({ kind: "handle", id: hit.id, handle: hit.handle });
-      return;
-    }
     const tolWorld = (14 / v.width) * (v.xRange[1] - v.xRange[0]);
     const hitShape = sortForRender(shapes).filter(isSelectable).reverse().find((s) => hitTest(s, worldRaw, tolWorld));
     onSelect(hitShape ? hitShape.id : null);

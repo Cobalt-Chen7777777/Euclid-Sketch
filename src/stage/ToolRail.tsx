@@ -11,7 +11,7 @@ import { SlidersIcon, ToolIcon, type ToolIconName } from "../icons";
 const ICONS: Record<string, ToolIconName> = {
   select: "select", pen: "pen", eraser: "eraser", lasso: "lasso", angle: "angle",
   line: "line", point: "point", circle: "circle",
-  ellipse: "place", rect: "place", polygon: "place", arc: "place",
+  ellipse: "ellipse", rect: "rect", polygon: "polygon", arc: "arc", curve: "curve",
   place: "place", compass: "compass", image: "image",
 };
 
