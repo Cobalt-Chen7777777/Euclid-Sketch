@@ -113,7 +113,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const cardWriteRef = useRef<((nid: string) => void) | null>(null);
 
   // MN 卡片：学习集 + 焦点卡（写入/导入目标） + 能力探测 + 手动同步 + 卡片事件
-  const { topic, cards, targetCard, setTargetCard, canWriteImage, refresh: refreshContext, gotoCard } = useMnContext(showToast, {
+  const { topic, cards, targetCard, setTargetCard, canWriteImage, refresh: refreshContext, gotoCard, lockTarget } = useMnContext(showToast, {
     onCommand: (id, noteid) => {
       setTargetCard(noteid);
       if (id === "import-image") cardImportRef.current?.(noteid);
@@ -235,10 +235,10 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   }, [viewport, color, shapes, setShapes, showToast]);
 
-  /** 从当前目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定目标卡） */
+  /** 从目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定） */
   const onImportCardImage = useCallback(async (noteidArg?: string) => {
     // 用户在 MN 里可能刚点了另一张卡：插入前重读焦点卡，避免导进错卡
-    const fresh = noteidArg ? null : await refreshContext();
+    const fresh = noteidArg ? (lockTarget(noteidArg), null) : await refreshContext();
     const nid = noteidArg ?? fresh ?? targetCard;
     if (!nid) {
       showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
@@ -259,7 +259,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [targetCard, refreshContext, viewport, color, shapes, setShapes, showToast]);
+  }, [targetCard, refreshContext, lockTarget, viewport, color, shapes, setShapes, showToast]);
 
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));

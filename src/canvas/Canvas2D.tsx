@@ -10,7 +10,7 @@
  * 缩放：滚轮 / 双指捏合
  */
 /* eslint-disable no-restricted-syntax -- SVG 画布的 touch-action/cursor 需内联样式，其余为声明式渲染 */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { createAngle } from "../model/angle";
 import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
@@ -95,7 +95,7 @@ type DragState =
 
 const SNAP_PX = 16;
 
-export function Canvas2D(props: Props) {
+export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
     shapes, setShapes, viewport: v, setViewport, tool, color,
     lockRadius, lockedRadius, onLockedRadiusChange, currentLayer,
@@ -590,4 +590,4 @@ export function Canvas2D(props: Props) {
       <ImageLockBadges shapes={shapes} v={v} onToggle={onToggleImageLock} />
     </div>
   );
-}
+});

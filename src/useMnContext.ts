@@ -27,6 +27,11 @@ export function useMnContext(
   const [cards, setCards] = useState<Card[]>([]);
   const [targetCard, setTargetCard] = useState("");
   const [canWriteImage, setCanWriteImage] = useState(false);
+  /** 最新 targetCard 的镜像，供轮询比对（避免闭包读旧值） */
+  const targetRef = useRef("");
+  useEffect(() => { targetRef.current = targetCard; }, [targetCard]);
+  /** 用户手动指定的卡（卡片菜单命令）：15 秒内不被自动跟随抢走 */
+  const manualRef = useRef<{ nid: string; at: number } | null>(null);
 
   // 监听只注册一次，回调通过 ref 取最新值（否则每轮重渲染都会累积监听器）
   const handlersRef = useRef(handlers);
@@ -46,6 +51,7 @@ export function useMnContext(
 
   /** 手动同步：重读 /context 并对齐目标卡（焦点卡 → 当前页推断 → 无）；返回命中的卡 id */
   const refresh = useCallback(async (): Promise<string | null> => {
+    manualRef.current = null;
     const { topicid, focusNoteid } = await getCurrentContext();
     if (topicid) setTopic(topicid);
     if (topicid) {
@@ -93,6 +99,31 @@ export function useMnContext(
     };
   }, [onToast]);
 
+  /** 静默跟随：读焦点卡，变了才 setTargetCard（不 toast、不打断操作） */
+  const followFocus = useCallback(async () => {
+    try {
+      const { focusNoteid } = await getCurrentContext();
+      const nid = focusNoteid ?? (await inferTargetFromPage());
+      if (!nid || nid === targetRef.current) return;
+      const lock = manualRef.current;
+      if (lock && Date.now() - lock.at < 15000 && lock.nid !== nid) return;
+      setTargetCard(nid);
+    } catch {
+      // 静默：跟随失败不影响正常使用
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => { void followFocus(); }, 2500);
+    return () => clearInterval(timer);
+  }, [followFocus]);
+
+  /** 手动指定目标卡（卡片菜单命令）：短暂锁定，避免被自动跟随覆盖 */
+  const lockTarget = useCallback((nid: string) => {
+    manualRef.current = { nid, at: Date.now() };
+    setTargetCard(nid);
+  }, []);
+
   /** 卡片导航：按当前学习集的卡片顺序前后跳，并定位到该卡 */
   const gotoCard = useCallback(async (step: number) => {
     if (cards.length === 0) {
@@ -112,5 +143,5 @@ export function useMnContext(
     }
   }, [cards, targetCard, topic, setTargetCard, onToast]);
 
-  return { topic, cards, targetCard, setTargetCard, canWriteImage, refresh, gotoCard };
+  return { topic, cards, targetCard, setTargetCard, canWriteImage, refresh, gotoCard, lockTarget };
 }
