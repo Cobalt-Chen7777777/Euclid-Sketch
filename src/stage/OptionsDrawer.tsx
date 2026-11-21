@@ -10,7 +10,7 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
-import { circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
+import { arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
 import { layerName } from "../model/layers";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
@@ -140,7 +140,7 @@ export function OptionsDrawer(props: Props) {
         </section>
 
         {/* 几何参数：选中线段 / 圆时可精确输入 */}
-        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle") ? (
+        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc") ? (
           <section className="drawer-sec">
             <h3>几何参数</h3>
             {selectedShape.type === "line" ? (
@@ -154,7 +154,7 @@ export function OptionsDrawer(props: Props) {
                 />
                 <span className="param-unit">格</span>
               </label>
-            ) : (
+            ) : selectedShape.type === "circle" ? (
               <label className="param-row">
                 <span>半径</span>
                 <ParamInput
@@ -165,8 +165,41 @@ export function OptionsDrawer(props: Props) {
                 />
                 <span className="param-unit">格</span>
               </label>
+            ) : (
+              <>
+                <label className="param-row">
+                  <span>半径</span>
+                  <ParamInput
+                    value={selectedShape.r}
+                    step="0.5"
+                    onCommit={(r) => onUpdateShape(selectedShape.id, (s) =>
+                      s.type === "arc" ? { ...s, ...arcRadiusPatch(r) } : s)}
+                  />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>起始</span>
+                  <ParamInput
+                    value={arcAngleDeg(selectedShape.startAngle)}
+                    step="5"
+                    onCommit={(deg) => onUpdateShape(selectedShape.id, (s) =>
+                      s.type === "arc" ? { ...s, ...arcAnglePatch("startAngle", deg) } : s)}
+                  />
+                  <span className="param-unit">°</span>
+                </label>
+                <label className="param-row">
+                  <span>终止</span>
+                  <ParamInput
+                    value={arcAngleDeg(selectedShape.endAngle)}
+                    step="5"
+                    onCommit={(deg) => onUpdateShape(selectedShape.id, (s) =>
+                      s.type === "arc" ? { ...s, ...arcAnglePatch("endAngle", deg) } : s)}
+                  />
+                  <span className="param-unit">°</span>
+                </label>
+              </>
             )}
-            <p className="drawer-hint">数值以网格为单位；线段固定起点、只改长度，圆只改半径</p>
+            <p className="drawer-hint">数值以网格为单位；弧的起止角按 0–360° 输入，逆时针为正</p>
           </section>
         ) : null}
 

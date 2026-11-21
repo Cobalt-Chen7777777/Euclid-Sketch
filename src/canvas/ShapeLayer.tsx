@@ -237,6 +237,25 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
  * 拖动预览帧（圆规/绘制/笔迹）只有预览部分变化，静态层 props 引用不变即整层跳过重渲染——
  * 这是拖动流畅度的关键：每帧渲染成本从「全部图形」降到「单个预览元素」。
  */
+interface ShapeNodeProps {
+  shape: Shape;
+  v: Viewport;
+  selected: boolean;
+  strokeWidth: number;
+}
+
+/**
+ * 单个图形节点：memo 化后，拖动某个图形时只有它自己重算，
+ * 其余图形（引用未变）直接命中缓存——大画布拖动明显更跟手。
+ */
+const ShapeNode = memo(function ShapeNode({ shape, v, selected, strokeWidth }: ShapeNodeProps) {
+  return (
+    <g opacity={shape.locked && shape.type !== "image" ? 0.45 : 1}>
+      {renderShape(shape, v, selected, strokeWidth)}
+    </g>
+  );
+});
+
 const StaticLayer = memo(function StaticLayer({
   shapes, viewport: v, highlightId,
   showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
@@ -293,9 +312,7 @@ const StaticLayer = memo(function StaticLayer({
 
       {/* 图形：锁定的图层淡化显示（一眼能看出哪些不可操作） */}
       {sortForRender(shapes).filter(isVisible).map((shape) => (
-        <g key={shape.id} opacity={shape.locked && shape.type !== "image" ? 0.45 : 1}>
-          {renderShape(shape, v, shape.id === highlightId, strokeWidth)}
-        </g>
+        <ShapeNode key={shape.id} shape={shape} v={v} selected={shape.id === highlightId} strokeWidth={strokeWidth} />
       ))}
 
       {/* 选中图形的控制点：缩放点用绿色 + 对角双箭头（与蓝色移动/端点区分），

@@ -19,3 +19,20 @@ export function lineLengthPatch(s: LineShape, len: number): Partial<LineShape> {
 
 /** 改圆半径（最小 0.05 世界单位） */
 export const circleRadiusPatch = (r: number): Partial<CircleShape> => ({ r: Math.max(0.05, r) });
+
+/** 圆弧当前半径（直接取 r） */
+export const arcRadius = (s: { r: number }): number => s.r;
+
+/** 圆弧起止角（度，0–360，便于阅读与输入） */
+export function arcAngleDeg(range: number): number {
+  const deg = (range * 180) / Math.PI;
+  return Math.round(((deg % 360) + 360) % 360);
+}
+
+/** 把「度」转成弧度补丁：which 指定改起始角或终止角 */
+export function arcAnglePatch(which: "startAngle" | "endAngle", deg: number): Partial<{ startAngle: number; endAngle: number }> {
+  return { [which]: (deg * Math.PI) / 180 };
+}
+
+/** 改半径（最小 0.1） */
+export const arcRadiusPatch = (r: number): Partial<{ r: number }> => ({ r: Math.max(0.1, r) });
