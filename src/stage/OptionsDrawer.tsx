@@ -264,6 +264,13 @@ export function OptionsDrawer(props: Props) {
         {/* 画笔 */}
         <section className="drawer-sec">
           <h3>笔宽</h3>
+          {/* 笔宽档位：细 / 中 / 粗 一键切换，减少进抽屉细调 */}
+          <div className="chips" style={{ marginBottom: 8 }}>
+            {([["细", 2], ["中", 4], ["粗", 7]] as [string, number][]).map(([label, w]) => (
+              <button key={label} type="button" className={`chip${penWidth === w ? " on" : ""}`}
+                onClick={() => onPenWidth(w)}>{label}</button>
+            ))}
+          </div>
           <label className="drawer-row">
             <span>粗细</span>
             <input

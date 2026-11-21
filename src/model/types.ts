@@ -162,6 +162,8 @@ export interface InkShape {
   smooth?: boolean;
   /** 每点的出向切线（世界单位）；有值时按三次贝塞尔渲染，可拖手柄单独调曲率 */
   tangents?: Point2[];
+  /** 每点压感（0–1）：Apple Pencil 记录，渲染时按力度分档变粗 */
+  pressures?: number[];
 }
 
 /** 点集图形（星形 / 菱形 / 梯形 / 箭头），统一用顶点列表表达 */
