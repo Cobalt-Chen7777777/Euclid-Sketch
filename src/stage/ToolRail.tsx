@@ -12,7 +12,7 @@ const ICONS: Record<string, ToolIconName> = {
   select: "select", pen: "pen", eraser: "eraser", lasso: "lasso", angle: "angle",
   line: "line", point: "point", circle: "circle",
   ellipse: "ellipse", rect: "rect", polygon: "polygon", arc: "arc", curve: "curve",
-  place: "place", compass: "compass", image: "image",
+  place: "place", image: "image",
 };
 
 /** 图元类按钮：点击进入 place 模式并切换 placeType */
@@ -82,13 +82,13 @@ export function ToolRail({
         );
       })}
 
-      {railTools.includes("compass") ? (
+      {railTools.includes("circle") ? (
         <button
           type="button"
           className={`rail-btn${lockRadius ? " on" : ""}`}
           aria-label="锁定半径"
           aria-pressed={lockRadius}
-          title="锁定半径（先画一个圆）"
+          title="锁定半径：开启后点一下即画等半径圆"
           onClick={onToggleLock}
         >
           <ToolIcon name="lock" size={19} />

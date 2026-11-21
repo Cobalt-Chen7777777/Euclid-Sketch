@@ -260,7 +260,8 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
           <line x1={vertex.x} y1={vertex.y} x2={reach1.x} y2={reach1.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />
           <line x1={vertex.x} y1={vertex.y} x2={reach2.x} y2={reach2.y} stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />
           {mark}
-          <text x={mid.x} y={mid.y + 4} fontSize={11} fill={stroke} textAnchor="middle" fontWeight={600}>{label}</text>
+          <text x={mid.x} y={mid.y + 4} fontSize={11} fill={stroke} stroke="var(--canvas-bg, #fff)" strokeWidth={2.8}
+            paintOrder="stroke" textAnchor="middle" fontWeight={600}>{label}</text>
         </g>
       );
     }
@@ -355,11 +356,11 @@ const StaticLayer = memo(function StaticLayer({
           <>
             {grid.x.map((x, i) => ({ x, i })).filter(({ x, i }) => Math.abs(x) > 1e-9 && i % everyX === 0).map(({ x }) => {
               const p = toScreen({ x, y: 0 }, v);
-              return <text key={`tx-${x}`} x={p.x} y={p.y + 14} fontSize={10} fill="var(--tick-text, #8a8377)" textAnchor="middle">{x}</text>;
+              return <text key={`tx-${x}`} x={p.x} y={p.y + 14} fontSize={11} fill="var(--tick-text, #8a8377)" textAnchor="middle">{x}</text>;
             })}
             {grid.y.map((y, i) => ({ y, i })).filter(({ y, i }) => Math.abs(y) > 1e-9 && i % everyY === 0).map(({ y }) => {
               const p = toScreen({ x: 0, y }, v);
-              return <text key={`ty-${y}`} x={p.x - 5} y={p.y + 3} fontSize={10} fill="var(--tick-text, #8a8377)" textAnchor="end">{y}</text>;
+              return <text key={`ty-${y}`} x={p.x - 5} y={p.y + 3} fontSize={11} fill="var(--tick-text, #8a8377)" textAnchor="end">{y}</text>;
             })}
           </>
         );
@@ -444,7 +445,7 @@ export function ShapeLayer({
         return (
           <text
             className="preview-tip" x={at.x + 8} y={at.y - 6}
-            fontSize={12} fontWeight={600} fill="#b45309" stroke="#fff" strokeWidth={3}
+            fontSize={12} fontWeight={600} fill="var(--tip-fill, #b45309)" stroke="var(--tip-stroke, #fff)" strokeWidth={3}
             paintOrder="stroke" textAnchor="start"
           >
             {label}

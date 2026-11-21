@@ -1,6 +1,7 @@
 /** 2D 画布：SVG 渲染 + 交互（选择 / 圆规 / 绘制 / 画笔 / 橡皮 / 套索 / 角度 / 曲线；滚轮与双指缩放）。 */
 /* eslint-disable no-restricted-syntax -- SVG 画布的 touch-action/cursor 需内联样式，其余为声明式渲染 */
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useHandleDrag } from "./useHandleDrag";
 
 import { createAngle } from "../model/angle";
 import { lassoSelect, shapeBBox, translateShape } from "../model/lasso";
@@ -10,7 +11,7 @@ import { snapWorld } from "../model/snap";
 import { getHandles, hitTest, type Handle } from "../model/geometry";
 import { createPrimitiveByDrag } from "../model/create";
 import { smoothPoints } from "../model/ink";
-import type { CircleShape, InkShape, Point2, PrimitiveType, Shape } from "../model/types";
+import type { InkShape, Point2, PrimitiveType, Shape } from "../model/types";
 import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
@@ -80,7 +81,6 @@ type DragState =
   | { kind: "none" }
   | { kind: "lasso"; points: Point2[] }
   | { kind: "handle"; id: string; handle: Handle }
-  | { kind: "compass"; center: Point2; current: Point2 }
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
   | { kind: "ink"; points: Point2[] }
   | { kind: "curve"; points: Point2[] }
@@ -90,7 +90,7 @@ type DragState =
 export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
     shapes, setShapes, viewport: v, setViewport, tool, color,
-    lockRadius, lockedRadius, onLockedRadiusChange, currentLayer,
+    lockRadius, lockedRadius, currentLayer,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
     selectionIds, onSelectionChange, onToggleImageLock, frozen = false,
   } = props;
@@ -207,6 +207,13 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       });
   }, [selectionIds, shapes, v]);
 
+  /** 控制点拖动：window 级监听（SVG 的 pointer capture 在 iOS 上不可靠） */
+  const handleDrag = useHandleDrag({
+    svgRef,
+    toWorldAt: (sp, allowGrid) => (allowGrid ? snap(toWorld(sp, v), false) : toWorld(sp, v)),
+    setShapes,
+  });
+
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if (tool !== "curve" && drag.kind === "curve") setDrag({ kind: "none" });
     // 关键：画布上的拖拽必须只画图，不能让宿主把它当成「拖动面板窗口」。
@@ -240,7 +247,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     // 先看是否点中当前选中图形的手柄：画完曲线 / 图形后可直接拖手柄调参数，无需切回选择
     if (tool !== "eraser") {
       const hh = hitHandle(sp);
-      if (hh) { setDrag({ kind: "handle", id: hh.id, handle: hh.handle }); return; }
+      if (hh) { handleDrag.start(hh.id, hh.handle); return; }
     }
 
     if (tool === "lasso") {
@@ -306,6 +313,12 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (tool === "place") {
       // 拖动绘制：按下定起点，拖动决定大小，松开成图（点类型仍是单击）
       const world = snap(worldRaw);
+      // 锁定半径：点一下直接画等半径圆（原「圆规」能力已并入圆工具）
+      if (placeType === "circle" && lockRadius && lockedRadius) {
+        const shape = createPrimitiveByDrag("circle", world, { x: world.x + lockedRadius, y: world.y }, color, placeSides);
+        if (shape) { setShapes((prev) => [...prev, { ...shape, layer: currentLayer }]); onSelect(shape.id); }
+        return;
+      }
       if (placeType === "point") {
         const shape = createPrimitiveByDrag("point", world, world, color, placeSides);
         if (shape) {
@@ -318,19 +331,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       return;
     }
 
-    const world = snap(worldRaw);
-
-    if (tool === "compass") {
-      if (lockRadius && lockedRadius != null) {
-        setShapes((prev) => [...prev, {
-          id: newId("circle"), type: "circle", cx: world.x, cy: world.y, r: lockedRadius, color, layer: currentLayer,
-        } as CircleShape]);
-        onToast?.(`已画圆 r=${lockedRadius.toFixed(2)}`);
-        return;
-      }
-      setDrag({ kind: "compass", center: world, current: world });
-      return;
-    }
 
     const tolWorld = (14 / v.width) * (v.xRange[1] - v.xRange[0]);
     const hitShape = sortForRender(shapes).filter(isSelectable).reverse().find((s) => hitTest(s, worldRaw, tolWorld));
@@ -340,13 +340,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const sp = localPoint(e);
     if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, sp);
-
-    // 控制点拖动：切线手柄不吸附（否则被旁边顶点拽住），其余只吸附已有点
-    if (drag.kind === "handle") {
-      const world = drag.handle.id.startsWith("h") ? toWorld(sp, v) : snap(toWorld(sp, v), false);
-      setShapes((prev) => prev.map((s) => (s.id === drag.id ? drag.handle.apply(s, world) : s)));
-      return;
-    }
 
     if (pointers.current.size === 2 && pinch.current) {
       const vals = [...pointers.current.values()];
@@ -402,17 +395,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
 
     setDrag((d) => {
       switch (d.kind) {
-        case "compass": {
-          let world = snap(toWorld(sp, v));
-          if (lockRadius && lockedRadius != null) {
-            const angle = Math.atan2(world.y - d.center.y, world.x - d.center.x);
-            world = {
-              x: d.center.x + lockedRadius * Math.cos(angle),
-              y: d.center.y + lockedRadius * Math.sin(angle),
-            };
-          }
-          return { ...d, current: world };
-        }
         case "draw": {
           const raw = toWorld(sp, v);
           return { ...d, raw, current: snap(raw) };
@@ -443,16 +425,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       const ids = lassoSelect(shapes.filter(isSelectable), drag.points);
       onSelectionChange(ids);
       onToast?.(ids.length > 0 ? `已框选 ${ids.length} 个图形` : "框选区域内没有图形");
-    } else if (drag.kind === "compass" && !lockRadius) {
-      const r = Math.hypot(drag.current.x - drag.center.x, drag.current.y - drag.center.y);
-      if (r > 0.15) {
-        setShapes((prev) => [...prev, {
-          id: newId("circle"), type: "circle", cx: drag.center.x, cy: drag.center.y, r, color, layer: currentLayer,
-          dashed: options.dashStyle || undefined,
-        } as CircleShape]);
-        onLockedRadiusChange(r);
-        onToast?.(`圆规画圆 r=${r.toFixed(2)}`);
-      }
     } else if (drag.kind === "draw") {
       const shape = createPrimitiveByDrag(placeType, drag.start, drag.current, color, placeSides);
       if (shape) {
@@ -492,9 +464,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     setViewport((prev) => zoomViewport(prev, localPoint(e), e.deltaY > 0 ? 1.1 : 0.9));
   };
 
-  const preview = drag.kind === "compass"
-    ? { cx: drag.center.x, cy: drag.center.y, r: Math.hypot(drag.current.x - drag.center.x, drag.current.y - drag.center.y) }
-    : null;
 
   // 角度草稿预览：只定了顶点时显示一个点，定了一条边后实时预览角度
   const anglePreview: Shape | null = (() => {
@@ -570,8 +539,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           shapes={shapes}
           viewport={v}
           highlightId={selectedId}
-          preview={preview}
-          previewShape={previewShape}
+                  previewShape={previewShape}
           showGrid={options.showGrid}
           showTicks={options.showTicks}
           gridStep={options.gridStep}

@@ -60,9 +60,9 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   gridStep: 1,
   allowTouchDraw: true,
   dashStyle: false,
-  railTools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"],
+  railTools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "image"],
   railPresets: [
-    { name: "常用", tools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "compass", "image"] },
+    { name: "常用", tools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "image"] },
     { name: "精简", tools: ["select", "pen", "eraser", "line", "point", "circle", "place"] },
   ],
   strokeWidth: 2,
@@ -97,13 +97,13 @@ export const RAIL_CATALOG: { id: string; label: string }[] = [
   { id: "lasso", label: "套索" }, { id: "angle", label: "画角度" }, { id: "line", label: "线段" },
   { id: "point", label: "点" }, { id: "circle", label: "圆" }, { id: "ellipse", label: "椭圆" },
   { id: "rect", label: "矩形" }, { id: "polygon", label: "多边形" }, { id: "arc", label: "圆弧" },
-  { id: "curve", label: "曲线" }, { id: "place", label: "全部图形" }, { id: "compass", label: "圆规" }, { id: "image", label: "插入图片" },
+  { id: "curve", label: "曲线" }, { id: "place", label: "全部图形" }, { id: "image", label: "插入图片" },
 ];
 
 const RAIL_TOOL_IDS = new Set([
   "select", "pen", "eraser", "lasso", "angle", "line", "point", "circle",
   "ellipse", "arc", "rect", "polygon", "star", "rhombus", "trapezoid", "arrow",
-  "place", "compass", "image",
+  "place", "image",
 ]);
 
 function readRailPresets(raw: unknown, fallback: { name: string; tools: string[] }[]): { name: string; tools: string[] }[] {
