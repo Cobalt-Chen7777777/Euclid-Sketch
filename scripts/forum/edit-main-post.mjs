@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const PROFILE = join(root, "shots", "bbs-profile");
 const TOPIC = "https://bbs.marginnote.com.cn/t/topic/68960";
 const VERSION = JSON.parse(readFileSync(join(root, "mnaddon.json"), "utf8")).version;
-const TITLE = "【第三方MN插件】Euclid Sketch (" + VERSION + ")——数学模型构图：把草稿纸搬进 MarginNote";
+const TITLE = "【第三方MN插件】Euclid Sketch——数学模型构图：把草稿纸搬进 MarginNote";
 const MN = join(root, "release", "Euclid Sketch-" + VERSION + ".mnaddon");
 const TPL = join(root, "release", "Euclid Sketch-" + VERSION + ".mntemplate");
 /** 历史正式版的包也一并挂到帖子里（GitHub 上每个版本都发布过，社区这边同样保留） */
