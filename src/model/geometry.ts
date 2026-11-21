@@ -3,113 +3,25 @@
  * 每个控制点携带 apply 闭包，画布层遍历即可，无需为每种图形写 switch。
  */
 import { angleHandles, angleHitTest } from "./angle";
+import { sampleCurve } from "./curve";
 import type { ImageShape } from "./types";
 import { imageHandles, imageHitTest } from "./image";
-import { createPoly, isPolyKind, polyHandles, polyHitTest } from "./poly";
+import { polyHandles, polyHitTest } from "./poly";
 import type {
   Point2,
-  PrimitiveType,
   Shape,
   EllipseShape,
   ArcShape,
   RectShape,
   PolygonShape,
   RayShape,
-  CircleShape,
   LineShape,
   PointShape,
   InkShape,
   AngleShape,
   PolyShape,
 } from "./types";
-import { newId } from "./types";
 
-const DEFAULT_R = 2;
-
-/** 在指定世界坐标创建一个默认大小的图元 */
-export function createPrimitive(
-  type: PrimitiveType,
-  at: Point2,
-  color: string,
-  sides = 5,
-): Shape | null {
-  switch (type) {
-    case "circle":
-      return { id: newId("circle"), type: "circle", cx: at.x, cy: at.y, r: DEFAULT_R, color } satisfies CircleShape;
-    case "ellipse":
-      return { id: newId("ellipse"), type: "ellipse", cx: at.x, cy: at.y, rx: DEFAULT_R, ry: DEFAULT_R * 0.6, color } satisfies EllipseShape;
-    case "arc":
-      return { id: newId("arc"), type: "arc", cx: at.x, cy: at.y, r: DEFAULT_R, startAngle: 0, endAngle: Math.PI, color } satisfies ArcShape;
-    case "rect":
-      return { id: newId("rect"), type: "rect", x1: at.x, y1: at.y, x2: at.x + DEFAULT_R, y2: at.y + DEFAULT_R, color } satisfies RectShape;
-    case "polygon":
-      return { id: newId("polygon"), type: "polygon", cx: at.x, cy: at.y, r: DEFAULT_R, sides, rotation: -Math.PI / 2, color } satisfies PolygonShape;
-    case "ray":
-      return { id: newId("ray"), type: "ray", x1: at.x, y1: at.y, x2: at.x + DEFAULT_R, y2: at.y, color } satisfies RayShape;
-    case "line":
-      return { id: newId("line"), type: "line", x1: at.x - DEFAULT_R, y1: at.y, x2: at.x + DEFAULT_R, y2: at.y, color } satisfies LineShape;
-    case "point":
-      return { id: newId("point"), type: "point", x: at.x, y: at.y, color } satisfies PointShape;
-    default:
-      return null;
-  }
-}
-
-/** 拖动绘制：由按下点 start 与松开点 end 决定图元尺寸 */
-export function createPrimitiveByDrag(
-  type: PrimitiveType,
-  start: Point2,
-  end: Point2,
-  color: string,
-  sides = 5,
-): Shape | null {
-  // 星形 / 菱形 / 梯形 / 箭头走点集工厂，避免 switch 继续膨胀
-  if (isPolyKind(type)) return createPoly(type, start, end, color);
-
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const r = Math.hypot(dx, dy);
-  switch (type) {
-    case "circle":
-      return r > 0.15
-        ? { id: newId("circle"), type: "circle", cx: start.x, cy: start.y, r, color } satisfies CircleShape
-        : null;
-    case "ellipse":
-      return Math.abs(dx) > 0.1 && Math.abs(dy) > 0.1
-        ? { id: newId("ellipse"), type: "ellipse", cx: start.x, cy: start.y,
-            rx: Math.abs(dx), ry: Math.abs(dy), color } satisfies EllipseShape
-        : null;
-    case "arc":
-      return r > 0.15
-        ? { id: newId("arc"), type: "arc", cx: start.x, cy: start.y, r,
-            startAngle: 0, endAngle: Math.PI, color } satisfies ArcShape
-        : null;
-    case "rect":
-      return Math.abs(dx) > 0.1 && Math.abs(dy) > 0.1
-        ? { id: newId("rect"), type: "rect", x1: start.x, y1: start.y,
-            x2: end.x, y2: end.y, color } satisfies RectShape
-        : null;
-    case "polygon":
-      return r > 0.15
-        ? { id: newId("polygon"), type: "polygon", cx: start.x, cy: start.y,
-            r, sides, rotation: -Math.PI / 2, color } satisfies PolygonShape
-        : null;
-    case "ray":
-      return r > 0.15
-        ? { id: newId("ray"), type: "ray", x1: start.x, y1: start.y,
-            x2: end.x, y2: end.y, color } satisfies RayShape
-        : null;
-    case "line":
-      return r > 0.15
-        ? { id: newId("line"), type: "line", x1: start.x, y1: start.y,
-            x2: end.x, y2: end.y, color } satisfies LineShape
-        : null;
-    case "point":
-      return { id: newId("point"), type: "point", x: end.x, y: end.y, color } satisfies PointShape;
-    default:
-      return null;
-  }
-}
 
 export interface Handle {
   id: string;
@@ -121,6 +33,28 @@ export interface Handle {
 
 const dist = (a: Point2, b: Point2) => Math.hypot(a.x - b.x, a.y - b.y);
 const angleOf = (c: Point2, p: Point2) => Math.atan2(p.y - c.y, p.x - c.x);
+
+/** 曲线的控制点：顶点（移点，曲率不变）+ 每点一条切线手柄（拖它单独调该处曲率） */
+function curveHandles(ink: InkShape): Handle[] {
+  if (!ink.smooth) return [];
+  const step = Math.max(1, Math.ceil(ink.points.length / 16));
+  const out: Handle[] = [];
+  ink.points.forEach((p, i) => {
+    if (i % step !== 0 && i !== ink.points.length - 1) return;
+    out.push({ id: `k${i}`, at: p, apply: (s, w) => ({ ...(s as InkShape), points: (s as InkShape).points.map((q, j) => (j === i ? w : q)) }) });
+    const tg = ink.tangents?.[i];
+    if (!tg) return;
+    out.push({
+      id: `h${i}`, at: { x: p.x + tg.x, y: p.y + tg.y },
+      apply: (s, w) => {
+        const t = s as InkShape;
+        const base = t.tangents ?? t.points.map(() => ({ x: 0, y: 0 }));
+        return { ...t, tangents: base.map((v, j) => (j === i ? { x: w.x - p.x, y: w.y - p.y } : v)) };
+      },
+    });
+  });
+  return out;
+}
 
 /** 返回图形的可拖拽控制点 */
 export function getHandles(shape: Shape): Handle[] {
@@ -225,8 +159,8 @@ export function getHandles(shape: Shape): Handle[] {
       return [{ id: "p", at: { x: p.x, y: p.y }, apply: (s, w) => ({ ...(s as PointShape), x: w.x, y: w.y }) }];
     }
     case "ink":
-      // 笔迹作为自由墨迹，不提供控制点（用橡皮擦整体删除）
-      return [];
+      // 手绘笔迹不可编辑（橡皮整体删除）；曲线工具生成的点集可拖顶点与切线手柄
+      return curveHandles(shape as InkShape);
     case "angle":
       return angleHandles(shape as AngleShape);
     case "poly":
@@ -303,11 +237,10 @@ export function hitTest(shape: Shape, world: Point2, tol: number): boolean {
     case "image": return imageHitTest(shape as ImageShape, world, tol);
     case "ink": {
       const ink = shape as InkShape;
-      if (ink.points.length === 1) return dist(world, ink.points[0]!) <= tol;
-      for (let i = 1; i < ink.points.length; i++) {
-        if (distToSegment(world, ink.points[i - 1]!, ink.points[i]!) <= tol) return true;
-      }
-      return false;
+      // 曲线按真实曲率采样后判定，否则弯出去的位置点不中
+      const pts = ink.smooth && ink.tangents ? sampleCurve(ink.points, ink.tangents) : ink.points;
+      if (pts.length === 1) return dist(world, pts[0]!) <= tol;
+      return pts.some((p, i) => i > 0 && distToSegment(world, pts[i - 1]!, p) <= tol);
     }
     default:
       return false;

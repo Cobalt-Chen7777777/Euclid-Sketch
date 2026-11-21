@@ -10,7 +10,7 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
-import { angleLenPatch, angleRadiusFor, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
+import { angleLenPatch, angleRadiusFor, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, curveBendPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
 import { layerName } from "../model/layers";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
@@ -140,7 +140,7 @@ export function OptionsDrawer(props: Props) {
         </section>
 
         {/* 几何参数：选中线段 / 圆时可精确输入 */}
-        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle") ? (
+        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle" || (selectedShape.type === "ink" && selectedShape.smooth)) ? (
           <section className="drawer-sec">
             <h3>几何参数</h3>
             {selectedShape.type === "line" ? (
@@ -164,6 +164,17 @@ export function OptionsDrawer(props: Props) {
                     s.type === "circle" ? { ...s, ...circleRadiusPatch(r) } : s)}
                 />
                 <span className="param-unit">格</span>
+              </label>
+            ) : selectedShape.type === "ink" ? (
+              <label className="param-row">
+                <span>弯曲</span>
+                <ParamInput
+                  value={100}
+                  step="10"
+                  onCommit={(pct) => onUpdateShape(selectedShape.id, (s) =>
+                    s.type === "ink" ? { ...s, ...curveBendPatch(s, pct) } : s)}
+                />
+                <span className="param-unit">%</span>
               </label>
             ) : selectedShape.type === "angle" ? (
               <label className="param-row">

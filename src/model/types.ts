@@ -160,6 +160,8 @@ export interface InkShape {
   width: number;
   /** 平滑曲线：多点曲线工具生成，渲染时按 Catmull-Rom 平滑 */
   smooth?: boolean;
+  /** 每点的出向切线（世界单位）；有值时按三次贝塞尔渲染，可拖手柄单独调曲率 */
+  tangents?: Point2[];
 }
 
 /** 点集图形（星形 / 菱形 / 梯形 / 箭头），统一用顶点列表表达 */

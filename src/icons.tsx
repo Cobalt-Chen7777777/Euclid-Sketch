@@ -399,7 +399,60 @@ export function SigmaIcon({ size = 18 }: IconProps) {
   );
 }
 
-export type ToolIconName = "select" | "pen" | "eraser" | "compass" | "place" | "angle" | "lasso" | "line" | "point" | "circle" | "image" | "lock";
+
+/** 椭圆：横放的椭圆轮廓 */
+export function EllipseToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <ellipse cx="12" cy="12" rx="9" ry="6" />
+    </svg>
+  );
+}
+
+/** 矩形：圆角方框 */
+export function RectToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.5" y="6" width="17" height="12" rx="2" />
+    </svg>
+  );
+}
+
+/** 多边形：五边形 */
+export function PolygonToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3.5 20 9.2 17 19H7L4 9.2Z" />
+    </svg>
+  );
+}
+
+/** 圆弧：一段弧 + 两端短半径 */
+export function ArcToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 17a9 9 0 0 1 16 0" />
+      <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** 曲线：S 形平滑曲线 + 控制点 */
+export function CurveToolIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 18c4 0 4-12 9-12s5 12 9 12" />
+      <circle cx="7.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export type ToolIconName = "select" | "pen" | "eraser" | "compass" | "place" | "angle" | "lasso" | "line" | "point" | "circle" | "image" | "lock" | "ellipse" | "rect" | "polygon" | "arc" | "curve";
 /** 按名称取工具栏图标 */
 export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: number }) {
   switch (name) {
@@ -415,6 +468,11 @@ export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: numbe
     case "circle": return <CircleToolIcon size={size} />;
     case "image": return <ImageIcon size={size} />;
     case "lock": return <LockIcon size={size} />;
+    case "ellipse": return <EllipseToolIcon size={size} />;
+    case "rect": return <RectToolIcon size={size} />;
+    case "polygon": return <PolygonToolIcon size={size} />;
+    case "arc": return <ArcToolIcon size={size} />;
+    case "curve": return <CurveToolIcon size={size} />;
   }
 }
 

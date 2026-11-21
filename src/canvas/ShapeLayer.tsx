@@ -5,7 +5,7 @@ import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
 import { isVisible, sortForRender } from "../model/layers";
 import { shapeBBox } from "../model/lasso";
-import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
+import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, Point2, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
 import {
   gridLines,
   radiusToScreen,
@@ -71,10 +71,24 @@ function previewLabel(shape: Shape): string {
  * Catmull-Rom → 三次贝塞尔：多点曲线工具的平滑路径。
  * 在屏幕坐标里算，缩放/平移时曲率观感稳定。
  */
-function smoothPath(points: { x: number; y: number }[], v: Viewport): string {
+function smoothPath(points: { x: number; y: number }[], v: Viewport, tangents?: Point2[]): string {
   const pts = points.map((p) => toScreen(p, v)).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
   if (pts.length < 3) return pathFromPoints(points, v);
   let d = `M${pts[0]!.x.toFixed(1)},${pts[0]!.y.toFixed(1)}`;
+  // 有切线时用贝塞尔：手柄决定各点处的曲率（可自由调整）
+  if (tangents && tangents.length === points.length) {
+    const scale = v.width / (v.xRange[1] - v.xRange[0]);
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const t1 = tangents[i]!;
+      const t2 = tangents[i + 1]!;
+      const p1 = pts[i]!;
+      const p2 = pts[i + 1]!;
+      const c1 = { x: p1.x + t1.x * scale, y: p1.y + t1.y * scale };
+      const c2 = { x: p2.x - t2.x * scale, y: p2.y - t2.y * scale };
+      d += ` C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+    }
+    return d;
+  }
   for (let i = 0; i < pts.length - 1; i += 1) {
     const p0 = pts[i === 0 ? 0 : i - 1]!;
     const p1 = pts[i]!;
@@ -254,7 +268,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const ink = shape as InkShape;
       return (
         <path
-          d={ink.smooth ? smoothPath(ink.points, v) : pathFromPoints(ink.points, v)}
+          d={ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathFromPoints(ink.points, v)}
           fill="none" stroke={stroke} strokeWidth={ink.width}
           strokeLinecap="round" strokeLinejoin="round"
         />
@@ -378,7 +392,22 @@ const StaticLayer = memo(function StaticLayer({
             </g>
           );
         }
-        return <circle key={h.id} cx={p.x} cy={p.y} r={6} fill="#fff" stroke="#2563eb" strokeWidth={2} />;
+        // 曲线的切线手柄（h*）画成小空心点 + 与顶点的虚线引导线，顶点（k*）实心，便于区分
+        if (h.id.startsWith("h")) {
+          const k = handles.find((x) => x.id === `k${h.id.slice(1)}`);
+          const kp = k ? toScreen(k.at, v) : null;
+          return (
+            <g key={h.id}>
+              {kp ? (
+                <line x1={kp.x} y1={kp.y} x2={p.x} y2={p.y} stroke="#2563eb" strokeWidth={1} strokeDasharray="3 3" opacity={0.55} />
+              ) : null}
+              <circle cx={p.x} cy={p.y} r={4.5} fill="#fff" stroke="#2563eb" strokeWidth={1.8} />
+            </g>
+          );
+        }
+        const isVertex = h.id.startsWith("k");
+        return <circle key={h.id} cx={p.x} cy={p.y} r={isVertex ? 5 : 6}
+          fill={isVertex ? "#2563eb" : "#fff"} stroke="#2563eb" strokeWidth={2} />;
       })}
     </>
   );
