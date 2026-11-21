@@ -20,6 +20,21 @@ interface TopicTree {
   nextCursor?: string | null;
 }
 
+/** 从任意形状的列表里挑出卡片 id：兼容 "n-1" 与 {noteid/nid/id} */
+function pickNoteId(list: unknown): string | null {
+  if (!Array.isArray(list)) return null;
+  for (const item of list) {
+    if (typeof item === "string" && item) return item;
+    if (item && typeof item === "object") {
+      const o = item as Record<string, unknown>;
+      for (const k of ["noteid", "noteId", "nid", "id"]) {
+        if (typeof o[k] === "string" && o[k]) return o[k] as string;
+      }
+    }
+  }
+  return null;
+}
+
 interface AppContext {
   available?: boolean;
   /** 打开中的文档（focused=true 为当前文档） */
@@ -47,6 +62,7 @@ interface DocumentExcerpts {
 export async function inferTargetFromPage(): Promise<string | null> {
   try {
     const ctx = await mn.api<AppContext>("/context");
+    lastRawContext = { ...lastRawContext, context: ctx };
     if (ctx.error || ctx.available === false) return null;
     const doc = (ctx.documents ?? []).find((d) => d.focused) ?? (ctx.documents ?? [])[0];
     if (!doc?.bookmd5 || typeof doc.page !== "number") return null;
@@ -73,19 +89,24 @@ export interface CurrentContext {
  * 官方 GET /context 返回整理过的语义（focusedNote = 用户正在看的卡）；
  * 失败或不可用时回退 GET /ui-state 的原始键值。
  */
+let lastRawContext: { context?: unknown; uiState?: unknown } = {};
+
+/** 诊断用：最近一次 /context 与 /ui-state 的原始返回 */
+export const getLastRawContext = (): { context?: unknown; uiState?: unknown } => lastRawContext;
+
 export async function getCurrentContext(): Promise<CurrentContext> {
   try {
     const ctx = await mn.api<AppContext>("/context");
     if (!ctx.error && ctx.available !== false) {
       const topicid = typeof ctx.studySet?.topicid === "string" ? ctx.studySet.topicid : null;
-      const selected = Array.isArray(ctx.selectedNotes) ? ctx.selectedNotes.find((n) => typeof n === "string" && n) : undefined;
-      const focusNoteid = selected ?? (typeof ctx.focusedNote === "string" && ctx.focusedNote ? ctx.focusedNote : null);
+      const focusNoteid = pickNoteId(ctx.selectedNotes) ?? (typeof ctx.focusedNote === "string" && ctx.focusedNote ? ctx.focusedNote : null);
       if (topicid || focusNoteid) return { topicid, focusNoteid };
     }
   } catch {
     // /context 不可用，回退 ui-state
   }
   const state = await mn.api<UiState>("/ui-state");
+  lastRawContext = { ...lastRawContext, uiState: state };
   if (state.error) {
     throw new Error(`${state.error.code}：${state.error.message}`);
   }
@@ -94,10 +115,9 @@ export async function getCurrentContext(): Promise<CurrentContext> {
     for (const key of ["focusnoteid", "focusNoteid", "focusedNote", "currentNoteid"]) {
       if (typeof raw[key] === "string" && raw[key]) return raw[key] as string;
     }
-    const sel = raw["selectedNotes"];
-    if (Array.isArray(sel)) {
-      const first = sel.find((n) => typeof n === "string" && n);
-      if (first) return first as string;
+    for (const key of ["selectedNotes", "selection", "selectedNoteids", "selected"]) {
+      const hit = pickNoteId(raw[key]);
+      if (hit) return hit;
     }
     return null;
   };

@@ -5,6 +5,7 @@
 import { useState } from "react";
 
 import { checkUpdate, type UpdateAsset } from "../update";
+import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
 import { RailCustomizer } from "./RailCustomizer";
@@ -80,6 +81,23 @@ export function SettingsPage({
       return;
     }
     setUpdate({ checking: false, text: `已是最新版本（v${APP_VERSION}）`, bad: false });
+  };
+
+  /** 上下文诊断：重读一次 context 再复制原始 JSON，便于排查「目标卡不对」 */
+  const onDiagnoseContext = async () => {
+    try {
+      await mn.api("/context");
+    } catch {
+      // 忽略：下面照常读已记录的值
+    }
+    const raw = getLastRawContext();
+    const text = JSON.stringify(raw, null, 1);
+    try {
+      await navigator.clipboard.writeText(text);
+      onToast(`已复制上下文（${text.length} 字符）：粘到反馈里即可`);
+    } catch {
+      onToast("复制失败，请重试");
+    }
   };
 
   const copyLink = async (url: string, label: string) => {
@@ -404,6 +422,13 @@ export function SettingsPage({
               title="GitHub 仓库"
               subtitle={GITHUB_URL}
               onClick={() => { void copyLink(GITHUB_URL, "仓库地址"); }}
+            />
+            <SettingRow
+              icon={<InfoIcon />}
+              title="上下文诊断"
+              subtitle="复制 /context 与 /ui-state 的原始返回，排查「目标卡不对」"
+              onClick={() => { void onDiagnoseContext(); }}
+              trailing={<ChevronIcon />}
             />
             <SettingRow
               icon={<ImageIcon />}

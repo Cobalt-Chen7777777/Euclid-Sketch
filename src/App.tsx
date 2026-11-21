@@ -244,6 +244,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
       return;
     }
+    if (!noteidArg && !fresh) showToast("未取到当前选中卡，沿用上次目标卡；要精确指定请长按卡片 →「导入此卡到草图」");
     try {
       const rendered = await renderCardImage(nid);
       if (!rendered) {
