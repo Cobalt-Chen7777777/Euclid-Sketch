@@ -12,8 +12,8 @@
 
 | 包 | 作用 |
 |---|---|
-| `Euclid Sketch-0.2.0.mntemplate` | 场景模板：底部工具栏入口 + 卡片菜单里的作图命令 |
-| `Euclid Sketch-0.2.0.mnaddon` | 插件本体：画布与全部功能 |
+| `Euclid Sketch-0.2.1.mntemplate` | 场景模板：底部工具栏入口 + 卡片菜单里的作图命令 |
+| `Euclid Sketch-0.2.1.mnaddon` | 插件本体：画布与全部功能 |
 
 安装步骤：
 

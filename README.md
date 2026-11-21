@@ -5,14 +5,13 @@
 一个 **MarginNote 5 场景插件**。它不是把图做好再贴进笔记，而是把笔记里那块「草稿纸」变成可计算、可编辑的画布——随手画、随手改、随手写进卡片。
 
 <p>
-  <img alt="version" src="https://img.shields.io/badge/stable-0.2.0-2563eb">
-  <img alt="beta" src="https://img.shields.io/badge/beta-0.2.1--beta.1-b45309">
+  <img alt="version" src="https://img.shields.io/badge/stable-0.2.1-2563eb">
   <img alt="platform" src="https://img.shields.io/badge/MarginNote-5%20%7C%20iPadOS-1d4ed8">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-3a7d44">
 </p>
 
-> 🧪 **Beta 测试中**：`0.2.1-beta.1` 正在测提示条可读性、复制草图兼容、检查更新下载、数值输入、网格吸附与图层系统。
-> 改动清单与已知问题见 [BETA.md](BETA.md)，下载见 [Releases](../../releases)。日常使用建议留在 0.2.0。
+> 最新稳定版 **0.2.1**（2026-11-21）：目标卡自动跟随焦点卡、曲线工具可拖手柄调曲率、圆弧自由绘制、绘制全程显示实时参数。
+> 下载与更新日志见 [Releases](../../releases) 与 [CHANGELOG.md](CHANGELOG.md)。
 
 ![画布](docs/screenshots/canvas.png)
 
