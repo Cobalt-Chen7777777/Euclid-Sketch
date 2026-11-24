@@ -378,7 +378,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       if (!last) return;
       const tx = world.x - last.x;
       const ty = world.y - last.y;
-      if (Math.hypot(tx, ty) <= 0.25) return;
+      if (Math.hypot(tx, ty) <= 0.5) return;
       const tg = [...drag.tangents];
       tg[drag.points.length - 1] = { x: tx, y: ty };
       setDrag({ kind: "curve", points: drag.points, tangents: tg });
@@ -489,7 +489,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     const d = drag;
     if (!d || d.kind !== "curve") return;
     setDrag({ kind: "none" });
-    const ink = buildCurve(d.points, color, penWidth, d.tangents);
+    // 双击结束会多落一个点：与上一个点几乎重合时丢掉，避免出现「一坨」控制点
+    const pts = [...d.points];
+    const lastP = pts[pts.length - 1], prevP = pts[pts.length - 2];
+    if (lastP && prevP && Math.hypot(lastP.x - prevP.x, lastP.y - prevP.y) < 0.2) pts.pop();
+    const ink = buildCurve(pts, color, penWidth, d.tangents);
     if (!ink) return;
     onRequestTool?.("select");
     setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
