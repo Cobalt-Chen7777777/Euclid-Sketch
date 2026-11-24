@@ -42,6 +42,7 @@ import { useLayers } from "./useLayers";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useDocAutosave, loadDoc } from "./useDocAutosave";
+import { HistoryDialog } from "./stage/HistoryDialog";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
 import { fileToImageShape, imageSrcToShape } from "./model/image";
@@ -80,6 +81,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [tab, setTab] = useState<"2d" | "fn" | "3d">("2d");
   const [tool, setTool] = useState<Tool>("select");
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formulaMsg, setFormulaMsg] = useState("");
   // 正在输入法里打字：暂停自动高度，避免键盘弹起/收起引发反复 mn.fit
@@ -386,6 +388,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onQuickInsert={() => { void onImportCardImage(); }}
       />
 
+      <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} />
       {toast ? <div className="toast" role="status">{toast}</div> : null}
       <ImagePreviewLayer src={preview?.src ?? null} reason={preview?.reason} onClose={closePreview} onExport={() => { void onExportPng(); }} />
       {/* 窗口拖动缩放中：尺寸预览 HUD（拖动期间不调宿主接口，松手才生效） */}
@@ -463,7 +466,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
-            history={{ list: historyList, count: shapes.length, onJump: jumpBack, onRestore: setDoc }}
+            history={{ list: historyList, count: shapes.length, onOpen: () => setHistOpen(true) }}
             onWrite={() => { void onCopyPng(); }}
             onSyncTarget={() => { void onSyncTargetCard(); }}
             cards={cards}
