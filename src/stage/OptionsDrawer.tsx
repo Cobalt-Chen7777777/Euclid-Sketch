@@ -139,11 +139,34 @@ export function OptionsDrawer(props: Props) {
           <p className="drawer-hint">虚线开启后，新画的线段 / 圆 / 矩形等都是虚线；已有图形在下方列表可单独切换</p>
         </section>
 
-        {/* 几何参数：选中线段 / 圆时可精确输入 */}
-        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle") ? (
+        {/* 几何参数：选中线段 / 圆 / 圆弧 / 角度 / 点时可精确输入 */}
+        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle" || selectedShape.type === "point") ? (
           <section className="drawer-sec">
             <h3>几何参数</h3>
-            {selectedShape.type === "line" ? (
+            {selectedShape.type === "point" ? (
+              <>
+                <label className="param-row">
+                  <span>x</span>
+                  <ParamInput
+                    value={selectedShape.x}
+                    step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s) =>
+                      s.type === "point" ? { ...s, x: v } : s)}
+                  />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>y</span>
+                  <ParamInput
+                    value={selectedShape.y}
+                    step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s) =>
+                      s.type === "point" ? { ...s, y: v } : s)}
+                  />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : selectedShape.type === "line" ? (
               <label className="param-row">
                 <span>长度</span>
                 <ParamInput

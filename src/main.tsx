@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { installLogHooks } from "./debug/log";
 import "./app.css";
 
 const root = document.getElementById("root");
@@ -30,4 +31,5 @@ function ThemeHost() {
   return <App systemDark={systemDark} mnTheme={mnTheme} />;
 }
 
+installLogHooks();
 createRoot(root).render(<ThemeHost />);

@@ -43,3 +43,6 @@ export const angleLenPatch = (len: number): Partial<{ len: number }> => ({ len: 
 /** 角度的标注弧半径（与边长联动：约 0.42 倍，与创建时一致） */
 export const angleRadiusFor = (len: number): number => Math.max(0.4, len * 0.42);
 
+
+/** 点的世界坐标（格子单位） */
+export const pointPatch = (axis: "x" | "y", value: number) => ({ [axis]: value });

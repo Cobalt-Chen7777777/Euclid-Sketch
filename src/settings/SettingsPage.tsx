@@ -8,6 +8,7 @@ import { checkUpdate, type UpdateAsset } from "../update";
 import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
+import { DebugSection } from "./DebugSection";
 import { RailCustomizer } from "./RailCustomizer";
 import {
   AngleIcon, ChevronIcon, EraserIcon, ExportIcon, GridIcon, ImageIcon, ImportIcon, InfoIcon, MagnetIcon,
@@ -29,9 +30,11 @@ const SECTIONS: { id: SectionId; label: string }[] = [
 ];
 
 const GRID_STEPS = [
-  { value: 0.5, label: "0.5" },
   { value: 1, label: "1" },
-  { value: 2, label: "2" },
+  { value: 5, label: "5" },
+  { value: 10, label: "10" },
+  { value: 50, label: "50" },
+  { value: 100, label: "100" },
 ];
 
 /** 数据与导出相关的能力（画布页不再放这些按钮，避免挤占绘图区） */
@@ -454,7 +457,12 @@ export function SettingsPage({
                 </span>
                 <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
               </a>
-            ) : null}            <SettingRow
+            ) : null}            <DebugSection
+              version={APP_VERSION}
+              debug={settings.debug}
+              onChangeDebug={(debug) => onChange({ debug })}
+            />
+            <SettingRow
               icon={<InfoIcon />}
               title="更新日志"
               subtitle="CHANGELOG.md"
