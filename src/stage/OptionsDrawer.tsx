@@ -10,7 +10,7 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
-import { angleLenPatch, angleRadiusFor, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
+import { anchorOf, anchorPatch, angleLenPatch, angleRadiusFor, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
 import { layerName } from "../model/layers";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
@@ -143,6 +143,26 @@ export function OptionsDrawer(props: Props) {
         {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle" || selectedShape.type === "point") ? (
           <section className="drawer-sec">
             <h3>几何参数</h3>
+            {(() => {
+              const a = anchorOf(selectedShape);
+              if (!a) return null;
+              return (
+                <>
+                  <label className="param-row">
+                    <span>位置 x</span>
+                    <ParamInput value={Math.round(a.x * 100) / 100} step="0.5"
+                      onCommit={(vv) => onUpdateShape(selectedShape.id, (s) => anchorPatch(s, "x", vv))} />
+                    <span className="param-unit">格</span>
+                  </label>
+                  <label className="param-row">
+                    <span>位置 y</span>
+                    <ParamInput value={Math.round(a.y * 100) / 100} step="0.5"
+                      onCommit={(vv) => onUpdateShape(selectedShape.id, (s) => anchorPatch(s, "y", vv))} />
+                    <span className="param-unit">格</span>
+                  </label>
+                </>
+              );
+            })()}
             {selectedShape.type === "point" ? (
               <>
                 <label className="param-row">
@@ -258,8 +278,8 @@ export function OptionsDrawer(props: Props) {
           </section>
         ) : null}
 
-        {/* 图元类型 */}
-        <section className="drawer-sec">
+        {/* 图元类型：选中图形时隐藏，只专注当前图形的参数 */}
+        <section className="drawer-sec" style={selectedShape ? { display: "none" } : undefined}>
           <h3>插入图形</h3>
           <div className="chips">
             {PRIMITIVES.map(([t, label]) => (

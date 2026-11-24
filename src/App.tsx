@@ -378,7 +378,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onCollapse={onCollapse}
         onExpand={onExpand}
         onClose={close}
-        onQuickShape={(kind) => { quickCreate(kind); setOptionsOpen(true); }}
+        onQuickShape={(kind) => { onExpand(); quickCreate(kind); setOptionsOpen(true); }}
         onQuickCopy={() => { void onCopyPng(); }}
         onQuickInsert={() => { void onImportCardImage(); }}
       />

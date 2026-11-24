@@ -1,6 +1,7 @@
 /** 2D 画布：SVG 渲染 + 交互（选择 / 圆规 / 绘制 / 画笔 / 橡皮 / 套索 / 角度 / 曲线；滚轮与双指缩放）。 */
 /* eslint-disable no-restricted-syntax -- SVG 画布的 touch-action/cursor 需内联样式，其余为声明式渲染 */
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { CurveDraft } from "./CurveDraft";
 import { useHandleDrag } from "./useHandleDrag";
 
 import { createAngle } from "../model/angle";
@@ -442,8 +443,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
     if (drag.kind === "angleArm2") {
-      // 用松手瞬间的指针位置成角（drag.current 可能滞后于最后几次 move）
-      const world = snap(toWorld(localPoint(e), v));
+      // 用拖动过程中最近一次已知位置成角：真机 pointerup 的坐标不可靠（常为 0）
+      const world = drag.current;
       const { shape, deg, snapped } = createAngle(drag.v, drag.arm1, world, color, options.specialAngleSnap);
       const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
       setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
@@ -566,6 +567,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
               fill="none" stroke="#2563eb" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.8} />
           );
         })}
+        {/* 曲线草稿：锚点 + 切线手柄实时预览（钢笔手感的关键反馈） */}
+        {drag.kind === "curve" ? (
+          <CurveDraft points={drag.points} tangents={drag.tangents} viewport={v} color={color} />
+        ) : null}
         {/* 图片锁定徽标：点击切换橡皮保护 */}        <ShapeLayer
           shapes={shapes}
           viewport={v}

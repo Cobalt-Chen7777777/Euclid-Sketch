@@ -2,7 +2,8 @@
  * 几何参数的数值编辑：线段长度、圆半径。
  * 均保持图形其余属性不变——线段按起点+方向缩放终点，圆只改半径。
  */
-import type { CircleShape, LineShape } from "./types";
+import { translateShape } from "./lasso";
+import type { CircleShape, LineShape, Shape } from "./types";
 
 /** 线段当前长度 */
 export const lineLength = (s: LineShape): number => Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
@@ -46,3 +47,27 @@ export const angleRadiusFor = (len: number): number => Math.max(0.4, len * 0.42)
 
 /** 点的世界坐标（格子单位） */
 export const pointPatch = (axis: "x" | "y", value: number) => ({ [axis]: value });
+
+/** 图形的锚点（坐标输入用）：线段取起点，圆/椭圆/多边形/圆弧取圆心，角度取顶点 */
+export function anchorOf(s: Shape): { x: number; y: number } | null {
+  switch (s.type) {
+    case "point": return { x: s.x, y: s.y };
+    case "line":
+    case "ray": return { x: s.x1, y: s.y1 };
+    case "rect": return { x: s.x1, y: s.y1 };
+    case "circle":
+    case "ellipse":
+    case "polygon":
+    case "arc": return { x: s.cx, y: s.cy };
+    case "angle": return { x: s.vx, y: s.vy };
+    default: return null;
+  }
+}
+
+/** 改锚点坐标 = 整体平移，形状与尺寸不变 */
+export function anchorPatch(s: Shape, axis: "x" | "y", value: number): Shape {
+  const a = anchorOf(s);
+  if (!a) return s;
+  const d = value - (axis === "x" ? a.x : a.y);
+  return translateShape(s, axis === "x" ? d : 0, axis === "y" ? d : 0);
+}
