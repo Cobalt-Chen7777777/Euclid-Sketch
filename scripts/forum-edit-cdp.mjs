@@ -9,10 +9,13 @@
 import { chromium } from "playwright-core";
 
 import { EDITS } from "./forum-edits.mjs";
+import { IMAGE_EDITS } from "./forum-edits-images.mjs";
 
 const PORT = process.env.CDP_PORT || "9222";
 const TOPIC = "https://bbs.marginnote.com.cn/t/topic/68960";
 const MODE = process.argv.includes("--write") ? "write" : process.argv.includes("--dry") ? "dry" : "check";
+// --images：只跑第二批（插图 + 附件），第一批已完成
+const BATCH = process.argv.includes("--images") ? IMAGE_EDITS : EDITS;
 
 const browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
 const ctx = browser.contexts()[0];
@@ -61,7 +64,7 @@ console.log("编辑器读到原正文", raw.length, "字符");
 
 let out = raw;
 const missed = [];
-for (const [name, pattern, replacement] of EDITS) {
+for (const [name, pattern, replacement] of BATCH) {
   const before = out;
   out = out.replace(pattern, replacement);
   if (out === before) missed.push(name);
@@ -74,11 +77,11 @@ if (missed.length > 0) {
   process.exit(2);
 }
 
-console.log(`全部 ${EDITS.length} 处替换命中，新正文 ${out.length} 字符（+${out.length - raw.length}）`);
+console.log(`全部 ${BATCH.length} 处替换命中，新正文 ${out.length} 字符（+${out.length - raw.length}）`);
 
 if (MODE === "dry") {
   // 打印前后差异片段，便于人工核对
-  for (const [name] of EDITS) console.log("  ✓ " + name);
+  for (const [name] of BATCH) console.log("  ✓ " + name);
   console.log("\n--dry：未写入。确认后加 --write。");
   process.exit(0);
 }
