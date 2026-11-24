@@ -426,7 +426,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
     if (drag.kind === "angleArm2") {
-      const { shape, deg, snapped } = createAngle(drag.v, drag.arm1, drag.current, color, options.specialAngleSnap);
+      // 用松手瞬间的指针位置成角（drag.current 可能滞后于最后几次 move）
+      const world = snap(toWorld(localPoint(e), v));
+      const { shape, deg, snapped } = createAngle(drag.v, drag.arm1, world, color, options.specialAngleSnap);
       const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
       setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
       onSelect(shape.id);

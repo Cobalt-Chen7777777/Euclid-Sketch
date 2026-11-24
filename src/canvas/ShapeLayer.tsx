@@ -226,7 +226,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const a = shape as AngleShape;
       const { start, span } = drawRange(a);
       const armLen = a.len ?? a.r * 1.3;
-      const armLen2 = a.len2 ?? armLen;
+      const armLen2 = armLen;
       const at = (ang: number, len = armLen) => toScreen({
         x: a.vx + len * Math.cos(ang),
         y: a.vy + len * Math.sin(ang),

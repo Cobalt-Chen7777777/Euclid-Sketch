@@ -69,6 +69,11 @@ export function ToolRail({
               ? tool === "place" && !PLACE_TOOLS.has(placeType)
               : tool === item.id;
         const onClick = () => {
+          // 再次点击当前已激活的图形按钮 = 按参数创建（不必长按，二次点击就出几何参数）
+          if (active && onParamCreate) {
+            onParamCreate(item.id);
+            return;
+          }
           if (item.id === "image") {
             onImportImage();
             return;

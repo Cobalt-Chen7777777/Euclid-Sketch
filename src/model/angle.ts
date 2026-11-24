@@ -12,7 +12,7 @@ import { newId } from "./types";
 export const SPECIAL_ANGLES = [15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180] as const;
 
 /** 吸附阈值（度）：超过这个偏差就不吸，保留手画的任意角 */
-const SNAP_TOLERANCE = 4;
+const SNAP_TOLERANCE = 2.5;
 
 export const toDeg = (rad: number): number => (rad * 180) / Math.PI;
 export const toRad = (deg: number): number => (deg * Math.PI) / 180;
@@ -89,9 +89,9 @@ export function createAngle(
   const r = Math.max(0.4, Math.min(r1, r2) * 0.42);
 
   return {
-    // 两条边各自记录长度：拖动停留处就是第二条边的真实位置
+    // 两条边等长（教材画法）：取两次点击距离的平均值，视觉上不偏不倚
     shape: { id: newId("angle"), type: "angle", vx: vertex.x, vy: vertex.y, a1, a2, r,
-      len: Math.max(0.6, r1), len2: Math.max(0.6, r2), color },
+      len: Math.max(0.6, (r1 + r2) / 2), color },
     deg,
     snapped,
   };
