@@ -544,3 +544,15 @@ export function BrandIcon({ size = 14 }: IconProps) {
     </svg>
   );
 }
+
+/** 历史记录：带箭头的时钟 */
+export function HistoryIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+      <path d="M12 8v4l3 2" />
+    </svg>
+  );
+}

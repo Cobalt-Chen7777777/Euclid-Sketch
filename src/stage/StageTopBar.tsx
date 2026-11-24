@@ -3,6 +3,7 @@
  */
 import type { Card } from "../topic";
 import { CopyIcon } from "../icons";
+import { HistoryButton } from "./HistoryDialog";
 import { HistoryButtons } from "./HistoryButtons";
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  /** 历史记录：步号摘要 + 回退 */
+  history?: { list: { step: number; count: number }[]; count: number; onJump: (n: number) => void; onRestore?: (doc: import("../model/types").SketchDocument) => void };
   onWrite: () => void;
   onSyncTarget: () => void;
   cards: Card[];
@@ -29,7 +32,7 @@ function targetLabel(cards: Card[], targetCard: string): string {
 }
 
 export function StageTopBar({
-  tab, onTabChange, canUndo, canRedo, onUndo, onRedo, onWrite, onSyncTarget, cards, targetCard, topic,
+  tab, onTabChange, canUndo, canRedo, onUndo, onRedo, history, onWrite, onSyncTarget, cards, targetCard, topic,
 }: Props) {
   const is2d = tab !== "3d";
   return (
@@ -40,6 +43,9 @@ export function StageTopBar({
         <button className={tab === "3d" ? "on" : ""} onClick={() => onTabChange("3d")}>3D</button>
       </div>
       {is2d ? <HistoryButtons canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} /> : null}
+      {is2d && history ? (
+        <HistoryButton list={history.list} currentCount={history.count} onJump={history.onJump} onRestore={history.onRestore} />
+      ) : null}
       {is2d ? (
         <button type="button" className="write-btn" onClick={onWrite} aria-label="复制草图图片" title="复制草图图片：到 MN 卡片批注长按粘贴（不写文字，不会污染卡片图）">
           <CopyIcon size={14} />

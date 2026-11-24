@@ -9,6 +9,7 @@ import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
 import { MINI_ACTIONS } from "../PanelHeader";
+import { CacheSection } from "./CacheSection";
 import { DebugSection } from "./DebugSection";
 import { RailCustomizer } from "./RailCustomizer";
 import {
@@ -505,7 +506,8 @@ export function SettingsPage({
                 </span>
                 <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
               </a>
-            ) : null}            <DebugSection
+            ) : null}            <CacheSection />
+            <DebugSection
               version={APP_VERSION}
               debug={settings.debug}
               onChangeDebug={(debug) => onChange({ debug })}

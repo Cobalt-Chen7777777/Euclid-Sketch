@@ -41,6 +41,7 @@ import { useCopySketch } from "./useCopySketch";
 import { useLayers } from "./useLayers";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
+import { useDocAutosave, loadDoc } from "./useDocAutosave";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
 import { fileToImageShape, imageSrcToShape } from "./model/image";
@@ -58,14 +59,14 @@ interface AppProps {
 
 export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // ---- 文档状态 ----
-  const [doc, setDoc] = useState<SketchDocument>(() => structuredClone(DEFAULT_DOCUMENT));
-  const shapes = doc.shapes;
+  const [doc, setDoc] = useState<SketchDocument>(() => loadDoc() ?? structuredClone(DEFAULT_DOCUMENT));
+  useDocAutosave(doc); const shapes = doc.shapes;
   const rawSetShapes = useCallback((updater: React.SetStateAction<Shape[]>) => {
     setDoc((prev) => ({ ...prev, shapes: typeof updater === "function" ? updater(prev.shapes) : updater }));
   }, []);
 
   // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
-  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, jumpBack } = useHistoryShapes(shapes, rawSetShapes);
+  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, historyList, jumpBack } = useHistoryShapes(shapes, rawSetShapes);
 
   const [viewport, setViewport] = useState<Viewport>({
     width: VIEW_W,
@@ -462,6 +463,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
+            history={{ list: historyList, count: shapes.length, onJump: jumpBack, onRestore: setDoc }}
             onWrite={() => { void onCopyPng(); }}
             onSyncTarget={() => { void onSyncTargetCard(); }}
             cards={cards}

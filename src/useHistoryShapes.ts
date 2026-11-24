@@ -26,6 +26,8 @@ interface HistoryApi {
   historySteps: number;
   /** 一次回退 n 步（历史面板用） */
   jumpBack: (n: number) => void;
+  /** 历史摘要：步号 + 该步的图形数量（供弹窗列表展示） */
+  historyList: { step: number; count: number }[];
 }
 
 export function useHistoryShapes(
@@ -41,6 +43,7 @@ export function useHistoryShapes(
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [historySteps, setHistorySteps] = useState(0);
+  const [historyList, setHistoryList] = useState<{ step: number; count: number }[]>([]);
 
   // shapesRef 始终指向最新数组，commit 时不依赖渲染时序
   const shapesRef = useRef(shapes);
@@ -50,6 +53,7 @@ export function useHistoryShapes(
     setCanUndo(pastRef.current.length > 0);
     setCanRedo(futureRef.current.length > 0);
     setHistorySteps(pastRef.current.length);
+    setHistoryList(pastRef.current.map((snap, i) => ({ step: i + 1, count: snap.length })));
   }, []);
 
   const commit = useCallback<React.Dispatch<React.SetStateAction<Shape[]>>>((updater) => {
@@ -112,7 +116,7 @@ export function useHistoryShapes(
     rawSetShapes(target);
   }, [rawSetShapes, syncFlags]);
 
-  return { commit, undo, redo, canUndo, canRedo, historySteps, jumpBack };
+  return { commit, undo, redo, canUndo, canRedo, historySteps, jumpBack, historyList };
 }
 
 /**
