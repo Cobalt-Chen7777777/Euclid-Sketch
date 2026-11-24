@@ -10,13 +10,14 @@ import { chromium } from "playwright-core";
 
 import { EDITS } from "./forum-edits.mjs";
 import { FOLD_EDITS } from "./forum-edits-fold.mjs";
+import { INTRO_EDITS } from "./forum-edits-intro.mjs";
 import { IMAGE_EDITS } from "./forum-edits-images.mjs";
 
 const PORT = process.env.CDP_PORT || "9222";
 const TOPIC = "https://bbs.marginnote.com.cn/t/topic/68960";
 const MODE = process.argv.includes("--write") ? "write" : process.argv.includes("--dry") ? "dry" : "check";
 // --images：只跑第二批（插图 + 附件），第一批已完成
-const BATCH = process.argv.includes("--images") ? IMAGE_EDITS : process.argv.includes("--fold") ? FOLD_EDITS : EDITS;
+const BATCH = process.argv.includes("--images") ? IMAGE_EDITS : process.argv.includes("--fold") ? FOLD_EDITS : process.argv.includes("--intro") ? INTRO_EDITS : EDITS;
 
 const browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
 const ctx = browser.contexts()[0];
