@@ -28,6 +28,7 @@ import { SettingsPage } from "./settings/SettingsPage";
 import { fitPanelHeight, useAutoFitHeight } from "./settings/useAutoFit";
 import { PanelHeader } from "./PanelHeader";
 import { ToolRail } from "./stage/ToolRail";
+import { useAppQuickCreate } from "./useQuickCreate";
 import { OptionsDrawer } from "./stage/OptionsDrawer";
 import { SolidStage } from "./stage/SolidStage";
 import { FunctionPad } from "./stage/FunctionPad";
@@ -59,15 +60,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // ---- 文档状态 ----
   const [doc, setDoc] = useState<SketchDocument>(() => structuredClone(DEFAULT_DOCUMENT));
   const shapes = doc.shapes;
-  const rawSetShapes = useCallback(
-    (updater: React.SetStateAction<Shape[]>) => {
-      setDoc((prev) => ({
-        ...prev,
-        shapes: typeof updater === "function" ? updater(prev.shapes) : updater,
-      }));
-    },
-    [],
-  );
+  const rawSetShapes = useCallback((updater: React.SetStateAction<Shape[]>) => {
+    setDoc((prev) => ({ ...prev, shapes: typeof updater === "function" ? updater(prev.shapes) : updater }));
+  }, []);
 
   // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
   const { commit: setShapes, undo, redo, canUndo, canRedo } = useHistoryShapes(shapes, rawSetShapes);
@@ -220,6 +215,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, [setShapes]);
 
   // 套索多选 + 剪贴板（复制 / 剪切 / 粘贴 / 删除）
+  const quickCreate = useAppQuickCreate({ viewport, color, layer: currentLayer, setShapes, onSelect: setSelectedId, onToast: showToast });
+
   const lasso = useLassoClipboard(shapes, setShapes, showToast);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -489,6 +486,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               tool={tool}
               placeType={placeType}
               railTools={settings.railTools}
+              onParamCreate={(id) => { quickCreate(id); setOptionsOpen(true); }}
               onTool={setTool}
               onPlaceType={setPlaceType}
               onImportImage={() => { void onImportCardImage(); }}

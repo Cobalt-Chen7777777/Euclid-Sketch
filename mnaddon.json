@@ -39,6 +39,13 @@
         "zh-Hans": "设为草图目标卡",
         "en": "Set as sketch target"
       }
+    },
+    {
+      "id": "open-panel",
+      "title": {
+        "zh-Hans": "打开 Euclid Sketch",
+        "en": "Open Euclid Sketch"
+      }
     }
   ]
 }

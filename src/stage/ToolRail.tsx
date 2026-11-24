@@ -2,6 +2,8 @@
  * 左侧悬浮工具栏：按钮内容可在「设置 → 工具栏」里自定义。
  * 线 / 点 / 圆等常用图元直接做成按钮，点击即进入对应绘制模式（原生体验）。
  */
+import { useRef } from "react";
+
 import type { Tool } from "../canvas/Canvas2D";
 import { RAIL_CATALOG } from "../settings/model";
 import type { PrimitiveType } from "../model/types";
@@ -19,6 +21,8 @@ const ICONS: Record<string, ToolIconName> = {
 const PLACE_TOOLS = new Set(["line", "point", "circle", "ellipse", "rect", "polygon", "arc"]);
 
 interface Props {
+  /** 长按图形图标：按参数创建（默认尺寸，随后在「几何参数」里改） */
+  onParamCreate?: (id: string) => void;
   tool: Tool;
   placeType: PrimitiveType;
   railTools: string[];
@@ -32,9 +36,24 @@ interface Props {
 }
 
 export function ToolRail({
+  onParamCreate,
   tool, placeType, railTools, onTool, onPlaceType, onImportImage,
   lockRadius, onToggleLock, optionsOpen, onToggleOptions,
 }: Props) {
+  /** 长按计时：500ms 内松手仍按原单击行为处理 */
+  const holdRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
+  const startHold = (id: string) => {
+    holdRef.current.fired = false;
+    holdRef.current.timer = setTimeout(() => {
+      holdRef.current.fired = true;
+      onParamCreate?.(id);
+    }, 500);
+  };
+  const endHold = () => {
+    if (holdRef.current.timer) clearTimeout(holdRef.current.timer);
+    holdRef.current.timer = null;
+  };
+
   // 「选择」永远显示，避免配置后无法返回选择模式
   const items = RAIL_CATALOG.filter((c) => c.id === "select" || railTools.includes(c.id));
 
@@ -71,11 +90,15 @@ export function ToolRail({
           <button
             key={item.id}
             type="button"
+            onPointerDown={() => startHold(item.id)}
+            onPointerUp={endHold}
+            onPointerLeave={endHold}
+            onPointerCancel={endHold}
             className={`rail-btn${active ? " on" : ""}`}
             aria-label={item.label}
             aria-pressed={active}
             title={item.label}
-            onClick={onClick}
+            onClick={() => { if (holdRef.current.fired) { holdRef.current.fired = false; return; } onClick(); }}
           >
             <ToolIcon name={ICONS[item.id] ?? "place"} size={19} />
           </button>

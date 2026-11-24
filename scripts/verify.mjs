@@ -198,7 +198,7 @@ async function main() {
     await page.waitForTimeout(120);
     const selShapeColor = await page.evaluate(() => {
       const sel = document.querySelector(".canvas-svg .shape-sel, .canvas-svg [data-selected]");
-      const rects = [...document.querySelectorAll(".canvas-svg rect")].filter((r) => r.getAttribute("stroke-width") && r.getAttribute("fill") !== "none");
+      const rects = [...document.querySelectorAll(".canvas-svg rect")].filter((r) => r.getAttribute("stroke-width") && r.getAttribute("fill") !== "none" && !r.getAttribute("stroke-dasharray"));
       return rects.length > 0 ? rects[rects.length - 1].getAttribute("stroke") || rects[rects.length - 1].getAttribute("fill") : "unknown";
     });
     record("选中图形改色生效", selShapeColor !== "#2563eb", `color=${selShapeColor}`);
