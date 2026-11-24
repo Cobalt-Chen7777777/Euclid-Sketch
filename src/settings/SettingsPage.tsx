@@ -8,11 +8,12 @@ import { checkUpdate, type UpdateAsset } from "../update";
 import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
+import { MINI_ACTIONS } from "../PanelHeader";
 import { DebugSection } from "./DebugSection";
 import { RailCustomizer } from "./RailCustomizer";
 import {
   AngleIcon, ChevronIcon, EraserIcon, ExportIcon, GridIcon, ImageIcon, ImportIcon, InfoIcon, MagnetIcon,
-  PaletteIcon, PenIcon, PolygonIcon, ResetIcon, RulerIcon, SmoothIcon,
+  MinimizeIcon, PaletteIcon, PenIcon, PolygonIcon, ResetIcon, RulerIcon, SmoothIcon,
   StrokeWidthIcon, WindowIcon, WriteIcon,
 } from "../icons";
 import { PALETTE } from "../model/types";
@@ -215,6 +216,38 @@ export function SettingsPage({
                 />
               }
             />
+            <SettingRow
+              icon={<MinimizeIcon />}
+              title="迷你条方向"
+              subtitle="收起后浮条的排布"
+              trailing={
+                <Choice
+                  label="方向" value={settings.miniOrientation}
+                  options={[{ value: "h", label: "横向" }, { value: "v", label: "竖向" }]}
+                  onChange={(miniOrientation) => onChange({ miniOrientation: miniOrientation as "h" | "v" })}
+                />
+              }
+            />
+            <div className="set-row">
+              <span className="set-tile"><MinimizeIcon /></span>
+              <span className="set-text">
+                <b>迷你条按钮</b>
+                <small>点选后按此顺序显示</small>
+                <span className="chips">
+                  {MINI_ACTIONS.map((a) => {
+                    const on = settings.miniActions.includes(a.id);
+                    return (
+                      <button key={a.id} type="button" className={`chip${on ? " on" : ""}`}
+                        onClick={() => onChange({
+                          miniActions: on
+                            ? settings.miniActions.filter((x) => x !== a.id)
+                            : [...settings.miniActions, a.id],
+                        })}>{a.label.replace("快速", "")}</button>
+                    );
+                  })}
+                </span>
+              </span>
+            </div>
           </SettingsGroup>
 
           <SettingsGroup title="绘制辅助" accent="blue">

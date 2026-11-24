@@ -1280,3 +1280,15 @@ a.set-row {
   border-radius: 999px;
   background: var(--pill);
 }
+
+/* 迷你条竖排：靠右缘停靠，按钮自上而下 */
+.mini-bar.vertical {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  width: auto;
+  height: auto;
+  border-radius: 999px;
+}
+.mini-bar.vertical .mini-title { display: none; }

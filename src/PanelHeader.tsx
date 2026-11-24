@@ -9,13 +9,17 @@ import {
   ExpandIcon, ImageIcon, LineToolIcon, MinimizeIcon, PointToolIcon,
 } from "./icons";
 
-/** 迷你条上的图形快建：点一下就在视野中心生成，随后可在几何参数里精确改 */
-const QUICK_SHAPES = [
+/** 迷你条可放的动作清单（设置页勾选顺序即显示顺序） */
+export const MINI_ACTIONS: { id: string; label: string; Icon: typeof PointToolIcon }[] = [
   { id: "point", label: "快速画点", Icon: PointToolIcon },
   { id: "line", label: "快速画线段", Icon: LineToolIcon },
   { id: "circle", label: "快速画圆", Icon: CircleToolIcon },
   { id: "angle", label: "快速画角度", Icon: AngleIcon },
-] as const;
+  { id: "insert", label: "插入卡片图", Icon: ImageIcon },
+  { id: "copy", label: "复制草图", Icon: CopyIcon },
+  { id: "expand", label: "展开面板", Icon: ExpandIcon },
+  { id: "close", label: "关闭插件窗口", Icon: CloseIcon },
+];
 
 export type PanelView = "canvas" | "settings";
 
@@ -38,39 +42,36 @@ interface Props {
   onQuickCopy?: () => void;
   /** 迷你条快捷：把当前目标卡插进画布 */
   onQuickInsert?: () => void;
+  /** 迷你条方向 */
+  orientation?: "h" | "v";
+  /** 迷你条显示的动作 id 列表（顺序即显示顺序） */
+  actions?: string[];
 }
 
 export function PanelHeader({
   view, onViewChange, onCollapse, onExpand, onClose, onQuickShape, onQuickCopy, onQuickInsert,
+  orientation = "h", actions = ["point", "line", "circle", "angle", "insert", "copy", "expand", "close"],
 }: Props) {
   return (
     <>
-      <div className="mini-bar">
+      <div className={`mini-bar${orientation === "v" ? " vertical" : ""}`}>
         <span className="brand-badge" aria-hidden="true"><BrandIcon size={13} /></span>
-        <span className="mini-title">Euclid Sketch</span>
-        {(onQuickShape ? QUICK_SHAPES : []).map((s) => (
-          <button key={s.id} type="button" className="mini-btn icon" onClick={() => onQuickShape?.(s.id)}
-            aria-label={s.label} title={s.label}>
-            <s.Icon size={16} />
-          </button>
-        ))}
-        <span className="mini-spacer" />
-        {onQuickInsert ? (
-          <button type="button" className="mini-btn icon" onClick={onQuickInsert} aria-label="插入卡片图" title="插入卡片图">
-            <ImageIcon size={16} />
-          </button>
-        ) : null}
-        {onQuickCopy ? (
-          <button type="button" className="mini-btn icon" onClick={onQuickCopy} aria-label="复制草图" title="复制草图">
-            <CopyIcon size={16} />
-          </button>
-        ) : null}
-        <button type="button" className="mini-btn icon" onClick={onExpand} aria-label="展开面板" title="展开">
-          <ExpandIcon size={16} />
-        </button>
-        <button type="button" className="mini-btn icon" onClick={onClose} aria-label="关闭插件窗口" title="关闭">
-          <CloseIcon size={15} />
-        </button>
+        {orientation === "v" ? null : <span className="mini-title">Euclid Sketch</span>}
+        {MINI_ACTIONS.filter((a) => actions.includes(a.id)).map((a) => {
+          const run = () => {
+            if (a.id === "expand") return onExpand();
+            if (a.id === "close") return onClose();
+            if (a.id === "insert") return onQuickInsert?.();
+            if (a.id === "copy") return onQuickCopy?.();
+            onQuickShape?.(a.id);
+          };
+          return (
+            <button key={a.id} type="button" className="mini-btn icon" onClick={run}
+              aria-label={a.label} title={a.label}>
+              <a.Icon size={16} />
+            </button>
+          );
+        })}
       </div>
 
       <header className="appbar">

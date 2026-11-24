@@ -23,6 +23,10 @@ export interface SketchSettings {
   snapEnabled: boolean;
   /** 画布：网格密度（世界坐标单位） */
   gridStep: number;
+  /** 迷你条方向 */
+  miniOrientation: "h" | "v";
+  /** 迷你条显示哪些按钮（顺序即显示顺序） */
+  miniActions: string[];
   /** 调试模式：开启后设置页出现诊断日志（版本号连点 5 次切换） */
   debug: boolean;
   /** 手指触控作图：关闭后只有 Apple Pencil / 鼠标能画图（双指平移缩放保留） */
@@ -60,6 +64,8 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   showTicks: true,
   snapEnabled: true,
   gridStep: 1,
+  miniOrientation: "h",
+  miniActions: ["point", "line", "circle", "angle", "insert", "copy"],
   debug: false,
   allowTouchDraw: true,
   dashStyle: false,
@@ -149,6 +155,10 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     showTicks: readBoolean(source.showTicks, DEFAULT_SETTINGS.showTicks),
     snapEnabled: readBoolean(source.snapEnabled, DEFAULT_SETTINGS.snapEnabled),
     gridStep: readNumber(source.gridStep, DEFAULT_SETTINGS.gridStep, 1, 100),
+    miniOrientation: source.miniOrientation === "v" ? "v" : "h",
+    miniActions: Array.isArray(source.miniActions)
+      ? (source.miniActions as unknown[]).filter((x): x is string => typeof x === "string")
+      : DEFAULT_SETTINGS.miniActions,
     debug: readBoolean(source.debug, DEFAULT_SETTINGS.debug),
     allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),

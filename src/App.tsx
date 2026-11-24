@@ -378,6 +378,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onCollapse={onCollapse}
         onExpand={onExpand}
         onClose={close}
+        orientation={settings.miniOrientation}
+        actions={settings.miniActions}
         onQuickShape={(kind) => { onExpand(); quickCreate(kind); setOptionsOpen(true); }}
         onQuickCopy={() => { void onCopyPng(); }}
         onQuickInsert={() => { void onImportCardImage(); }}
