@@ -453,7 +453,7 @@ export function SettingsPage({
                 <span className="set-tile"><ExportIcon /></span>
                 <span className="set-text">
                   <b>下载更新包</b>
-                  <small>{update.asset.name} · 下载后用 MarginNote 打开即可安装</small>
+                  <small>{update.asset.name} · 模板包内含插件，导入后插件一起升级</small>
                 </span>
                 <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
               </a>

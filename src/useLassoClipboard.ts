@@ -25,10 +25,14 @@ export function useLassoClipboard(
   const erasePicked = useCallback(() => {
     const ids = new Set(selectionIds);
     if (ids.size === 0) return;
-    setShapes((prev) => prev.filter((s) => !ids.has(s.id)));
+    // 锁定图形（图片防误删锁）不参与删除
+    const lockedCount = shapes.filter((s) => ids.has(s.id) && s.locked).length;
+    setShapes((prev) => prev.filter((s) => !ids.has(s.id) || s.locked));
     setSelectionIds([]);
-    showToast(`已删除 ${ids.size} 个图形`);
-  }, [selectionIds, setShapes, showToast]);
+    showToast(lockedCount > 0
+      ? `已删除 ${ids.size - lockedCount} 个，${lockedCount} 个已锁定跳过`
+      : `已删除 ${ids.size} 个图形`);
+  }, [shapes, selectionIds, setShapes, showToast]);
 
   const cut = useCallback(() => {
     copy();
