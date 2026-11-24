@@ -17,7 +17,7 @@ function catmullRomTangents(pts: Point2[]): Point2[] {
   });
 }
 
-export function buildCurve(points: Point2[], color: string, width: number): InkShape | null {
+export function buildCurve(points: Point2[], color: string, width: number, tangents?: (Point2 | undefined)[]): InkShape | null {
   const pts = [...points];
   while (pts.length >= 2) {
     const a = pts[pts.length - 1]!;
@@ -28,7 +28,8 @@ export function buildCurve(points: Point2[], color: string, width: number): InkS
   if (pts.length < 2) return null;
   return {
     id: newId("ink"), type: "ink", points: pts, color, width, smooth: true,
-    tangents: catmullRomTangents(pts),
+    // 有钢笔拖出的切线就用它，其余点用 Catmull-Rom 自动切线
+    tangents: catmullRomTangents(pts).map((t, i) => tangents?.[i] ?? t),
   };
 }
 

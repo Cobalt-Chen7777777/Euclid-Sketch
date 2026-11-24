@@ -83,7 +83,7 @@ type DragState =
   | { kind: "handle"; id: string; handle: Handle }
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
   | { kind: "ink"; points: Point2[] }
-  | { kind: "curve"; points: Point2[] }
+  | { kind: "curve"; points: Point2[]; tangents: (Point2 | undefined)[] }
   | { kind: "angleArm2"; v: Point2; arm1: Point2; current: Point2 }
   | { kind: "erase" }
   | { kind: "moveSel"; last: Point2; ids: string[] };
@@ -286,9 +286,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
 
     if (tool === "curve") {
-      // 曲线：每点一下加一个控制点，双击结束（至少 2 点才成线）
+      // 曲线：每点一下加一个控制点，双击结束；按下后拖动 = 该点的切线（钢笔手感）
       const w = snap(worldRaw);
-      setDrag((d) => (d && d.kind === "curve" ? { ...d, points: [...d.points, w] } : { kind: "curve", points: [w] }));
+      setDrag((d) => (d && d.kind === "curve"
+        ? { ...d, points: [...d.points, w], tangents: [...d.tangents, undefined] }
+        : { kind: "curve", points: [w], tangents: [undefined] }));
       return;
     }
 
@@ -360,6 +362,20 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         });
         pinch.current = { dist, center };
       }
+      return;
+    }
+
+    if (drag.kind === "curve") {
+      // 钢笔式：按下后拖出的方向/长度就是该点的出向切线，决定这一处曲率
+      const world = toWorld(sp, v);
+      const last = drag.points[drag.points.length - 1];
+      if (!last) return;
+      const tx = world.x - last.x;
+      const ty = world.y - last.y;
+      if (Math.hypot(tx, ty) <= 0.25) return;
+      const tg = [...drag.tangents];
+      tg[drag.points.length - 1] = { x: tx, y: ty };
+      setDrag({ kind: "curve", points: drag.points, tangents: tg });
       return;
     }
 
@@ -467,7 +483,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     const d = drag;
     if (!d || d.kind !== "curve") return;
     setDrag({ kind: "none" });
-    const ink = buildCurve(d.points, color, penWidth);
+    const ink = buildCurve(d.points, color, penWidth, d.tangents);
     if (!ink) return;
     setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
     onSelect(ink.id);
