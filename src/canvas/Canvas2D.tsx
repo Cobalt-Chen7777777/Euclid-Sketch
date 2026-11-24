@@ -361,8 +361,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           // 双指整体拖动：中心位移换算成世界平移，捏合与拖动可同时进行
           const spanX = next.xRange[1] - next.xRange[0];
           const spanY = next.yRange[1] - next.yRange[0];
-          const dx = ((center.x - prevCenter.x) / v.width) * spanX;
-          const dy = ((center.y - prevCenter.y) / v.height) * spanY;
+          const dx = ((center.x - prevCenter.x) / prev.width) * spanX;
+          const dy = ((center.y - prevCenter.y) / prev.height) * spanY;
           next = { ...next, xRange: panRange(next.xRange, -dx), yRange: panRange(next.yRange, dy) };
           return next;
         });

@@ -76,31 +76,41 @@ function previewLabel(shape: Shape): string {
  * 在屏幕坐标里算，缩放/平移时曲率观感稳定。
  */
 function smoothPath(points: { x: number; y: number }[], v: Viewport, tangents?: Point2[]): string {
-  const pts = points.map((p) => toScreen(p, v)).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-  if (pts.length < 3) return pathFromPoints(points, v);
-  let d = `M${pts[0]!.x.toFixed(1)},${pts[0]!.y.toFixed(1)}`;
-  // 有切线时用贝塞尔：手柄决定各点处的曲率（可自由调整）
-  if (tangents && tangents.length === points.length) {
-    const scale = v.width / (v.xRange[1] - v.xRange[0]);
-    for (let i = 0; i < pts.length - 1; i += 1) {
-      const t1 = tangents[i]!;
-      const t2 = tangents[i + 1]!;
-      const p1 = pts[i]!;
-      const p2 = pts[i + 1]!;
-      const c1 = { x: p1.x + t1.x * scale, y: p1.y + t1.y * scale };
-      const c2 = { x: p2.x - t2.x * scale, y: p2.y - t2.y * scale };
-      d += ` C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  // 视口跨度异常时缩放会出无穷，所有控制点都会变 NaN → path 失效，曲线整条不显示
+  const scale = v.width / (v.xRange[1] - v.xRange[0]);
+  if (!Number.isFinite(scale) || scale <= 0) return pathFromPoints(points, v);
+
+  // 过滤坏点的同时带上对应切线，避免索引错位（原来只过滤点，切线还按旧下标取，会取到 undefined）
+  const nodes = points
+    .map((p, i) => ({ p: toScreen(p, v), t: tangents?.[i] }))
+    .filter((n) => Number.isFinite(n.p.x) && Number.isFinite(n.p.y));
+  if (nodes.length < 2) return "";
+  const ok = (n: number) => Number.isFinite(n);
+  let d = `M${nodes[0]!.p.x.toFixed(1)},${nodes[0]!.p.y.toFixed(1)}`;
+
+  for (let i = 0; i < nodes.length - 1; i += 1) {
+    const a = nodes[i]!;
+    const b = nodes[i + 1]!;
+    let c1: { x: number; y: number };
+    let c2: { x: number; y: number };
+    if (nodes.some((n) => n.t)) {
+      // 钢笔切线：手柄决定曲率；某点没有切线时用零向量（等价直线）
+      const t1 = a.t ?? { x: 0, y: 0 };
+      const t2 = b.t ?? { x: 0, y: 0 };
+      c1 = { x: a.p.x + t1.x * scale, y: a.p.y + t1.y * scale };
+      c2 = { x: b.p.x - t2.x * scale, y: b.p.y - t2.y * scale };
+    } else {
+      const p0 = nodes[i === 0 ? 0 : i - 1]!.p;
+      const p3 = nodes[i + 2 < nodes.length ? i + 2 : nodes.length - 1]!.p;
+      c1 = { x: a.p.x + (b.p.x - p0.x) / 6, y: a.p.y + (b.p.y - p0.y) / 6 };
+      c2 = { x: b.p.x - (p3.x - a.p.x) / 6, y: b.p.y - (p3.y - a.p.y) / 6 };
     }
-    return d;
-  }
-  for (let i = 0; i < pts.length - 1; i += 1) {
-    const p0 = pts[i === 0 ? 0 : i - 1]!;
-    const p1 = pts[i]!;
-    const p2 = pts[i + 1]!;
-    const p3 = pts[i + 2 < pts.length ? i + 2 : pts.length - 1]!;
-    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
-    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
-    d += ` C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+    // 任一控制点非法就退化为直线段，保证曲线整体仍可见
+    if (!ok(c1.x) || !ok(c1.y) || !ok(c2.x) || !ok(c2.y)) {
+      d += ` L${b.p.x.toFixed(1)},${b.p.y.toFixed(1)}`;
+      continue;
+    }
+    d += ` C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${b.p.x.toFixed(1)},${b.p.y.toFixed(1)}`;
   }
   return d;
 }
