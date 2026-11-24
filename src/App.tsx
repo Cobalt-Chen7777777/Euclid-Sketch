@@ -108,7 +108,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const cardWriteRef = useRef<((nid: string) => void) | null>(null);
 
   // MN 卡片：学习集 + 焦点卡（写入/导入目标） + 能力探测 + 手动同步 + 卡片事件
-  const { topic, cards, targetCard, setTargetCard, canWriteImage, refresh: refreshContext, gotoCard, lockTarget } = useMnContext(showToast, {
+  const { topic, cards, targetCard, setTargetCard, canWriteImage, refresh: refreshContext, lockTarget } = useMnContext(showToast, {
     onCommand: (id, noteid) => {
       setTargetCard(noteid);
       if (id === "import-image") cardImportRef.current?.(noteid);
@@ -378,9 +378,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onCollapse={onCollapse}
         onExpand={onExpand}
         onClose={close}
-        onPrev={() => { void gotoCard(-1); }}
-        onNext={() => { void gotoCard(1); }}
-        hasCards={cards.length > 0}
+        onQuickShape={(kind) => { quickCreate(kind); setOptionsOpen(true); }}
         onQuickCopy={() => { void onCopyPng(); }}
         onQuickInsert={() => { void onImportCardImage(); }}
       />
