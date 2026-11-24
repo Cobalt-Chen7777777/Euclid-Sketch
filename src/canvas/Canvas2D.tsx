@@ -84,6 +84,7 @@ type DragState =
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
   | { kind: "ink"; points: Point2[] }
   | { kind: "curve"; points: Point2[] }
+  | { kind: "angleArm2"; v: Point2; arm1: Point2; current: Point2 }
   | { kind: "erase" }
   | { kind: "moveSel"; last: Point2; ids: string[] };
 
@@ -301,14 +302,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         setAngleDraft({ ...angleDraft, arm1: world });
         onToast?.("再点一下定第二条边，角度按你点的位置算");
       } else {
-        const { shape, deg, snapped } = createAngle(
-          angleDraft.v, angleDraft.arm1, world, color, options.specialAngleSnap,
-        );
-        const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
-        setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
-        onSelect(shape.id);
-        setAngleDraft(null);
-        onToast?.(`角度 ${deg.toFixed(1)}°${snapped ? "（已吸附特殊角）" : ""}`);
+        // 第三次按下开始拖第二边：拖动实时预览，松手处即为边长（此前一按下就成角，拖动无效）
+        setDrag({ kind: "angleArm2", v: angleDraft.v, arm1: angleDraft.arm1, current: world });
       }
       return;
     }
@@ -368,6 +363,12 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       return;
     }
 
+    if (drag.kind === "angleArm2") {
+      const world = snap(toWorld(sp, v));
+      setDrag({ kind: "angleArm2", v: drag.v, arm1: drag.arm1, current: world });
+      return;
+    }
+
     if (drag.kind === "moveSel") {
       const world = toWorld(sp, v);
       const dx = world.x - drag.last.x;
@@ -424,6 +425,17 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
 
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
+    if (drag.kind === "angleArm2") {
+      const { shape, deg, snapped } = createAngle(drag.v, drag.arm1, drag.current, color, options.specialAngleSnap);
+      const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
+      setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
+      onSelect(shape.id);
+      setAngleDraft(null);
+      onToast?.(`角度 ${deg.toFixed(1)}°${snapped ? "（已吸附特殊角）" : ""}`);
+      setDrag({ kind: "none" });
+      return;
+    }
+
     if (drag.kind === "lasso") {
       const ids = lassoSelect(shapes.filter(isSelectable), drag.points);
       onSelectionChange(ids);
@@ -468,12 +480,12 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
 
   // 角度草稿预览：只定了顶点时显示一个点，定了一条边后实时预览角度
   const anglePreview: Shape | null = (() => {
-    if (tool !== "angle" || !angleDraft || angleDraft.tool !== tool || !hoverWorld) return null;
+    if (tool !== "angle" || !angleDraft || angleDraft.tool !== tool) return null;
     const v0 = angleDraft.v;
-    if (!angleDraft.arm1) {
-      return { id: "preview-angle-v", type: "point", x: v0.x, y: v0.y, color };
-    }
-    return createAngle(v0, angleDraft.arm1, hoverWorld, color, options.specialAngleSnap).shape;
+    if (!angleDraft.arm1) return { id: "preview-angle-v", type: "point", x: v0.x, y: v0.y, color };
+    const end = drag.kind === "angleArm2" ? drag.current : hoverWorld;
+    if (!end) return null;
+    return createAngle(v0, angleDraft.arm1, end, color, options.specialAngleSnap).shape;
   })();
 
   // 拖动绘制/笔迹的实时预览
