@@ -8,5 +8,8 @@ release/
 shots/
 docs/preview-*.png
 
+# 生成物：Release 正文由 CHANGELOG 生成，不入库
+release-body.md
+
 # 社区自动化产物
 release/*.zip
