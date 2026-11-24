@@ -4,7 +4,7 @@
  * 迷你模式的显隐由 CSS 负责（MN 会改 <html data-mode="mini">），
  * 这里不做状态判断，避免和宿主状态不同步。
  */
-import { BrandIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, ExpandIcon, MinimizeIcon } from "./icons";
+import { BrandIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, CopyIcon, ExpandIcon, ImageIcon, MinimizeIcon } from "./icons";
 
 export type PanelView = "canvas" | "settings";
 
@@ -21,10 +21,14 @@ interface Props {
   onPrev?: () => void;
   onNext?: () => void;
   hasCards?: boolean;
+  /** 迷你条快捷：复制整张草图 */
+  onQuickCopy?: () => void;
+  /** 迷你条快捷：把当前目标卡插进画布 */
+  onQuickInsert?: () => void;
 }
 
 export function PanelHeader({
-  view, onViewChange, onCollapse, onExpand, onClose, onPrev, onNext, hasCards = false,
+  view, onViewChange, onCollapse, onExpand, onClose, onPrev, onNext, hasCards = false, onQuickCopy, onQuickInsert,
 }: Props) {
   return (
     <>
@@ -42,6 +46,16 @@ export function PanelHeader({
           </>
         ) : null}
         <span className="mini-spacer" />
+        {onQuickInsert ? (
+          <button type="button" className="mini-btn icon" onClick={onQuickInsert} aria-label="插入卡片图" title="插入卡片图">
+            <ImageIcon size={16} />
+          </button>
+        ) : null}
+        {onQuickCopy ? (
+          <button type="button" className="mini-btn icon" onClick={onQuickCopy} aria-label="复制草图" title="复制草图">
+            <CopyIcon size={16} />
+          </button>
+        ) : null}
         <button type="button" className="mini-btn icon" onClick={onExpand} aria-label="展开面板" title="展开">
           <ExpandIcon size={16} />
         </button>

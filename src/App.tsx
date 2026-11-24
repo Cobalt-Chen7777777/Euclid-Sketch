@@ -381,6 +381,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onPrev={() => { void gotoCard(-1); }}
         onNext={() => { void gotoCard(1); }}
         hasCards={cards.length > 0}
+        onQuickCopy={() => { void onCopyPng(); }}
+        onQuickInsert={() => { void onImportCardImage(); }}
       />
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
