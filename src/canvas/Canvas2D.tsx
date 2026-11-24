@@ -351,7 +351,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       if (a && b) {
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
         const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        const factor = pinch.current.dist / (dist || 1);
+        // 双指几乎重合时 dist 极小，倍率会爆掉；限制单帧 [0.5, 2] 且过近不缩放
+        const safePrev = Math.max(pinch.current.dist, 8);
+        const safeNow = Math.max(dist, 8);
+        const factor = Math.min(2, Math.max(0.5, safePrev / safeNow));
         const prevCenter = pinch.current.center;
         setViewport((prev) => {
           let next = zoomViewport(prev, center, factor);
