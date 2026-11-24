@@ -1257,3 +1257,26 @@ a.set-row {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+
+/* 检查更新状态条：独立一行，成功/失败分色（此前塞在 11px 灰色副标题里读不清） */
+.update-status {
+  margin: 6px 2px 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+.update-status.ok { background: rgba(16, 185, 129, .12); color: #0f7b5f; }
+.update-status.bad { background: rgba(220, 38, 38, .10); color: #b42318; }
+.panel.theme-dark .update-status.ok { background: rgba(16, 185, 129, .18); color: #7fd8c9; }
+.panel.theme-dark .update-status.bad { background: rgba(248, 113, 113, .16); color: #fca5a5; }
+.set-badge {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pill);
+}

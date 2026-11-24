@@ -85,7 +85,7 @@ type DragState =
   | { kind: "ink"; points: Point2[] }
   | { kind: "curve"; points: Point2[] }
   | { kind: "erase" }
-  | { kind: "moveSel"; last: Point2 };
+  | { kind: "moveSel"; last: Point2; ids: string[] };
 
 export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
@@ -207,6 +207,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       });
   }, [selectionIds, shapes, v]);
 
+  /** 切走角度工具就丢掉未画完的草稿，避免切回来时旧顶点「复活」 */
+  useEffect(() => { if (tool !== "angle") setAngleDraft(null); }, [tool]);
+
   /** 控制点拖动：window 级监听（SVG 的 pointer capture 在 iOS 上不可靠） */
   const handleDrag = useHandleDrag({
     svgRef,
@@ -224,6 +227,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const sp = localPoint(e);
 
+    if (e.isPrimary) { pointers.current.clear(); pinch.current = null; }
     pointers.current.set(e.pointerId, sp);
 
     if (pointers.current.size === 2) {
@@ -244,8 +248,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (e.pointerType === "touch" && !options.allowTouchDraw) return;
 
     const worldRaw = toWorld(sp, v);
-    // 先看是否点中当前选中图形的手柄：画完曲线 / 图形后可直接拖手柄调参数，无需切回选择
-    if (tool !== "eraser") {
+    // 手柄只在选择 / 曲线工具下抢：绘制工具优先画新图形，避免在旧图形上起笔时改到它
+    if ((tool === "select" || tool === "curve") && selectedId) {
       const hh = hitHandle(sp);
       if (hh) { handleDrag.start(hh.id, hh.handle); return; }
     }
@@ -253,8 +257,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (tool === "lasso") {
       // 已有框选结果时，按住其中任意图形 → 整组拖动；否则开始新框选
       if (hitSelected(worldRaw)) {
-        setDrag({ kind: "moveSel", last: worldRaw });
-        onToast?.("拖动移动选中图形");
+        setDrag({ kind: "moveSel", last: worldRaw, ids: [...selectionIds] });
         return;
       }
       setDrag({ kind: "lasso", points: [worldRaw] });
@@ -262,11 +265,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
 
     if (tool === "select") {
-      // 按住已框选图形 → 整组拖动；按住未选图形 → 单选；空白 → 清空
-      if (hitSelected(worldRaw)) {
-        setDrag({ kind: "moveSel", last: worldRaw });
-        return;
-      }
+      // 按住已框选 → 整组拖动；按住当前选中的图形 → 单图形拖动；否则清空多选并重新点选
+      const tolW = (14 / v.width) * (v.xRange[1] - v.xRange[0]);
+      const sel = selectedId ? shapes.find((s) => s.id === selectedId) : null;
+      if (hitSelected(worldRaw)) { setDrag({ kind: "moveSel", last: worldRaw, ids: [...selectionIds] }); return; }
+      if (sel && hitTest(sel, worldRaw, tolW)) { setDrag({ kind: "moveSel", last: worldRaw, ids: [sel.id] }); return; }
       onSelectionChange([]);
     }
 
@@ -370,9 +373,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       const dx = world.x - drag.last.x;
       const dy = world.y - drag.last.y;
       if (dx !== 0 || dy !== 0) {
-        const ids = new Set(selectionIds);
+        const ids = new Set(drag.ids);
         setShapes((prev) => prev.map((s) => (ids.has(s.id) ? translateShape(s, dx, dy) : s)));
-        setDrag({ kind: "moveSel", last: world });
+        setDrag({ kind: "moveSel", last: world, ids: drag.ids });
       }
       return;
     }
@@ -403,7 +406,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           const world = toWorld(sp, v);
           const last = d.points[d.points.length - 1];
           // 距离阈值采样，避免点过密
-          if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.028) return d;
+          if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.04) return d;
           return { ...d, points: [...d.points, world] };
         }
         case "erase":

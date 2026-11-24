@@ -433,10 +433,13 @@ export function SettingsPage({
             <SettingRow
               icon={<ImageIcon />}
               title="检查更新"
-              subtitle={update.text || `当前 v${APP_VERSION}，点一下比对 GitHub 上的最新版本`}
+              subtitle={`当前 v${APP_VERSION}`}
               onClick={() => { if (!update.checking) void onCheckUpdate(); }}
-              trailing={<ChevronIcon />}
+              trailing={update.checking ? <span className="set-badge">检查中…</span> : <ChevronIcon />}
             />
+            {update.text ? (
+              <p className={`update-status${update.bad ? " bad" : " ok"}`}>{update.text}</p>
+            ) : null}
             {update.asset ? (
               <a
                 className="set-row tappable"
@@ -447,7 +450,7 @@ export function SettingsPage({
                 <span className="set-tile"><ExportIcon /></span>
                 <span className="set-text">
                   <b>下载更新包</b>
-                  <small>{update.asset.name} → 浏览器下载后用 MarginNote 打开（或 设置 → 场景模板 → 导入）</small>
+                  <small>{update.asset.name} · 下载后用 MarginNote 打开即可安装</small>
                 </span>
                 <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
               </a>

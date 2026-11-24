@@ -24,6 +24,8 @@ export function useHandleDrag({ svgRef, toWorldAt, setShapes }: Options) {
       const st = active.current;
       const svg = svgRef.current;
       if (!st || !svg) return;
+      // 鼠标左键已松开却没收到 pointerup：直接结束，避免状态残留导致画布持续重绘
+      if (e.pointerType === "mouse" && e.buttons === 0) { active.current = null; return; }
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
