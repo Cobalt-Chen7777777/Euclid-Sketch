@@ -123,8 +123,12 @@ export function lassoSelect(shapes: Shape[], poly: Point2[]): string[] {
 /** 平移一个图形，不换 id（框选整组拖动用） */
 export function translateShape(shape: Shape, dx: number, dy: number): Shape {
   const c = { ...shape } as Record<string, unknown>;
-  for (const k of ["x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "vx", "vy"]) {
-    if (typeof c[k] === "number") c[k] = (c[k] as number) + (k.endsWith("x") ? dx : dy);
+  // 显式区分 x/y 字段：早期用 k.endsWith("x") 判断，x1/x2 落到 else 分支加 dy，
+  // 线段就只能在竖直方向移动（水平拖不动）
+  const XS = new Set(["x", "x1", "x2", "cx", "vx"]);
+  const YS = new Set(["y", "y1", "y2", "cy", "vy"]);
+  for (const k of [...XS, ...YS]) {
+    if (typeof c[k] === "number") c[k] = (c[k] as number) + (XS.has(k) ? dx : dy);
   }
   if (Array.isArray(c.points)) {
     c.points = (c.points as Point2[]).map((q) => ({ x: q.x + dx, y: q.y + dy }));

@@ -15,7 +15,7 @@ export const isVisible = (s: Shape): boolean => !s.hidden || s.type === "coord";
  * 可选中 / 拖动：可见，且未锁。
  * 例外：图片的 locked 语义是「防误擦」，仍需可选中才能点徽标解锁。
  */
-export const isSelectable = (s: Shape): boolean => isVisible(s) && (!s.locked || s.type === "image");
+export const isSelectable = (s: Shape): boolean => isVisible(s) && !s.locked;
 
 /** 可被橡皮擦除：可见且未锁（图片锁定即不可擦） */
 export const isEraseable = (s: Shape): boolean => isVisible(s) && !s.locked;
