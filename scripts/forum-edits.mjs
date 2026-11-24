@@ -150,18 +150,5 @@ Ver 0.3.0-beta.1 · 拖动与误触集中修复，画布自动保存与历史记
 
 `,
   ],
-  [
-    "⑩ 下载·主推版本",
-    /主推版本（建议装这一版）：\n\n- \[Euclid Sketch-0\.2\.1\.mntemplate\]\(([^)]+)\) \(450\.8 KB\)\n- \[Euclid Sketch-0\.2\.1\.mnaddon\]\(([^)]+)\) \(449\.6 KB\)/,
-    `主推版本（0.3.0-beta.1 测试版）：
-
-- Euclid Sketch-0.3.0-beta.1.mntemplate（459.9 KB，上传后替换为附件链接）
-- Euclid Sketch-0.3.0-beta.1.mnaddon（458.8 KB，上传后替换为附件链接）
-
-稳定版（0.2.1，缺少本版新增项）：
-
-- [Euclid Sketch-0.2.1.mntemplate]($1) (450.8 KB)
-- [Euclid Sketch-0.2.1.mnaddon]($2) (449.6 KB)`,
-  ],
 ];
 

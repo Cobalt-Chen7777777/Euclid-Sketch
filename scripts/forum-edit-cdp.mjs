@@ -41,8 +41,16 @@ if (!page.url().includes("/t/topic/68960")) {
   await page.waitForTimeout(1500);
 }
 
-// 首帖的编辑按钮
-const editBtn = page.locator(".topic-body .post-controls button.edit, .topic-body .actions button.edit, button.edit").first();
+// 先关掉可能残留的编辑器（上一次 dry 或手动点开过）
+await page.keyboard.press("Escape").catch(() => {});
+await page.evaluate(() => {
+  const cancel = document.querySelector("#reply-control .cancel, .composer-controls .cancel");
+  if (cancel instanceof HTMLElement) cancel.click();
+});
+await page.waitForTimeout(600);
+
+// 首帖（article.post）里的编辑按钮——不能用裸 button.edit，那是标题编辑
+const editBtn = page.locator('#post_1 button[title="编辑此帖子"], #post_1 .post-action-menu__edit').first();
 await editBtn.click({ timeout: 10000 });
 const ta = page.locator("textarea.d-editor-input").first();
 await ta.waitFor({ timeout: 15000 });
