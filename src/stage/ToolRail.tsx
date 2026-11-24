@@ -21,6 +21,8 @@ const ICONS: Record<string, ToolIconName> = {
 const PLACE_TOOLS = new Set(["line", "point", "circle", "ellipse", "rect", "polygon", "arc"]);
 
 interface Props {
+  /** 停靠位置：左/右竖排，上/下横排 */
+  placement?: "left" | "right" | "top" | "bottom";
   /** 长按图形图标：按参数创建（默认尺寸，随后在「几何参数」里改） */
   onParamCreate?: (id: string) => void;
   tool: Tool;
@@ -36,6 +38,7 @@ interface Props {
 }
 
 export function ToolRail({
+  placement = "left",
   onParamCreate,
   tool, placeType, railTools, onTool, onPlaceType, onImportImage,
   lockRadius, onToggleLock, optionsOpen, onToggleOptions,
@@ -58,7 +61,7 @@ export function ToolRail({
   const items = RAIL_CATALOG.filter((c) => c.id === "select" || railTools.includes(c.id));
 
   return (
-    <div className="rail" role="toolbar" aria-label="绘图工具">
+    <div className={`rail${placement === "left" ? "" : ` rail-${placement}`}`} role="toolbar" aria-label="绘图工具">
       {items.map((item) => {
         const isPlace = PLACE_TOOLS.has(item.id);
         const active = item.id === "image"

@@ -49,6 +49,8 @@ interface Props {
   setShapes: React.Dispatch<React.SetStateAction<Shape[]>>;
   viewport: Viewport;
   setViewport: React.Dispatch<React.SetStateAction<Viewport>>;
+  /** 曲线画完请求切回选择工具（避免继续加点造成误触） */
+  onRequestTool?: (tool: Tool) => void;
   tool: Tool;
   color: string;
   lockRadius: boolean;
@@ -91,7 +93,7 @@ type DragState =
 
 export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
-    shapes, setShapes, viewport: v, setViewport, tool, color,
+    shapes, setShapes, viewport: v, setViewport, tool, color, onRequestTool,
     lockRadius, lockedRadius, currentLayer,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
     selectionIds, onSelectionChange, onToggleImageLock, frozen = false,
@@ -486,6 +488,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     setDrag({ kind: "none" });
     const ink = buildCurve(d.points, color, penWidth, d.tangents);
     if (!ink) return;
+    onRequestTool?.("select");
     setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
     onSelect(ink.id);
     onToast?.(`曲线完成：${ink.points.length} 个控制点，拖手柄调曲率`);

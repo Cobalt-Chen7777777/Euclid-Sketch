@@ -23,6 +23,8 @@ export interface SketchSettings {
   snapEnabled: boolean;
   /** 画布：网格密度（世界坐标单位） */
   gridStep: number;
+  /** 工具栏停靠位置 */
+  railPlacement: "left" | "right" | "top" | "bottom";
   /** 迷你条方向 */
   miniOrientation: "h" | "v";
   /** 迷你条显示哪些按钮（顺序即显示顺序） */
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   showTicks: true,
   snapEnabled: true,
   gridStep: 1,
+  railPlacement: "left",
   miniOrientation: "h",
   miniActions: ["point", "line", "circle", "angle", "insert", "copy"],
   debug: false,
@@ -155,6 +158,9 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     showTicks: readBoolean(source.showTicks, DEFAULT_SETTINGS.showTicks),
     snapEnabled: readBoolean(source.snapEnabled, DEFAULT_SETTINGS.snapEnabled),
     gridStep: readNumber(source.gridStep, DEFAULT_SETTINGS.gridStep, 1, 100),
+    railPlacement: (["left", "right", "top", "bottom"] as const).includes(source.railPlacement as never)
+      ? (source.railPlacement as SketchSettings["railPlacement"])
+      : "left",
     miniOrientation: source.miniOrientation === "v" ? "v" : "h",
     miniActions: Array.isArray(source.miniActions)
       ? (source.miniActions as unknown[]).filter((x): x is string => typeof x === "string")

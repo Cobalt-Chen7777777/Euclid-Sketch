@@ -30,6 +30,10 @@ interface Props {
   onPlaceSides: (sides: number) => void;
   penWidth: number;
   onPenWidth: (width: number) => void;
+  /** 撤销栈里还能回退的步数 */
+  historySteps?: number;
+  /** 一次回退多步 */
+  onJumpBack?: (n: number) => void;
   color: string;
   onColor: (color: string) => void;
   shapes: Shape[];
@@ -91,6 +95,7 @@ export function OptionsDrawer(props: Props) {
   const {
     onClose, canvasBg, onCanvasBg,
     placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
+    historySteps = 0, onJumpBack,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
     onToggleDashed, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
@@ -374,6 +379,19 @@ export function OptionsDrawer(props: Props) {
           </div>
           <p className="drawer-hint">点图层名切换「新图形画在哪层」，层次越高越靠上；隐藏后不渲染也不导出，锁定后不可选中与擦除</p>
         </section>
+
+        {/* 历史：回退多步（单步用顶部栏的撤销按钮） */}
+        {onJumpBack && historySteps > 0 ? (
+          <section className="drawer-sec">
+            <h3>历史 <em>{historySteps}</em></h3>
+            <div className="chips">
+              {[1, 5, 10].map((n) => (
+                <button key={n} type="button" className="chip" disabled={historySteps < n}
+                  onClick={() => onJumpBack(n)}>退 {n} 步</button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* 图形列表 */}
         <section className="drawer-sec">

@@ -217,6 +217,21 @@ export function SettingsPage({
               }
             />
             <SettingRow
+              icon={<RulerIcon />}
+              title="工具栏位置"
+              subtitle="左侧竖排 / 左右上下四向停靠"
+              trailing={
+                <Choice
+                  label="位置" value={settings.railPlacement}
+                  options={[
+                    { value: "left", label: "左" }, { value: "right", label: "右" },
+                    { value: "top", label: "上" }, { value: "bottom", label: "下" },
+                  ]}
+                  onChange={(railPlacement) => onChange({ railPlacement: railPlacement as typeof settings.railPlacement })}
+                />
+              }
+            />
+            <SettingRow
               icon={<MinimizeIcon />}
               title="迷你条方向"
               subtitle="收起后浮条的排布"

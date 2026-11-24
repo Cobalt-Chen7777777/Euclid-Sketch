@@ -65,7 +65,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, []);
 
   // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
-  const { commit: setShapes, undo, redo, canUndo, canRedo } = useHistoryShapes(shapes, rawSetShapes);
+  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, jumpBack } = useHistoryShapes(shapes, rawSetShapes);
 
   const [viewport, setViewport] = useState<Viewport>({
     width: VIEW_W,
@@ -424,8 +424,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               setShapes={setShapes}
               viewport={viewport}
               setViewport={setViewport}
-              tool={tool}
-              color={color}
+              tool={tool} onRequestTool={setTool} color={color}
               lockRadius={lockRadius}
               lockedRadius={lockedRadius}
               onLockedRadiusChange={setLockedRadius}
@@ -487,7 +486,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             <ToolRail
               tool={tool}
               placeType={placeType}
-              railTools={settings.railTools}
+              placement={settings.railPlacement} railTools={settings.railTools}
               onParamCreate={(id) => { quickCreate(id); setOptionsOpen(true); }}
               onTool={setTool}
               onPlaceType={setPlaceType}
@@ -525,6 +524,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onPlaceSides={(n) => updateSettings({ polygonSides: n })}
               penWidth={penWidth}
               onPenWidth={(n) => updateSettings({ penWidth: n })}
+              historySteps={historySteps} onJumpBack={jumpBack}
               color={color}
               onColor={onShapeColor}
               shapes={shapes}

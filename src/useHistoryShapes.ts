@@ -22,6 +22,10 @@ interface HistoryApi {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** 还能回退多少步 */
+  historySteps: number;
+  /** 一次回退 n 步（历史面板用） */
+  jumpBack: (n: number) => void;
 }
 
 export function useHistoryShapes(
@@ -36,6 +40,7 @@ export function useHistoryShapes(
 
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [historySteps, setHistorySteps] = useState(0);
 
   // shapesRef 始终指向最新数组，commit 时不依赖渲染时序
   const shapesRef = useRef(shapes);
@@ -44,6 +49,7 @@ export function useHistoryShapes(
   const syncFlags = useCallback(() => {
     setCanUndo(pastRef.current.length > 0);
     setCanRedo(futureRef.current.length > 0);
+    setHistorySteps(pastRef.current.length);
   }, []);
 
   const commit = useCallback<React.Dispatch<React.SetStateAction<Shape[]>>>((updater) => {
@@ -55,7 +61,10 @@ export function useHistoryShapes(
     }
     const before = shapesRef.current;
     const now = Date.now();
-    if (now - lastCommitRef.current > MERGE_MS) {
+    const nextLen = typeof updater === "function" ? updater(before).length : updater.length;
+    // 增删图形属于结构性操作：不参与合并，否则连点几次只留一步
+    const structural = nextLen !== before.length;
+    if (structural || now - lastCommitRef.current > MERGE_MS) {
       pastRef.current = [...pastRef.current.slice(-(MAX_STEPS - 1)), before];
       futureRef.current = [];
     }
@@ -88,7 +97,22 @@ export function useHistoryShapes(
     rawSetShapes(next);
   }, [rawSetShapes, syncFlags]);
 
-  return { commit, undo, redo, canUndo, canRedo };
+  /** 一次回退 n 步：直接裁剪栈，避免连续 undo 因 ref 时序重复入栈 */
+  const jumpBack = useCallback((n: number) => {
+    const past = pastRef.current;
+    if (past.length === 0 || n <= 0) return;
+    const k = Math.min(n, past.length);
+    const target = past[past.length - k];
+    if (!target) return;
+    futureRef.current = [...futureRef.current, ...past.slice(past.length - k + 1), shapesRef.current];
+    pastRef.current = past.slice(0, past.length - k);
+    lastCommitRef.current = 0;
+    lockedRef.current = true;
+    syncFlags();
+    rawSetShapes(target);
+  }, [rawSetShapes, syncFlags]);
+
+  return { commit, undo, redo, canUndo, canRedo, historySteps, jumpBack };
 }
 
 /**
