@@ -197,6 +197,8 @@ export interface AngleShape {
   r: number;
   /** 两条边的长度（等长）；缺省时按标注弧半径推算 */
   len?: number;
+  /** 第二条边长度（缺省时取 len） */
+  len2?: number;
   /** 线型：虚线 */
   dashed?: boolean;
   color: string;

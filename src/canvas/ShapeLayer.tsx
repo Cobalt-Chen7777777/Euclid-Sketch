@@ -18,6 +18,10 @@ interface Props {
   viewport: Viewport;
   /** 高亮（选中）的图形 id */
   highlightId?: string | null;
+  /** 套索多选（画包围盒虚线框） */
+  selectionIds?: string[];
+  /** 套索正在框选的轨迹（世界坐标） */
+  lassoPoints?: Point2[] | null;
   /** 圆规预览圆（草稿预览用，与 previewShape 二选一） */
   preview?: { cx: number; cy: number; r: number } | null;
   /** 拖动绘制/笔迹的实时预览图形 */
@@ -222,6 +226,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const a = shape as AngleShape;
       const { start, span } = drawRange(a);
       const armLen = a.len ?? a.r * 1.3;
+      const armLen2 = a.len2 ?? armLen;
       const at = (ang: number, len = armLen) => toScreen({
         x: a.vx + len * Math.cos(ang),
         y: a.vy + len * Math.sin(ang),
@@ -230,7 +235,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const p1 = at(start, a.r);
       const p2 = at(start + span, a.r);
       const reach1 = at(start, armLen);
-      const reach2 = at(start + span, armLen);
+      const reach2 = at(start + span, armLen2);
       const deg = angleSpanDeg(a);
       const isRight = Math.abs(deg - 90) < 0.6;
       const label = Number.isInteger(Math.round(deg)) ? `${Math.round(deg)}°` : `${deg.toFixed(1)}°`;
@@ -313,7 +318,7 @@ const ShapeNode = memo(function ShapeNode({ shape, v, selected, strokeWidth }: S
 });
 
 const StaticLayer = memo(function StaticLayer({
-  shapes, viewport: v, highlightId,
+  shapes, viewport: v, highlightId, selectionIds, lassoPoints,
   showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
 }: Omit<Props, "preview" | "previewShape">) {
   const coord = shapes.find((s) => s.type === "coord");
@@ -410,6 +415,30 @@ const StaticLayer = memo(function StaticLayer({
         return <circle key={h.id} cx={p.x} cy={p.y} r={isVertex ? 5 : 6}
           fill={isVertex ? "#2563eb" : "#fff"} stroke="#2563eb" strokeWidth={2} />;
       })}
+
+      {/* 套索多选：每个选中图形画包围盒，框选时额外画轨迹（此前完全没有视觉反馈） */}
+      {(selectionIds ?? []).map((id) => {
+        const s0 = shapes.find((x) => x.id === id);
+        if (!s0) return null;
+        const b = shapeBBox(s0);
+        const a = toScreen({ x: b.x1, y: b.y1 }, v);
+        const c2 = toScreen({ x: b.x2, y: b.y2 }, v);
+        return (
+          <rect key={`sel-${id}`} x={Math.min(a.x, c2.x)} y={Math.min(a.y, c2.y)}
+            width={Math.abs(c2.x - a.x)} height={Math.abs(c2.y - a.y)}
+            fill="rgba(37, 99, 235, .10)" stroke="#2563eb" strokeWidth={1.4}
+            strokeDasharray="5 4" pointerEvents="none" />
+        );
+      })}
+      {lassoPoints && lassoPoints.length > 1 ? (
+        <polyline
+          points={lassoPoints.map((pt) => {
+            const sp2 = toScreen(pt, v);
+            return `${sp2.x.toFixed(1)},${sp2.y.toFixed(1)}`;
+          }).join(" ")}
+          fill="rgba(37, 99, 235, .08)" stroke="#2563eb" strokeWidth={1.5}
+          strokeDasharray="6 4" pointerEvents="none" />
+      ) : null}
     </>
   );
 });

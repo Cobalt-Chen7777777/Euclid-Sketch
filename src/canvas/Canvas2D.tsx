@@ -552,7 +552,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           shapes={shapes}
           viewport={v}
           highlightId={selectedId}
-                  previewShape={previewShape}
+          selectionIds={selectionIds}
+          lassoPoints={drag.kind === "lasso" ? drag.points : null}
+          previewShape={previewShape}
           showGrid={options.showGrid}
           showTicks={options.showTicks}
           gridStep={options.gridStep}
