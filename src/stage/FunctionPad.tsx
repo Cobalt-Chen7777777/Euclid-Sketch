@@ -23,7 +23,7 @@ const FN_KEYS: [string, string][] = [
   ["sin", "sin("], ["cos", "cos("], ["tan", "tan("],
   ["asin", "asin("], ["acos", "acos("], ["atan", "atan("],
   ["ln", "ln("], ["log", "log("], ["exp", "exp("],
-  ["√", "sqrt("], ["abs", "abs("], ["x²", "^2"],
+  ["√", "sqrt("], ["abs", "abs("], ["|x|", "|x|"], ["x²", "^2"],
   ["π", "π"], ["e", "e"], ["°", "°"],
   ["rad", " rad"], ["1/x", "1/("],
 ];
@@ -42,6 +42,7 @@ const SYMBOL_MAP: Record<string, string> = { "÷": "/", "×": "*", "−": "-" };
 function curveLabel(s: Shape): string {
   if (s.type === "function") return `f(x) = ${s.expr}`;
   if (s.type === "parametric") return `x=${s.xExpr}, y=${s.yExpr}`;
+  if (s.type === "implicit") return `方程 ${s.source ?? s.expr}`;
   const src = "source" in s ? s.source : undefined;
   return src || (s.type === "circle" ? "圆（公式）" : "椭圆（公式）");
 }

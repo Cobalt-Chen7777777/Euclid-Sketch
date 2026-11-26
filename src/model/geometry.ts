@@ -4,7 +4,8 @@
  */
 import { angleHandles, angleHitTest } from "./angle";
 import { sampleCurve } from "./curve";
-import type { ImageShape } from "./types";
+import { sampleImplicit } from "./implicit";
+import type { ImageShape, ImplicitShape } from "./types";
 import { imageHandles, imageHitTest } from "./image";
 import { polyHandles, polyHitTest } from "./poly";
 import type {
@@ -241,6 +242,10 @@ export function hitTest(shape: Shape, world: Point2, tol: number): boolean {
       const pts = ink.smooth && ink.tangents ? sampleCurve(ink.points, ink.tangents) : ink.points;
       if (pts.length === 1) return dist(world, pts[0]!) <= tol;
       return pts.some((p, i) => i > 0 && distToSegment(world, pts[i - 1]!, p) <= tol);
+    }
+    case "implicit": {
+      const segs = sampleImplicit(shape as ImplicitShape);
+      return segs.some(([a, b]) => distToSegment(world, a, b) <= tol);
     }
     default:
       return false;

@@ -60,6 +60,25 @@ export interface ParametricShape {
   color: string;
 }
 
+/**
+ * 隐函数：任意形如 F(x,y)=0 的方程（xy=1、x^2+y^2=1、x^3+y^3-3xy=0 ……）。
+ * 存储的是已归一的 F 表达式，渲染时在 xRange × yRange 的方框内用菱形方格采样成折线，
+ * 所以缩放后线条仍然是连续的，只是分辨率固定。
+ */
+export interface ImplicitShape {
+  id: string;
+  type: "implicit";
+  /** 已归一为 F(x,y)=0 的表达式，如 "xy-1"、"x^2+y^2-1" */
+  expr: string;
+  xRange: Range;
+  yRange: Range;
+  /** 公式来源（由函数面板绘制时写入） */
+  source?: string;
+  /** 线型：虚线 */
+  dashed?: boolean;
+  color: string;
+}
+
 export interface PointShape {
   id: string;
   type: "point";
@@ -259,6 +278,7 @@ export type Shape = (
   | RayShape
   | FunctionShape
   | ParametricShape
+  | ImplicitShape
   | PointShape
   | LineShape
   | InkShape

@@ -168,6 +168,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     specialAngleSnap: settings.specialAngleSnap,
     dashStyle: settings.dashStyle,
     allowTouchDraw: settings.allowTouchDraw,
+    palmReject: settings.palmReject,
   }), [settings]);
 
   // 面板尺寸记忆与收起/关闭（右下角把手拖动缩放）

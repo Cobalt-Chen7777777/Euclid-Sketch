@@ -297,6 +297,18 @@ export function SettingsPage({
                 />
               }
             />
+            <SettingRow
+              icon={<MagnetIcon />}
+              title="手掌防误触"
+              subtitle="忽略大面积接触、笔在位时落下的手指，以及点一下就走的极短笔迹"
+              trailing={
+                <Toggle
+                  checked={settings.palmReject}
+                  label="手掌防误触"
+                  onChange={(palmReject) => onChange({ palmReject })}
+                />
+              }
+            />
           </SettingsGroup>
         </>
       ) : null}

@@ -33,6 +33,8 @@ export interface SketchSettings {
   debug: boolean;
   /** 手指触控作图：关闭后只有 Apple Pencil / 鼠标能画图（双指平移缩放保留） */
   allowTouchDraw: boolean;
+  /** 手掌防误触：忽略大接触面积、笔在位时的手指，以及误触产生的极短笔迹 */
+  palmReject: boolean;
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
   /** 工具栏显示的工具按钮（顺序即显示顺序） */
@@ -71,6 +73,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   miniActions: ["point", "line", "circle", "angle", "insert", "copy", "expand"],
   debug: false,
   allowTouchDraw: true,
+  palmReject: true,
   dashStyle: false,
   railTools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "image"],
   railPresets: [
@@ -178,6 +181,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     miniActions: readMiniActions(source.miniActions, DEFAULT_SETTINGS.miniActions),
     debug: readBoolean(source.debug, DEFAULT_SETTINGS.debug),
     allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
+    palmReject: readBoolean(source.palmReject, DEFAULT_SETTINGS.palmReject),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),
     railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
     railPresets: readRailPresets(source.railPresets, DEFAULT_SETTINGS.railPresets),

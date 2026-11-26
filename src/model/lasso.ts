@@ -36,6 +36,12 @@ export function shapeBBox(shape: Shape): BBox {
       push(Math.min(a, b) - 1, -4); push(Math.max(a, b) + 1, 4);
       break;
     }
+    case "implicit": {
+      const [x0, x1] = shape.xRange;
+      const [y0, y1] = shape.yRange;
+      push(x0, y0); push(x1, y1);
+      break;
+    }
     case "angle": {
       const reach = 2 * shape.r;
       for (const a of [shape.a1, shape.a2]) {

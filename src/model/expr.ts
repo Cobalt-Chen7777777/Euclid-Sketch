@@ -21,7 +21,8 @@ type Token =
   | { t: "id"; v: string }
   | { t: "op"; v: string }
   | { t: "lp" }
-  | { t: "rp" };
+  | { t: "rp" }
+  | { t: "bar" };
 
 const FUNCTIONS: Record<string, (x: number) => number> = {
   sin: Math.sin, cos: Math.cos, tan: Math.tan,
@@ -58,6 +59,8 @@ function tokenize(src: string): Token[] {
     }
     if (c === "(") { out.push({ t: "lp" }); i++; continue; }
     if (c === ")") { out.push({ t: "rp" }); i++; continue; }
+    // 竖线：绝对值，|x+1|；成对解析，嵌套请写 abs(abs(x))
+    if (c === "|") { out.push({ t: "bar" }); i++; continue; }
     if ("+-*/^".includes(c)) { out.push({ t: "op", v: c }); i++; continue; }
     throw new Error(`不支持的字符 ${c}`);
   }
@@ -67,6 +70,8 @@ function tokenize(src: string): Token[] {
 /** 递归下降语法分析，产出 AST（闭包形式） */
 function parse(tokens: Token[]): EvalFn {
   let pos = 0;
+  // 正在解析 |…| 内部：此时竖线是结束符，不能再当隐式乘法的起点（否则 2|x| 会吃掉右竖线）
+  let barDepth = 0;
   const peek = (): Token | undefined => tokens[pos];
   const eat = (): Token | undefined => tokens[pos++];
 
@@ -95,8 +100,8 @@ function parse(tokens: Token[]): EvalFn {
         const right = unary();
         const l = left, r = right, mul = tk.v === "*";
         left = mul ? (s) => l(s) * r(s) : (s) => l(s) / r(s);
-      } else if (tk?.t === "id" || tk?.t === "num" || tk?.t === "lp") {
-        // 隐式乘法：2x、x(y+1)、3sin(x)
+      } else if (tk?.t === "id" || tk?.t === "num" || tk?.t === "lp" || (tk?.t === "bar" && barDepth === 0)) {
+        // 隐式乘法：2x、x(y+1)、3sin(x)、2|x|
         const right = unary();
         const l = left, r = right;
         left = (s) => l(s) * r(s);
@@ -141,6 +146,14 @@ function parse(tokens: Token[]): EvalFn {
       const close = eat();
       if (close?.t !== "rp") throw new Error("缺少右括号");
       return inner;
+    }
+    if (tk.t === "bar") {
+      barDepth++;
+      const inner = expr();
+      barDepth--;
+      const close = eat();
+      if (close?.t !== "bar") throw new Error("绝对值缺少配对的 |");
+      return (s) => Math.abs(inner(s));
     }
     if (tk.t === "id") {
       const fn = FUNCTIONS[tk.v];

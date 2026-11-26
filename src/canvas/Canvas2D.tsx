@@ -16,6 +16,7 @@ import type { InkShape, Point2, PrimitiveType, Shape } from "../model/types";
 import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
+import { isPalmTouch, isStrayInk } from "./palmGuard";
 import {
   fitViewport,
   panRange,
@@ -46,6 +47,8 @@ export interface CanvasOptions {
   dashStyle: boolean;
   /** 手指触控作图：关闭后手指不能画图（双指平移缩放保留），仅 Apple Pencil / 鼠标可作图 */
   allowTouchDraw: boolean;
+  /** 手掌防误触：忽略大接触面积、笔在位时的手指、以及误触产生的极短笔迹 */
+  palmReject: boolean;
 }
 
 interface Props {
@@ -89,7 +92,7 @@ type DragState =
   | { kind: "lasso"; points: Point2[] }
   | { kind: "handle"; id: string; handle: Handle }
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
-  | { kind: "ink"; points: Point2[] }
+  | { kind: "ink"; points: Point2[]; startedAt: number; pointerType: string }
   | { kind: "curve"; points: Point2[]; tangents: (Point2 | undefined)[] }
   | { kind: "angleArm2"; v: Point2; arm1: Point2; current: Point2 }
   | { kind: "erase" }
@@ -111,6 +114,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const finishCurveRef = useRef<((keepTool?: boolean) => void) | null>(null);
   const pointers = useRef<Map<number, Point2>>(new Map());
   const pinch = useRef<{ dist: number; center: Point2 } | null>(null);
+  /** 笔是否正在屏幕上（用于笔优先：笔在位时忽略手指） */
+  const penActive = useRef(false);
+  /** 笔最后一次抬起的时间（毫秒），用于「笔刚抬起、虎口还在屏上」的窗口期 */
+  const lastPenAt = useRef(0);
 
 
   // WKWebView 里只有非 passive 的 touchstart 才能拦住宿主原生手势（拖窗口/滚动）。
@@ -252,6 +259,15 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     // preventDefault 让这次触摸不被宿主的原生手势接管，stopPropagation 断掉冒泡。
     e.preventDefault();
     e.stopPropagation();
+
+    // 笔优先与手掌防误触：在登记指针之前判定，避免手掌被算进「双指手势」
+    if (e.pointerType === "pen") {
+      penActive.current = true;
+      lastPenAt.current = Date.now();
+    } else if (isPalmTouch(e, { active: penActive.current, lastAt: lastPenAt.current }, options.palmReject)) {
+      return;
+    }
+
     // 捕获挂在 svg 本身：捕获在子节点上时，预览重渲染可能把节点换掉导致捕获丢失
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const sp = localPoint(e);
@@ -311,7 +327,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
 
     if (tool === "pen") {
-      setDrag({ kind: "ink", points: [worldRaw] });
+      setDrag({ kind: "ink", points: [worldRaw], startedAt: Date.now(), pointerType: e.pointerType });
       return;
     }
 
@@ -483,6 +499,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size < 2) pinch.current = null;
+    // 笔离屏：开始计算虎口误触窗口期
+    if (e.pointerType === "pen") { penActive.current = false; lastPenAt.current = Date.now(); }
 
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
@@ -511,7 +529,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         onSelect(styled.id);
       }
     } else if (drag.kind === "ink") {
-      if (drag.points.length >= 1) {
+      // 手指误触产生的极短笔迹（点一下就抬、屏幕位移极小）直接丢弃，不落到画布上
+      const stray = options.palmReject && isStrayInk(drag, v);
+      if (!stray && drag.points.length >= 1) {
         const ink: InkShape = {
           id: newId("ink"), type: "ink",
           points: options.inkSmoothing ? smoothPoints(drag.points) : drag.points,

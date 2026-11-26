@@ -8,6 +8,7 @@ import { useRenderAudit } from "./useRenderAudit";
 const reportedInk = new Set<string>();
 import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
+import { sampleImplicit } from "../model/implicit";
 import { getHandles, polygonPoints } from "../model/geometry";
 import { isVisible, sortForRender } from "../model/layers";
 import { shapeBBox } from "../model/lasso";
@@ -58,6 +59,18 @@ function pathFromPoints(points: { x: number; y: number }[], v: Viewport): string
     penDown = true;
   }
   return d.trim();
+}
+
+/** 隐函数：一串独立短线段，逐段 M…L…（不做首尾连接） */
+function pathFromSegments(segs: [Point2, Point2][], v: Viewport): string {
+  let d = "";
+  for (const [a, b] of segs) {
+    const sa = toScreen(a, v);
+    const sb = toScreen(b, v);
+    if (!Number.isFinite(sa.x) || !Number.isFinite(sa.y) || !Number.isFinite(sb.x) || !Number.isFinite(sb.y)) continue;
+    d += `M${sa.x.toFixed(1)},${sa.y.toFixed(1)}L${sb.x.toFixed(1)},${sb.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 /** 绘制中的实时参数：按图形类型给出最有用的数值 */
@@ -314,6 +327,10 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     case "parametric": {
       const pts = sampleParametric(shape, 360);
       return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
+    }
+    case "implicit": {
+      const segs = sampleImplicit(shape);
+      return <path d={pathFromSegments(segs, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} strokeLinecap="round" />;
     }
     default:
       return null;

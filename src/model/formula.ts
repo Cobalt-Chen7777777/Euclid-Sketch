@@ -10,7 +10,7 @@
  */
 import { compileExpr, type EvalFn } from "./expr";
 
-import type { CircleShape, EllipseShape, FunctionShape, ParametricShape, Point2, Shape } from "./types";
+import type { CircleShape, EllipseShape, FunctionShape, ImplicitShape, ParametricShape, Point2, Shape } from "./types";
 import { newId, PALETTE } from "./types";
 
 export type ParseResult =
@@ -18,19 +18,25 @@ export type ParseResult =
   | { kind: "ellipse"; shape: EllipseShape }
   | { kind: "function"; shape: FunctionShape }
   | { kind: "parametric"; shape: ParametricShape }
+  | { kind: "implicit"; shape: ImplicitShape }
   | { kind: "error"; message: string };
 
-/** 将常见数学写法规范化为 mathjs 可解析形式 */
+/** 将常见数学写法规范化为可解析形式 */
 function normalize(input: string): string {
   return input
     .replace(/[×·]/g, "*")
     .replace(/[÷]/g, "/")
     .replace(/[−–—]/g, "-")
+    // 上标：从微信/网页复制来的 x²+y²=1 也要认
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
     .replace(/（/g, "(")
     .replace(/）/g, ")")
     .replace(/\[/g, "(")
     .replace(/\]/g, ")")
     .replace(/\s+/g, "")
+    // xy 这类连写按隐式乘法拆开（expx 里的 x 后面不是字母，不会误伤）
+    .replace(/([xy])(?=[xy])/g, "$1*")
     .replace(/\^/g, "^");
 }
 
@@ -166,6 +172,38 @@ function tryParametric(raw: string, color: string): ParametricShape | null {
   };
 }
 
+/**
+ * 解析隐函数：任意 F(x,y)=0。
+ * 圆的方程与椭圆方程在上面已经单独认出来了（它们还能给出圆心半径等参数），
+ * 走到这里的都是没有显式解的方程：xy=1、x^3+y^3-3xy=0、x^2=4（两条竖直线）。
+ */
+function tryImplicit(raw: string, color: string): ImplicitShape | null {
+  const s = normalize(raw);
+  const eq = s.indexOf("=");
+  if (eq <= 0) return null;
+  const lhs = s.slice(0, eq);
+  const rhs = s.slice(eq + 1);
+  if (!lhs || !rhs) return null;
+  // y=f(x) 与 f(x)=... 交给 tryFunction
+  if (lhs === "y" || /^f\(/.test(lhs)) return null;
+  const expr = `(${lhs})-(${rhs})`;
+  if (!/[xy]/.test(expr)) return null;
+  try {
+    safeCompile(expr);
+  } catch {
+    return null;
+  }
+  return {
+    id: newId("implicit"),
+    type: "implicit",
+    expr,
+    xRange: [-10, 10],
+    yRange: [-10, 10],
+    source: raw.trim(),
+    color,
+  };
+}
+
 /** 解析函数 y=f(x) */
 function tryFunction(raw: string, color: string): FunctionShape | null {
   const s = normalize(raw).replace(/^y=/i, "");
@@ -199,6 +237,9 @@ export function parseFormula(input: string, color: string = PALETTE[0] ?? "#2563
 
   const ellipse = tryEllipse(raw, color);
   if (ellipse) return { kind: "ellipse", shape: ellipse };
+
+  const implicit = tryImplicit(raw, color);
+  if (implicit) return { kind: "implicit", shape: implicit };
 
   const fn = tryFunction(raw, color);
   if (fn) return { kind: "function", shape: fn };
@@ -286,7 +327,7 @@ export function sampleCircle(shape: CircleShape, samples = 120): Point2[] {
  * （手动拖出的圆、椭圆不带 source，清除函数时不能误删）。
  */
 export function isFormulaShape(shape: Shape): boolean {
-  if (shape.type === "function" || shape.type === "parametric") return true;
+  if (shape.type === "function" || shape.type === "parametric" || shape.type === "implicit") return true;
   if (shape.type === "circle" || shape.type === "ellipse") {
     return typeof shape.source === "string" && shape.source.length > 0;
   }
