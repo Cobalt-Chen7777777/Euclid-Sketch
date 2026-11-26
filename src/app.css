@@ -1367,7 +1367,19 @@ a.set-row {
 .cache-msg { color: #0f7b5f; }
 .chip.danger { color: #b42318; border-color: rgba(180, 35, 24, .35); }
 .hist-snaps { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; }
-.hist-snap-title { margin: 0; padding: 6px 12px 2px; font-size: 11px; color: var(--muted); }
+.hist-snap-title {
+  margin: 0;
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hist-head-actions { display: flex; align-items: center; gap: 6px; }
+/* 快照行多一个删除按钮：span / em / 恢复 / 删除 */
+.hist-list li.hist-snap-row { grid-template-columns: 96px 1fr auto auto; }
 
 :root[data-mode="mini"] body {
   overflow: visible;

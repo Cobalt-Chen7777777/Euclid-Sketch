@@ -13,8 +13,8 @@ import { logEvent } from "./debug/log";
 
 import type { Shape } from "./model/types";
 
-const MERGE_MS = 700;
-const MAX_STEPS = 150;
+const MERGE_MS = 400;
+const MAX_STEPS = 400;
 
 interface HistoryApi {
   /** 包装后的 setShapes：所有会改图形的操作都走它 */
@@ -29,6 +29,8 @@ interface HistoryApi {
   jumpBack: (n: number) => void;
   /** 历史摘要：步号 + 该步的图形数量（供弹窗列表展示） */
   historyList: { step: number; count: number }[];
+  /** 清空本次会话的撤销记录（已画的内容保留） */
+  clearHistory: () => void;
 }
 
 export function useHistoryShapes(
@@ -118,7 +120,15 @@ export function useHistoryShapes(
     rawSetShapes(target);
   }, [rawSetShapes, syncFlags]);
 
-  return { commit, undo, redo, canUndo, canRedo, historySteps, jumpBack, historyList };
+  /** 清空撤销记录：画布内容保持不动，只是不再能回退 */
+  const clearHistory = useCallback(() => {
+    pastRef.current = [];
+    futureRef.current = [];
+    lastCommitRef.current = 0;
+    syncFlags();
+  }, [syncFlags]);
+
+  return { commit, undo, redo, canUndo, canRedo, historySteps, jumpBack, historyList, clearHistory };
 }
 
 /**

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import { pushSnapshot, saveDoc } from "./io/autosave";
 
-export { loadDoc, listSnapshots } from "./io/autosave";
+export { clearSnapshots, loadDoc, listSnapshots, removeSnapshot } from "./io/autosave";
 import type { SketchDocument } from "./model/types";
 
 export function useDocAutosave(doc: SketchDocument) {

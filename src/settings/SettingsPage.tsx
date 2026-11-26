@@ -8,7 +8,7 @@ import { checkUpdate, type UpdateAsset } from "../update";
 import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
-import { MINI_ACTIONS } from "../PanelHeader";
+import { MINI_ACTIONS, MINI_REQUIRED_ACTIONS } from "../PanelHeader";
 import { CacheSection } from "./CacheSection";
 import { DebugSection } from "./DebugSection";
 import { RailCustomizer } from "./RailCustomizer";
@@ -251,14 +251,20 @@ export function SettingsPage({
                 <small>点选后按此顺序显示</small>
                 <span className="chips">
                   {MINI_ACTIONS.map((a) => {
-                    const on = settings.miniActions.includes(a.id);
+                    const required = MINI_REQUIRED_ACTIONS.includes(a.id);
+                    const on = required || settings.miniActions.includes(a.id);
                     return (
                       <button key={a.id} type="button" className={`chip${on ? " on" : ""}`}
-                        onClick={() => onChange({
-                          miniActions: on
-                            ? settings.miniActions.filter((x) => x !== a.id)
-                            : [...settings.miniActions, a.id],
-                        })}>{a.label.replace("快速", "")}</button>
+                        disabled={required}
+                        title={required ? "固定保留：收起后靠它才打得开面板" : undefined}
+                        onClick={() => {
+                          if (required) return;
+                          onChange({
+                            miniActions: on
+                              ? settings.miniActions.filter((x) => x !== a.id)
+                              : [...settings.miniActions, a.id],
+                          });
+                        }}>{a.label.replace("快速", "")}</button>
                     );
                   })}
                 </span>

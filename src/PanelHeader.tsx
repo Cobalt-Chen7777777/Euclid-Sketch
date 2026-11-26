@@ -6,10 +6,13 @@
  */
 import {
   AngleIcon, BrandIcon, CircleToolIcon, CloseIcon, CopyIcon,
-  ExpandIcon, ImageIcon, LineToolIcon, MinimizeIcon, PointToolIcon,
+  ExpandIcon, GearIcon, HistoryIcon, ImageIcon, LineToolIcon, MinimizeIcon, PointToolIcon, SigmaIcon,
 } from "./icons";
 
-/** 迷你条可放的动作清单（设置页勾选顺序即显示顺序） */
+/**
+ * 迷你条可放的动作清单（设置页勾选顺序即显示顺序）。
+ * expand 是必选项：收起后只能从这里展开，删掉就再也打不开面板了。
+ */
 export const MINI_ACTIONS: { id: string; label: string; Icon: typeof PointToolIcon }[] = [
   { id: "point", label: "快速画点", Icon: PointToolIcon },
   { id: "line", label: "快速画线段", Icon: LineToolIcon },
@@ -17,9 +20,15 @@ export const MINI_ACTIONS: { id: string; label: string; Icon: typeof PointToolIc
   { id: "angle", label: "快速画角度", Icon: AngleIcon },
   { id: "insert", label: "插入卡片图", Icon: ImageIcon },
   { id: "copy", label: "复制草图", Icon: CopyIcon },
+  { id: "calc", label: "打开计算器", Icon: SigmaIcon },
+  { id: "history", label: "打开历史记录", Icon: HistoryIcon },
+  { id: "settings", label: "打开设置", Icon: GearIcon },
   { id: "expand", label: "展开面板", Icon: ExpandIcon },
   { id: "close", label: "关闭插件窗口", Icon: CloseIcon },
 ];
+
+/** 不允许取消的迷你条按钮：少了它收起后就打不开面板 */
+export const MINI_REQUIRED_ACTIONS = ["expand"];
 
 export type PanelView = "canvas" | "settings";
 
@@ -42,6 +51,12 @@ interface Props {
   onQuickCopy?: () => void;
   /** 迷你条快捷：把当前目标卡插进画布 */
   onQuickInsert?: () => void;
+  /** 迷你条快捷：打开计算器 */
+  onQuickCalc?: () => void;
+  /** 迷你条快捷：打开历史记录 */
+  onQuickHistory?: () => void;
+  /** 迷你条快捷：打开设置 */
+  onQuickSettings?: () => void;
   /** 迷你条方向 */
   orientation?: "h" | "v";
   /** 迷你条显示的动作 id 列表（顺序即显示顺序） */
@@ -50,6 +65,7 @@ interface Props {
 
 export function PanelHeader({
   view, onViewChange, onCollapse, onExpand, onClose, onQuickShape, onQuickCopy, onQuickInsert,
+  onQuickCalc, onQuickHistory, onQuickSettings,
   orientation = "h", actions = ["point", "line", "circle", "angle", "insert", "copy", "expand", "close"],
 }: Props) {
   return (
@@ -58,12 +74,15 @@ export function PanelHeader({
         <span className="brand-badge" aria-hidden="true"><BrandIcon size={13} /></span>
         <span className="mini-divider" aria-hidden="true" />
         {orientation === "v" ? null : <span className="mini-title">Euclid Sketch</span>}
-        {MINI_ACTIONS.filter((a) => actions.includes(a.id)).map((a) => {
+        {MINI_ACTIONS.filter((a) => actions.includes(a.id) || MINI_REQUIRED_ACTIONS.includes(a.id)).map((a) => {
           const run = () => {
             if (a.id === "expand") return onExpand();
             if (a.id === "close") return onClose();
             if (a.id === "insert") return onQuickInsert?.();
             if (a.id === "copy") return onQuickCopy?.();
+            if (a.id === "calc") return onQuickCalc?.();
+            if (a.id === "history") return onQuickHistory?.();
+            if (a.id === "settings") return onQuickSettings?.();
             onQuickShape?.(a.id);
           };
           return (

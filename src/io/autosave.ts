@@ -63,3 +63,23 @@ export function pushSnapshot(doc: SketchDocument) {
     // 忽略
   }
 }
+
+/** 删掉一条快照（历史记录弹窗里的「删除」） */
+export function removeSnapshot(ts: number): Snapshot[] {
+  try {
+    const next = listSnapshots().filter((s) => s.ts !== ts);
+    localStorage.setItem(SNAP_KEY, JSON.stringify(next));
+    return next;
+  } catch {
+    return listSnapshots();
+  }
+}
+
+/** 清空全部快照 */
+export function clearSnapshots(): void {
+  try {
+    localStorage.removeItem(SNAP_KEY);
+  } catch {
+    // 忽略
+  }
+}

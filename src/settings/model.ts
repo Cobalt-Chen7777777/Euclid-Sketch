@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   gridStep: 1,
   railPlacement: "left",
   miniOrientation: "h",
-  miniActions: ["point", "line", "circle", "angle", "insert", "copy"],
+  miniActions: ["point", "line", "circle", "angle", "insert", "copy", "expand"],
   debug: false,
   allowTouchDraw: true,
   dashStyle: false,
@@ -140,6 +140,19 @@ function readTheme(raw: unknown, fallback: ThemeMode): ThemeMode {
   return raw === "light" || raw === "dark" || raw === "auto" ? raw : fallback;
 }
 
+/**
+ * 迷你条按钮：去重，并强制保留 expand。
+ * 收起态只能从迷你条展开，缺了它面板就再也打不开——旧数据里被删过也要补回来。
+ */
+function readMiniActions(raw: unknown, fallback: string[]): string[] {
+  const list = Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === "string")
+    : fallback;
+  const deduped = [...new Set(list)];
+  if (!deduped.includes("expand")) deduped.push("expand");
+  return deduped.length > 0 ? deduped : fallback;
+}
+
 function readCanvasBg(raw: unknown, fallback: CanvasBg): CanvasBg {
   return raw === "blank" || raw === "coord" ? raw : fallback;
 }
@@ -162,9 +175,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
       ? (source.railPlacement as SketchSettings["railPlacement"])
       : "left",
     miniOrientation: source.miniOrientation === "v" ? "v" : "h",
-    miniActions: Array.isArray(source.miniActions)
-      ? (source.miniActions as unknown[]).filter((x): x is string => typeof x === "string")
-      : DEFAULT_SETTINGS.miniActions,
+    miniActions: readMiniActions(source.miniActions, DEFAULT_SETTINGS.miniActions),
     debug: readBoolean(source.debug, DEFAULT_SETTINGS.debug),
     allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),

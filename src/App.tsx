@@ -68,7 +68,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, []);
 
   // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
-  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, historyList, jumpBack } = useHistoryShapes(shapes, rawSetShapes);
+  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, historyList, jumpBack, clearHistory } = useHistoryShapes(shapes, rawSetShapes);
 
   const [viewport, setViewport] = useState<Viewport>({
     width: VIEW_W,
@@ -390,9 +390,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onQuickShape={(kind) => { onExpand(); quickCreate(kind); setOptionsOpen(true); }}
         onQuickCopy={() => { void onCopyPng(); }}
         onQuickInsert={() => { void onImportCardImage(); }}
+        onQuickCalc={() => { onExpand(); setView("canvas"); setTab("fn"); }}
+        onQuickHistory={() => { onExpand(); setHistOpen(true); }}
+        onQuickSettings={() => { onExpand(); setView("settings"); }}
       />
 
-      <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} />
+      <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} onClearHistory={clearHistory} />
       {toast ? <div className="toast" role="status">{toast}</div> : null}
       <ImagePreviewLayer src={preview?.src ?? null} reason={preview?.reason} onClose={closePreview} onExport={() => { void onExportPng(); }} />
       {/* 窗口拖动缩放中：尺寸预览 HUD（拖动期间不调宿主接口，松手才生效） */}

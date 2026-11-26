@@ -1,10 +1,16 @@
 /**
  * 历史记录：顶部栏的按钮 + 覆盖面板的弹窗。
  * 弹窗必须挂在面板根（.panel）而不是顶部栏里——顶部栏有 transform，会让 fixed/absolute 的定位基准缩小。
+ *
+ * 两段：
+ *   - 撤销步骤：本次会话的操作链，只能整段清空（步骤是链式的，删中间一段会让前后对不上）
+ *   - 关闭前快照：整份存档，可单独恢复或删除
  */
+import { useState } from "react";
+
 import { HistoryIcon } from "../icons";
 import type { SketchDocument } from "../model/types";
-import { listSnapshots } from "../useDocAutosave";
+import { clearSnapshots, listSnapshots, removeSnapshot } from "../useDocAutosave";
 
 interface ButtonProps {
   count: number;
@@ -32,18 +38,45 @@ interface DialogProps {
   onJump: (n: number) => void;
   onClose: () => void;
   onRestore: ((doc: SketchDocument) => void) | undefined;
+  /** 清空本次会话的撤销步骤（画布内容不变） */
+  onClearHistory?: () => void;
+  /** 清空「关闭前快照」 */
+  onClearSnapshots?: () => void;
 }
 
-export function HistoryDialog({ open, list, currentCount, onJump, onClose, onRestore }: DialogProps) {
+export function HistoryDialog({
+  open, list, currentCount, onJump, onClose, onRestore, onClearHistory, onClearSnapshots,
+}: DialogProps) {
+  // 删除快照后强制重渲染（快照存在 localStorage，不在 React 状态里）
+  const [, setTick] = useState(0);
   if (!open) return null;
   const snaps = listSnapshots();
+
+  const dropSnapshot = (ts: number) => {
+    removeSnapshot(ts);
+    setTick((n) => n + 1);
+  };
+
+  const wipeSnapshots = () => {
+    clearSnapshots();
+    onClearSnapshots?.();
+    setTick((n) => n + 1);
+  };
 
   return (
     <div className="hist-mask" onClick={onClose}>
       <div className="hist-panel" onClick={(e) => e.stopPropagation()}>
         <div className="hist-head">
           <b>历史记录</b>
-          <button type="button" className="chip" onClick={onClose}>关闭</button>
+          <span className="hist-head-actions">
+            {list.length > 0 && onClearHistory ? (
+              <button type="button" className="chip danger" onClick={() => {
+                onClearHistory();
+                onClose();
+              }}>清空步骤</button>
+            ) : null}
+            <button type="button" className="chip" onClick={onClose}>关闭</button>
+          </span>
         </div>
 
         <ol className="hist-list">
@@ -67,13 +100,18 @@ export function HistoryDialog({ open, list, currentCount, onJump, onClose, onRes
 
         {snaps.length > 0 ? (
           <div className="hist-snaps">
-            <p className="hist-snap-title">上次关闭前的画布{snaps.length > 10 ? `（最近 10 份 / 共 ${snaps.length} 份）` : ""}</p>
+            <p className="hist-snap-title">
+              上次关闭前的画布（共 {snaps.length} 份）
+              <button type="button" className="chip danger" onClick={wipeSnapshots}>全部删除</button>
+            </p>
             <ul className="hist-list">
-              {snaps.slice(0, 10).map((s) => (
-                <li key={s.ts}>
-                  <span>{new Date(s.ts).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).replace("/", "/")}</span>
+              {snaps.map((s) => (
+                <li key={s.ts} className="hist-snap-row">
+                  <span>{new Date(s.ts).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                   <em>{s.count} 个图形</em>
                   <button type="button" className="chip" onClick={() => { onRestore?.(s.doc); onClose(); }}>恢复</button>
+                  <button type="button" className="chip danger" aria-label="删除这份存档" title="删除这份存档"
+                    onClick={() => dropSnapshot(s.ts)}>删除</button>
                 </li>
               ))}
             </ul>
