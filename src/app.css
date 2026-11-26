@@ -17,7 +17,7 @@
   --tick-text: #8a8377;
   --tip-fill: #b45309;
   --tip-stroke: #ffffff;
-  --chrome: rgba(255, 254, 251, .96);
+  --chrome: #fffefb;
   --chrome-soft: rgba(255, 254, 251, .90);
   /* Liquid Glass：低负载玻璃材质（仅浮层，blur 半径保守，无动画） */
   --glass: rgba(255, 254, 251, .58);
@@ -316,7 +316,7 @@ button.with-icon svg { flex: none; }
 .tabbar.sub button.active { background: var(--pill); color: var(--ink); box-shadow: none; }
 
 /* ---------- 设置页（版式参考 CardLink） ---------- */
-.settings-page { display: grid; gap: 10px; padding-bottom: 6px; }
+.settings-page { display: grid; gap: 10px; padding-bottom: 72px; }
 
 .page-head { padding: 2px 2px 0; }
 .page-head h1 { margin: 0; font-size: 16px; }
@@ -560,7 +560,7 @@ button.with-icon svg { flex: none; }
   --tick-text: #bdb5a7;
   --tip-fill: #fbbf24;
   --tip-stroke: #1f1d1a;
-  --chrome: rgba(40, 37, 33, .97);
+  --chrome: #282521;
   --chrome-soft: rgba(40, 37, 33, .92);
   --tint: #1e2a44;
   --tint-ink: #9dbcff;
