@@ -45,13 +45,18 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
 
     const n = Math.max(1, count);
     const long = Math.min(MAX_LONG, n * BTN + (n - 1) * GAP + PAD + EDGE + BADGE);
-    const short = Math.min(MAX_SHORT, BTN + PAD + EDGE);
+
+    // 横向按钮多于 4 个时改成两行，避免宽度被宿主裁剪后又要横向滑动
+    const perRow = vertical ? n : Math.min(n, n <= 4 ? 4 : Math.ceil(n / 2));
+    const rowW = perRow * BTN + (perRow - 1) * GAP + PAD + EDGE + BADGE;
+    const rows = vertical ? 1 : Math.ceil(n / perRow);
+    const w = vertical ? Math.min(MAX_SHORT, BTN + PAD + EDGE) : Math.min(MAX_LONG, rowW);
+    const h = vertical ? long : Math.min(MAX_SHORT, rows * BTN + (rows - 1) * 6 + PAD + EDGE);
 
     // 等宿主切完 mini 标记再改尺寸，避免和它的布局动画打架
     const timer = setTimeout(() => {
-      if (vertical) api.size?.(short, long);
-      else api.size?.(long, short);
-      logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 → ${vertical ? `${short}×${long}` : `${long}×${short}`}`);
+      api.size?.(w, h);
+      logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 ${rows} 行 → ${w}×${h}`);
     }, 320);
 
     return () => clearTimeout(timer);

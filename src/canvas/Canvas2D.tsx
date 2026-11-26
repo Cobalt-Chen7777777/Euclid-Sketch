@@ -103,6 +103,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   // 角度工具的三步草稿：顶点 → 第一条边 → 第二条边
   const [angleDraft, setAngleDraft] = useState<{ v: Point2; arm1?: Point2; tool: Tool } | null>(null);
   const [hoverWorld, setHoverWorld] = useState<Point2 | null>(null);
+  const lastCurveDown = useRef(0);
+  const finishCurveRef = useRef<(() => void) | null>(null);
   const pointers = useRef<Map<number, Point2>>(new Map());
   const pinch = useRef<{ dist: number; center: Point2 } | null>(null);
 
@@ -289,7 +291,15 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     }
 
     if (tool === "curve") {
-      // 曲线：每点一下加一个控制点，双击结束；按下后拖动 = 该点的切线（钢笔手感）
+      // 曲线：每点一下加一个控制点；按下后拖动 = 该点的切线（钢笔手感）
+      // 双击判定放在这里：第二次按下就直接收尾，避免先把一个重合点加进去再被去重删掉
+      const now = Date.now();
+      if (lastCurveDown.current && now - lastCurveDown.current < 320) {
+        lastCurveDown.current = 0;
+        finishCurveRef.current?.();
+        return;
+      }
+      lastCurveDown.current = now;
       const w = snap(worldRaw);
       setDrag((d) => (d && d.kind === "curve"
         ? { ...d, points: [...d.points, w], tangents: [...d.tangents, undefined] }
@@ -489,17 +499,22 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     const d = drag;
     if (!d || d.kind !== "curve") return;
     setDrag({ kind: "none" });
-    // 双击结束会多落一个点：与上一个点几乎重合时丢掉，避免出现「一坨」控制点
+    // 双击结束会多落一个点：与上一个点几乎重合时丢掉，避免出现「一坨」控制点。
+    // 但不能把点数降到 2 以下——否则整条曲线会被 buildCurve 判为无效而「消失」。
     const pts = [...d.points];
     const lastP = pts[pts.length - 1], prevP = pts[pts.length - 2];
-    if (lastP && prevP && Math.hypot(lastP.x - prevP.x, lastP.y - prevP.y) < 0.2) pts.pop();
+    if (pts.length > 2 && lastP && prevP && Math.hypot(lastP.x - prevP.x, lastP.y - prevP.y) < 0.2) pts.pop();
     const ink = buildCurve(pts, color, penWidth, d.tangents);
-    if (!ink) return;
+    if (!ink) {
+      onToast?.("曲线至少需要 2 个控制点，已取消");
+      return;
+    }
     onRequestTool?.("select");
     setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
     onSelect(ink.id);
     onToast?.(`曲线完成：${ink.points.length} 个控制点，拖手柄调曲率`);
   };
+  finishCurveRef.current = finishCurve;
 
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -551,7 +566,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onDoubleClick={finishCurve}
         onWheel={onWheel}
         style={{ touchAction: "none", cursor }}
         xmlns="http://www.w3.org/2000/svg"

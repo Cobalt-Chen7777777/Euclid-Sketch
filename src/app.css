@@ -1393,7 +1393,8 @@ a.set-row {
   width: max-content;
   max-width: none;
   overflow: visible;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 :root[data-mode="mini"] .mini-bar.vertical {
   width: auto;
@@ -1458,3 +1459,13 @@ a.set-row {
 /* 3D 视图跟随面板：画布撑满剩余高度，面板拖大就变大 */
 .solid-stage { display: flex; flex-direction: column; min-height: 0; }
 .solid-stage .solid-mount { flex: 1 1 auto; min-height: 200px; }
+
+/* 迷你条图标统一尺寸，竖排也居中不歪 */
+:root[data-mode="mini"] .mini-btn.icon {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  padding: 0;
+}
+:root[data-mode="mini"] .mini-btn svg { width: 16px; height: 16px; display: block; }
+:root[data-mode="mini"] .brand-badge { width: 26px; height: 26px; border-radius: 8px; }
+:root[data-mode="mini"] .mini-bar.vertical .brand-badge { margin: 0 auto 2px; }
