@@ -289,10 +289,7 @@ button.with-icon svg { flex: none; }
 .appnav {
   display: flex; gap: 2px; padding: 3px;
   background: var(--pill); border-radius: 10px;
-  /* 吸顶：内容滚动时不会被下面的画布压住（用户反馈「还是有遮盖」） */
-  position: sticky;
-  top: 0;
-  z-index: 11;
+
 }
 .appnav.full { width: 100%; }
 .appnav.full button { flex: 1; }

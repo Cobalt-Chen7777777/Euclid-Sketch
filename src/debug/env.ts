@@ -17,4 +17,21 @@ export function logHostEnv(): void {
   } catch {
     // 环境异常时不值得打断启动
   }
+  // 首帧之后再量一次各区块坐标：真机反馈「顶部被压住」时，这几行能直接定位是谁盖住了谁
+  setTimeout(() => {
+    try {
+      const box = (sel: string) => {
+        const el = document.querySelector(sel);
+        if (!el) return `${sel}=无`;
+        const r = el.getBoundingClientRect();
+        return `${sel}=${Math.round(r.top)}..${Math.round(r.bottom)}`;
+      };
+      const panel = document.querySelector(".panel");
+      const cs = panel ? getComputedStyle(panel) : null;
+      logEvent("layout", [box("#root"), box(".appbar"), box(".appnav"), box(".stage")].join(" ")
+        + ` gap=${cs?.rowGap ?? "?"} panelH=${panel ? Math.round(panel.getBoundingClientRect().height) : "?"}`);
+    } catch {
+      // 忽略
+    }
+  }, 400);
 }
