@@ -1436,3 +1436,25 @@ a.set-row {
   color: var(--muted);
   word-break: break-all;
 }
+
+/* 迷你条竖排：按钮水平居中，间距与横排一致 */
+:root[data-mode="mini"] .mini-bar.vertical {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+}
+:root[data-mode="mini"] .mini-bar.vertical > * {
+  flex: none;
+  margin: 0 auto;
+}
+/* 横排：按顺序排开，超宽时整体缩放而不是裁掉 */
+:root[data-mode="mini"] .mini-bar:not(.vertical) {
+  justify-content: center;
+  padding: 2px 0;
+}
+
+/* 3D 视图跟随面板：画布撑满剩余高度，面板拖大就变大 */
+.solid-stage { display: flex; flex-direction: column; min-height: 0; }
+.solid-stage .solid-mount { flex: 1 1 auto; min-height: 200px; }

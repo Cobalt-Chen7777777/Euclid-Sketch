@@ -1,5 +1,11 @@
 /** 纯渲染：把 Shape[] 画成 SVG 元素。不含交互逻辑。 */
 import { memo } from "react";
+
+import { logEvent } from "../debug/log";
+import { useRenderAudit } from "./useRenderAudit";
+
+/** 已上报异常的曲线 id：同一条只报一次，避免每帧刷日志 */
+const reportedInk = new Set<string>();
 import { angleSpanDeg, drawRange } from "../model/angle";
 import { sampleFunction, sampleParametric } from "../model/formula";
 import { getHandles, polygonPoints } from "../model/geometry";
@@ -282,9 +288,18 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     }
     case "ink": {
       const ink = shape as InkShape;
+      const d = ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathFromPoints(ink.points, v);
+      if (!d || d.includes("NaN")) {
+        if (!reportedInk.has(ink.id)) {
+          reportedInk.add(ink.id);
+          logEvent("curve.empty", `id=${ink.id.slice(-6)} pts=${ink.points.length} smooth=${ink.smooth} d=${(d || "").slice(0, 40)}`);
+        }
+      } else {
+        reportedInk.delete(ink.id);
+      }
       return (
         <path
-          d={ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathFromPoints(ink.points, v)}
+          d={d}
           fill="none" stroke={stroke} strokeWidth={ink.width}
           strokeLinecap="round" strokeLinejoin="round"
         />
@@ -331,6 +346,8 @@ const StaticLayer = memo(function StaticLayer({
   shapes, viewport: v, highlightId, selectionIds, lassoPoints,
   showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
 }: Omit<Props, "preview" | "previewShape">) {
+  const inkCount = shapes.filter((x) => x.type === "ink").length;
+  useRenderAudit({ shapes, viewport: v, renderedInk: inkCount });
   const coord = shapes.find((s) => s.type === "coord");
   const step = gridStep ?? (coord && coord.type === "coord" ? coord.grid : 1);
   const grid = gridLines(v, step);

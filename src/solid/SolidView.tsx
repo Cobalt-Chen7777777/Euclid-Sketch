@@ -16,7 +16,8 @@ export type SolidMode = "ghost" | "solid";
 
 interface Props {
   solid: SolidShape;
-  height?: number;
+  /** 固定像素高；传 "auto" 时跟随父容器（面板拖大，3D 跟着变大） */
+  height?: number | "auto";
   onReady?: (capture: () => string) => void;
   /** 显示模式，默认半透明（能看到背面结构，符合几何图示习惯） */
   mode?: SolidMode;
@@ -66,7 +67,7 @@ function buildGeometry(solid: SolidShape): THREE.BufferGeometry {
   }
 }
 
-export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetSignal = 0, dark = false, onParam, editable = false }: Props) {
+export function SolidView({ solid, height = "auto", onReady, mode = "ghost", resetSignal = 0, dark = false, onParam, editable = false }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneRefs | null>(null);
   const onReadyRef = useRef(onReady);
@@ -87,7 +88,9 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
     scene.background = new THREE.Color(dark ? "#1f1d1a" : "#f7f5f0");
 
     const width = mount.clientWidth || 400;
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    // "auto" 时读容器真实高度，避免写死 300/320 后改动面板留白
+    const boxH = height === "auto" ? mount.clientHeight || 300 : height;
+    const camera = new THREE.PerspectiveCamera(45, width / boxH, 0.1, 100);
     camera.position.set(5, 4, 6);
     homeRef.current = { pos: camera.position.clone(), target: new THREE.Vector3(0, 0, 0) };
 
@@ -99,7 +102,7 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(width, height);
+    renderer.setSize(width, boxH);
     mount.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -149,9 +152,10 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
 
     const observer = new ResizeObserver(() => {
       const w = mount.clientWidth || 400;
-      camera.aspect = w / height;
+      const h = height === "auto" ? mount.clientHeight || 300 : height;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, height);
+      renderer.setSize(w, h);
     });
     observer.observe(mount);
 
@@ -246,7 +250,7 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
   }, [solid, mode]);
 
   if (glError) {
-    return <div className="solid-mount solid-error" style={{ height }}>当前设备不支持 WebGL，无法显示立体模型。可尝试更新 MarginNote 或使用 2D 构图。</div>;
+    return <div className="solid-mount solid-error" style={{ height: height === "auto" ? "100%" : height }}>当前设备不支持 WebGL，无法显示立体模型。可尝试更新 MarginNote 或使用 2D 构图。</div>;
   }
-  return <div ref={mountRef} className="solid-mount" style={{ width: "100%", height }} />;
+  return <div ref={mountRef} className="solid-mount" style={{ width: "100%", height: height === "auto" ? "100%" : height }} />;
 }

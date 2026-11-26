@@ -55,7 +55,7 @@ export function SolidStage({ solid, onPick, onParam, onReady, dark = false, onEx
           </div>
           <SolidView
             solid={solid}
-            height={300}
+            height="auto"
             editable
             onParam={(key, value) => onParam(key, value)}
             onReady={onReady}

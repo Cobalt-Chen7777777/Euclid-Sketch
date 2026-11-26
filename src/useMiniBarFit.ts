@@ -10,9 +10,9 @@ import { useEffect, useState } from "react";
 
 import { logEvent } from "./debug/log";
 
-const BTN = 30;
-const GAP = 4;
-const BADGE = 22;
+const BTN = 28; // 与 .mini-btn.icon 一致
+const GAP = 8; // 与 .mini-bar 的 gap 一致
+const BADGE = 30; // 徽章 22 + 与首个按钮的间距 8
 const PAD = 20;
 const EDGE = 4;
 
