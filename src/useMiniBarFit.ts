@@ -46,17 +46,22 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     const n = Math.max(1, count);
     const long = Math.min(MAX_LONG, n * BTN + (n - 1) * GAP + PAD + EDGE + BADGE);
 
-    // 横向按钮多于 4 个时改成两行，避免宽度被宿主裁剪后又要横向滑动
-    const perRow = vertical ? n : Math.min(n, n <= 4 ? 4 : Math.ceil(n / 2));
-    const rowW = perRow * BTN + (perRow - 1) * GAP + PAD + EDGE + BADGE;
-    const rows = vertical ? 1 : Math.ceil(n / perRow);
-    const w = vertical ? Math.min(MAX_SHORT, BTN + PAD + EDGE) : Math.min(MAX_LONG, rowW);
-    const h = vertical ? long : Math.min(MAX_SHORT, rows * BTN + (rows - 1) * 6 + PAD + EDGE);
-
-    // 等宿主切完 mini 标记再改尺寸，避免和它的布局动画打架
+    // 等宿主切完 mini 标记、DOM 定型后再量真实尺寸——按按钮数估算总会漏掉某些元素
     const timer = setTimeout(() => {
-      api.size?.(w, h);
-      logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 ${rows} 行 → ${w}×${h}`);
+      const bar = document.querySelector(".mini-bar");
+      const pad = 24; // body padding + 安全余量
+      if (bar) {
+        const rw = Math.round(bar.scrollWidth) + pad;
+        const rh = Math.round(bar.scrollHeight) + pad;
+        if (vertical) api.size?.(Math.min(MAX_SHORT, Math.max(46, rw)), Math.min(MAX_LONG, Math.max(80, rh)));
+        else api.size?.(Math.min(MAX_LONG, Math.max(120, rw)), Math.min(MAX_SHORT, Math.max(46, rh)));
+        logEvent("mini", `${vertical ? "竖" : "横"} 实测 ${rw}×${rh} → ${vertical ? "窄柱" : "长条"}`);
+        return;
+      }
+      // DOM 还没出来时退回估算
+      const rowW = n * BTN + (n - 1) * GAP + PAD;
+      api.size?.(vertical ? Math.min(MAX_SHORT, BTN + PAD) : Math.min(MAX_LONG, rowW), vertical ? long : Math.min(MAX_SHORT, BTN + PAD));
+      logEvent("mini", `${vertical ? "竖" : "横"} 估算 ${n} 个按钮`);
     }, 320);
 
     return () => clearTimeout(timer);
