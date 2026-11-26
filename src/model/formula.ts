@@ -22,7 +22,7 @@ export type ParseResult =
   | { kind: "error"; message: string };
 
 /** 将常见数学写法规范化为可解析形式 */
-function normalize(input: string): string {
+export function normalize(input: string): string {
   return input
     .replace(/[×·]/g, "*")
     .replace(/[÷]/g, "/")

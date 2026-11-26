@@ -7,6 +7,7 @@
  * 代价是分辨率固定：采样范围默认 [-10,10]²，网格 96×96。
  * 放大到极限时折线会显出棱角，这一点和函数曲线的 320 点采样是同一取舍。
  */
+import { normalize } from "./formula";
 import { compileExpr } from "./expr";
 
 import type { ImplicitShape, Point2 } from "./types";
@@ -31,7 +32,8 @@ export function sampleImplicit(shape: ImplicitShape, grid = GRID): Segment[] {
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const fn = compileExpr(shape.expr);
+  // expr 理论上已在创建时归一（xy → x*y），但旧文档 / 手改数据可能没归一，这里兜一次
+  const fn = compileExpr(normalize(shape.expr));
   const nx = grid;
   const ny = grid;
   const dx = (x1 - x0) / nx;
