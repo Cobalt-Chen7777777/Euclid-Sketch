@@ -11,8 +11,8 @@ import type { Point2, Shape } from "../model/types";
 
 interface Options {
   svgRef: React.RefObject<SVGSVGElement | null>;
-  /** 屏幕点 → 世界坐标（含是否吸附） */
-  toWorldAt: (sp: Point2, allowGrid: boolean) => Point2;
+  /** 屏幕点 → 世界坐标（canSnap 是否需要吸附，excludeId 为被拖图形自身） */
+  toWorldAt: (sp: Point2, canSnap: boolean, excludeId: string) => Point2;
   setShapes: (updater: (prev: Shape[]) => Shape[]) => void;
 }
 
@@ -29,8 +29,8 @@ export function useHandleDrag({ svgRef, toWorldAt, setShapes }: Options) {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      // 切线手柄不吸附（否则被旁边顶点拽住），其余控制点只吸附已有点
-      const world = toWorldAt(sp, !st.handle.id.startsWith("h"));
+      // 切线手柄不吸附（否则被旁边顶点拽住），其余控制点只吸附「别的」图形的点
+      const world = toWorldAt(sp, !st.handle.id.startsWith("h"), st.id);
       setShapes((prev) => prev.map((s) => (s.id === st.id ? st.handle.apply(s, world) : s)));
     };
     const end = () => { active.current = null; };

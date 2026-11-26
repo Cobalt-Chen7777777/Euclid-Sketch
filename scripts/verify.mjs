@@ -279,6 +279,67 @@ async function main() {
     await context.close();
   }
 
+  // ---------- 11. 0.3.0-beta.2：曲线落形 + 缩放后仍可见 ----------
+  {
+    const { page, context } = await newPage(browser);
+    await page.waitForTimeout(300);
+    await clickRailTool(page, "曲线");
+    const box = await center(page);
+    const p1 = worldToPage(box, -3.5, -1.5);
+    const p2 = worldToPage(box, -0.5, 3);
+    const p3 = worldToPage(box, 3.5, -1.5);
+    for (const p of [p1, p2, p3]) {
+      await page.mouse.click(p.x, p.y);
+      await page.waitForTimeout(140);
+    }
+    // 同一点快速再点一次 = 收尾（时间 < 260ms 且位置重合）
+    await page.mouse.click(p3.x, p3.y);
+    await page.waitForTimeout(60);
+    await page.mouse.click(p3.x, p3.y);
+    await page.waitForTimeout(250);
+
+    const curvePaths = () => page.evaluate(() => {
+      const paths = [...document.querySelectorAll(".canvas-svg path")];
+      return paths.filter((p) => (p.getAttribute("d") || "").startsWith("M")).length;
+    });
+    const c0 = await curvePaths();
+    record("曲线落形成功（不再静默丢弃）", c0 >= 1, `path=${c0}`);
+
+    // 以画布中心放大 8 档：跨度过大时曾出现曲线整条消失
+    const c = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    await page.mouse.move(c.x, c.y);
+    for (let i = 0; i < 8; i += 1) await page.mouse.wheel(0, -160);
+    await page.waitForTimeout(300);
+    const nanCount = await page.evaluate(() => [...document.querySelectorAll(".canvas-svg path")]
+      .filter((p) => (p.getAttribute("d") || "").includes("NaN")).length);
+    const c1 = await curvePaths();
+    record("缩放后曲线仍在且无 NaN", c1 >= c0 && nanCount === 0, `path=${c1} nan=${nanCount}`);
+    await context.close();
+  }
+
+  // ---------- 12. 0.3.0-beta.2：迷你条按按钮数撑开（不需滑动） ----------
+  {
+    const { page, context } = await newPage(browser);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      window.__mnSizes = [];
+      window.mn.size = (w, h) => window.__mnSizes.push([w, h]);
+      document.documentElement.setAttribute("data-mode", "mini");
+    });
+    await page.waitForTimeout(900);
+    const sizes = await page.evaluate(() => window.__mnSizes);
+    const last = sizes[sizes.length - 1];
+    const barOk = last ? last[0] >= 200 && last[1] >= 46 && last[1] <= 90 : false;
+    record("迷你条横排一行放全", barOk, last ? `${last[0]}×${last[1]}` : "未调用 mn.size");
+
+    // 尺寸被宿主重置后要能自己纠回来
+    await page.evaluate(() => { window.__mnSizes.length = 0; window.dispatchEvent(new Event("resize")); });
+    await page.waitForTimeout(300);
+    const again = await page.evaluate(() => window.__mnSizes);
+    record("宿主重置后自动纠回", again.length >= 1, again.length ? `${again[0][0]}×${again[0][1]}` : "未纠正");
+    await context.close();
+  }
+
   await browser.close();
   const failed = results.filter((r) => !r.ok);
   console.log(`\n== ${results.length - failed.length}/${results.length} 通过 ==`);

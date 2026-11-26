@@ -128,32 +128,35 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl || typeof ResizeObserver !== "function") return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let measured = false;
+    let raf: number | null = null;
+    let started = false;
 
     const apply = () => {
       if (frozen) return;
       const rect = svgEl.getBoundingClientRect();
       if (rect.width < 40 || rect.height < 40) return;
       setViewport((prev) => {
-        // 小于 6px 的抖动不重算视口：切换设置导致的重排不该让画布看起来「自己缩放」
-        if (Math.abs(prev.width - rect.width) < 6 && Math.abs(prev.height - rect.height) < 6) return prev;
+        // viewBox 必须与容器像素尺寸一致：差 1px 就会被 preserveAspectRatio="none" 拉伸，
+        // 看起来就是「关一下开关 / 拉一下窗口，画面自己缩放变形」。所以阈值收到 0.5px。
+        if (Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5) return prev;
+        // fitViewport 固定 px/单位：尺寸变化只改变「看得到多少」，图形大小与位置都不动
         return fitViewport(prev, rect.width, rect.height);
       });
     };
 
-    // 尺寸稳定 120ms 后才重算，期间 SVG 自己按新尺寸拉伸（避免逐帧闪烁）
+    // rAF 合并：同一帧内的多次尺寸变化只算一次。
+    // 不用 120ms 延迟——那段空窗期里 svg 会被拉伸，正是「自己缩放」的观感来源。
     const schedule = () => {
-      if (!measured) {
-        measured = true;
+      if (!started) {
+        started = true;
         apply();
         return;
       }
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
+      if (raf != null) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
         apply();
-      }, 120);
+      });
     };
 
     const observer = new ResizeObserver(schedule);
@@ -161,7 +164,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     schedule();
     return () => {
       observer.disconnect();
-      if (timer) clearTimeout(timer);
+      if (raf != null) cancelAnimationFrame(raf);
     };
   }, [setViewport, svgRef, frozen]);
 
@@ -171,8 +174,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   }, [svgRef, v.width, v.height]);
 
   const snap = useCallback(
-    (world: Point2, allowGrid = true) => snapWorld(world, { shapes, v, enabled: options.snapEnabled,
-      showGrid: options.showGrid, gridStep: options.gridStep }, allowGrid),
+    (world: Point2, allowGrid = true, excludeId?: string) => snapWorld(world, { shapes, v, enabled: options.snapEnabled,
+      showGrid: options.showGrid, gridStep: options.gridStep }, allowGrid, excludeId),
     [shapes, v, options.snapEnabled, options.showGrid, options.gridStep]);
 
 
@@ -195,7 +198,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (!shape) return null;
     for (const h of getHandles(shape)) {
       const hs = toScreen(h.at, v);
-      if (Math.hypot(hs.x - sp.x, hs.y - sp.y) <= 14) return { id: shape.id, handle: h };
+      // 10px 而非 14px：Apple Pencil 落点精确，14px 时「想拖动图形」常被误判成「抓控制点」，
+      // 一移动就把图形改形（手指较粗反而很少命中，所以只有笔出问题）
+      if (Math.hypot(hs.x - sp.x, hs.y - sp.y) <= 10) return { id: shape.id, handle: h };
     }
     return null;
   }, [selectedId, shapes, v]);
@@ -219,7 +224,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   /** 控制点拖动：window 级监听（SVG 的 pointer capture 在 iOS 上不可靠） */
   const handleDrag = useHandleDrag({
     svgRef,
-    toWorldAt: (sp, allowGrid) => (allowGrid ? snap(toWorld(sp, v), false) : toWorld(sp, v)),
+    // 排除被拖图形自身：拖端点时吸附到「自己另一端」会让图形瞬间变形
+    toWorldAt: (sp, canSnap, excludeId) =>
+      (canSnap ? snap(toWorld(sp, v), false, excludeId) : toWorld(sp, v)),
     setShapes,
   });
 

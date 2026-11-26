@@ -145,7 +145,11 @@ function parse(tokens: Token[]): EvalFn {
     if (tk.t === "id") {
       const fn = FUNCTIONS[tk.v];
       if (fn) {
-        if (peek()?.t !== "lp") throw new Error(`函数 ${tk.v} 缺少括号`);
+        if (peek()?.t !== "lp") {
+          // 允许省略括号：tan60°、sin pi、sqrt2 —— 取紧随其后的一个原子作参数
+          const arg = unary();
+          return (s) => fn(arg(s));
+        }
         eat();
         const arg = expr();
         const close = eat();
@@ -174,12 +178,13 @@ function parse(tokens: Token[]): EvalFn {
 }
 
 /**
- * 度数 → 弧度：60° / 60deg / 60 deg 都改写成 (60*pi/180)。
+ * 度数 → 弧度：60° / 60deg / 60 度 都改写成 (60*pi/180)。
  * 三角函数一律用弧度，但写角度更符合做题习惯，这里统一在编译前转换。
+ * 兼容 iOS 键盘与 PDF 复制出来的各类度数符号（°、º、˚、度）。
  */
 export function normalizeDegrees(source: string): string {
   return source
-    .replace(/(\d+(?:\.\d+)?)\s*°/g, "($1*pi/180)")
+    .replace(/(\d+(?:\.\d+)?)\s*[°º˚度]/g, "($1*pi/180)")
     .replace(/(\d+(?:\.\d+)?)\s*deg\b/gi, "($1*pi/180)")
     // 弧度高数：60 rad 等于 60，直接去掉单位
     .replace(/\s+rad\b/gi, "");

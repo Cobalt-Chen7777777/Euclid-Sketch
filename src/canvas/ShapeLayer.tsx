@@ -1,5 +1,5 @@
 /** 纯渲染：把 Shape[] 画成 SVG 元素。不含交互逻辑。 */
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 import { logEvent } from "../debug/log";
 import { useRenderAudit } from "./useRenderAudit";
@@ -346,8 +346,21 @@ const StaticLayer = memo(function StaticLayer({
   shapes, viewport: v, highlightId, selectionIds, lassoPoints,
   showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
 }: Omit<Props, "preview" | "previewShape">) {
-  const inkCount = shapes.filter((x) => x.type === "ink").length;
-  useRenderAudit({ shapes, viewport: v, renderedInk: inkCount });
+  // 「画不出来」要真的数出来：此前 renderedInk 直接传 ink 总数，drawn 恒等于 ink，
+  // render.bad 永远不会触发，日志看不出曲线是否渲染失败
+  const inkStats = useMemo(() => {
+    let ink = 0;
+    let bad = 0;
+    for (const s of shapes) {
+      if (s.type !== "ink") continue;
+      ink += 1;
+      const sh = s as InkShape;
+      const d = sh.smooth ? smoothPath(sh.points, v, sh.tangents) : pathFromPoints(sh.points, v);
+      if (!d || d.includes("NaN")) bad += 1;
+    }
+    return { ink, bad };
+  }, [shapes, v]);
+  useRenderAudit({ shapes, viewport: v, renderedInk: inkStats.ink - inkStats.bad });
   const coord = shapes.find((s) => s.type === "coord");
   const step = gridStep ?? (coord && coord.type === "coord" ? coord.grid : 1);
   const grid = gridLines(v, step);

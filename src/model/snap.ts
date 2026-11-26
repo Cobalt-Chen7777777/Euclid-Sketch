@@ -1,6 +1,8 @@
 /**
  * 吸附：优先图形上的已有控制点（端点 / 圆心 / 顶点），其次网格交点。
  * 拖动已有图形时传 allowGrid=false——笔微调不该被整数格粘走。
+ * excludeId：正在拖动的图形自身要排除，否则拖端点时会被自己的另一端「粘住」，
+ * 表现就是「用笔一移动图形就变形，拖远了又正常」。
  */
 import { getHandles } from "./geometry";
 import type { Point2, Shape } from "./types";
@@ -18,12 +20,13 @@ export interface SnapContext {
   gridStep: number;
 }
 
-export function snapWorld(world: Point2, ctx: SnapContext, allowGrid = true): Point2 {
+export function snapWorld(world: Point2, ctx: SnapContext, allowGrid = true, excludeId?: string): Point2 {
   if (!ctx.enabled) return world;
   const sp = toScreen(world, ctx.v);
   let best: Point2 | null = null;
   let bestD = SNAP_PX;
   for (const s of ctx.shapes) {
+    if (excludeId && s.id === excludeId) continue;
     for (const h of getHandles(s)) {
       const hs = toScreen(h.at, ctx.v);
       const d = Math.hypot(hs.x - sp.x, hs.y - sp.y);

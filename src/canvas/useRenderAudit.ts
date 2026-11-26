@@ -16,18 +16,22 @@ interface Opts {
 }
 
 export function useRenderAudit({ shapes, viewport, renderedInk }: Opts) {
-  const lastRef = useRef({ total: -1, ink: -1, bad: -1 });
+  const lastRef = useRef({ total: -1, ink: -1, bad: -1, span: 0 });
 
   useEffect(() => {
     const ink = shapes.filter((s) => s.type === "ink").length;
     const bad = renderedInk === undefined ? -1 : Math.max(0, ink - renderedInk);
     const last = lastRef.current;
-    // 只在数量或异常数变化时记，避免每帧刷屏
-    if (last.total === shapes.length && last.ink === ink && last.bad === bad) return;
-    lastRef.current = { total: shapes.length, ink, bad };
 
     const spanX = +(viewport.xRange[1] - viewport.xRange[0]).toFixed(3);
     const spanY = +(viewport.yRange[1] - viewport.yRange[0]).toFixed(3);
+    // 缩放/平移超过 20% 也记一条：曲线「一放大就看不见」需要知道当时的跨度
+    const spanChanged = last.span > 0 && Math.abs(spanX - last.span) / last.span > 0.2;
+
+    // 数量没变、异常数没变、跨度也没大动 → 不记，避免每帧刷屏
+    if (last.total === shapes.length && last.ink === ink && last.bad === bad && !spanChanged) return;
+    lastRef.current = { total: shapes.length, ink, bad, span: spanX };
+
     logEvent(
       bad > 0 ? "render.bad" : "render",
       `shapes=${shapes.length} ink=${ink} drawn=${renderedInk ?? "?"} span=${spanX}×${spanY} w=${Math.round(viewport.width)}`,
