@@ -10,6 +10,7 @@ import { CHANGELOG_URL, GITHUB_URL } from "../repo";
 import { APP_VERSION } from "../version";
 import { MINI_ACTIONS, MINI_REQUIRED_ACTIONS } from "../PanelHeader";
 import { CacheSection } from "./CacheSection";
+import { SettingsBackup } from "./SettingsBackup";
 import { DebugSection } from "./DebugSection";
 import { RailCustomizer } from "./RailCustomizer";
 import {
@@ -537,6 +538,7 @@ export function SettingsPage({
                 <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
               </a>
             ) : null}            <CacheSection />
+            <SettingsBackup settings={settings} onChange={onChange} />
             <DebugSection
               version={APP_VERSION}
               debug={settings.debug}

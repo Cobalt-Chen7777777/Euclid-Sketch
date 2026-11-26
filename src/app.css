@@ -41,6 +41,8 @@ body {
   margin: 0;
   box-sizing: border-box;
   height: 100%;
+  /* 顶部拖拽条区域不要有任何可命中元素，否则 WKWebView 会把触摸吃掉，宿主拖不动窗口 */
+  pointer-events: none;
   /* 顶部 36px 是 MN 原生拖拽条，这里不再用 body padding 让开——
      padding 区域仍会被 #root 的不透明底覆盖，等于把拖拽条盖住、面板拖不动。
      改成 #root 自己下移，顶部那条整条透明，宿主的拖动手势能直接拿到。 */
@@ -58,6 +60,8 @@ body {
   background: var(--page);
   border-radius: 14px;
   overflow: hidden;
+  /* body 不接收事件后，真正的交互区域重新打开 */
+  pointer-events: auto;
 }
 
 .panel {
@@ -1662,3 +1666,36 @@ a.set-row {
 /* 3D 视图跟随面板：画布撑满剩余高度，面板拖大就变大 */
 .solid-stage { display: flex; flex-direction: column; min-height: 0; }
 .solid-stage .solid-mount { flex: 1 1 auto; min-height: 200px; }
+
+
+/* ---------- 隐藏滚动条 ----------
+   面板是浮窗，WKWebView 的常驻滚动条会在圆角外露出一条竖线。
+   滚动能力保留，只是不画条。 */
+html, body, #root { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar,
+.panel *::-webkit-scrollbar,
+.drawer-body::-webkit-scrollbar,
+.scroll::-webkit-scrollbar,
+.stage-scroll::-webkit-scrollbar,
+.hist-list::-webkit-scrollbar,
+.settings-page::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* 设置备份文本框 */
+.set-backup-area {
+  width: 100%;
+  min-height: 64px;
+  margin-top: 6px;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  resize: vertical;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.set-emoji { font-size: 15px; color: var(--muted); }
