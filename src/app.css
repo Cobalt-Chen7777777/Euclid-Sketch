@@ -259,8 +259,11 @@ button.with-icon svg { flex: none; }
 
 /* ---------- 顶部导航（画布 / 设置）与窗口控制 ---------- */
 .appbar {
+  /* 吸顶偏移必须是 0：顶部 36px 拖拽条已经由 #root 的 top 让开了。
+     之前这里又写了一次 top: var(--mn-drag-h)，sticky 会把它再往下推 36px，
+     结果标题栏压在导航行上——真机上看到的「顶部被遮盖」就是这个。 */
   position: sticky;
-  top: calc(var(--mn-drag-h, 0px));
+  top: 0;
   z-index: 12;
   display: flex;
   align-items: center;
