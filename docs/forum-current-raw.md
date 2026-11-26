@@ -330,8 +330,8 @@ MN 对同版本或更低版本的包会跳过安装。请先删除旧插件和�
 
 主推版本（0.3.0-beta.2 测试版）：
 
-- [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/original/3X/7/6/76d53042e615b71b541c70527a686ea2a41eed97.mntemplate) (470.7 KB)
-- [Euclid Sketch-0.3.0-beta.2.mnaddon](https://bbs.marginnote.com.cn/original/3X/5/3/53184b99de3e0e685f932368c5ed633b9382e1df.mnaddon) (469.6 KB)
+- [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/gXf5WiKaypCd21lNQjtmKFCmKAn.mntemplate) (470.7 KB)
+- [Euclid Sketch-0.3.0-beta.2.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/bR5GjClfvpnae6RwgQmbDI0GBR5.mnaddon) (469.6 KB)
 
 历史版本（回退用，附件同样提供）：
 
