@@ -1470,8 +1470,7 @@ a.set-row {
 :root[data-mode="mini"] .brand-badge { width: 26px; height: 26px; border-radius: 8px; }
 :root[data-mode="mini"] .mini-bar.vertical .brand-badge { margin: 0 auto 2px; }
 
-/* 迷你条横向：隐藏品牌徽章，把宽度全省给按钮，一行放全 */
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-badge,
+/* 迷你条横向：徽章图标保留，只收掉文字，一行放全 */
 :root[data-mode="mini"] .mini-bar:not(.vertical) .brand-img,
 :root[data-mode="mini"] .mini-bar:not(.vertical) .brand-text {
   display: none;
@@ -1482,7 +1481,6 @@ a.set-row {
 }
 
 /* 迷你条横向：连品牌文字一起去掉（截图里「Euclid Sketch」仍占着 130px） */
-:root[data-mode="mini"] .mini-bar:not(.vertical) .mini-title,
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-badge {
-  display: none;
+:root[data-mode="mini"] .mini-bar:not(.vertical) .mini-title {
+  display: none; /* 只去文字，徽章图标保留 */
 }
