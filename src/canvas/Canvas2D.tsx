@@ -27,6 +27,10 @@ import {
 
 export type Tool = "select" | "compass" | "place" | "pen" | "eraser" | "angle" | "lasso" | "curve";
 
+/** 曲线收尾的双击判据：真机上 260ms 偏紧（笔双击常落在 280~320ms），放宽到 320ms / 1 格 */
+const CURVE_DBL_MS = 320;
+const CURVE_DBL_GAP = 1.0;
+
 /** 来自设置页的画布行为开关 */
 export interface CanvasOptions {
   showGrid: boolean;
@@ -221,6 +225,21 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   /** 切走角度工具就丢掉未画完的草稿，避免切回来时旧顶点「复活」 */
   useEffect(() => { if (tool !== "angle") setAngleDraft(null); }, [tool]);
 
+  // 面板切 tab（2D ↔ 3D ↔ 函数）会让画布卸载：把已点的曲线控制点落形，
+  // 否则「画到一半切走」等于把这条曲线丢掉（真机上表现为画完就消失）
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
+  const inkOptsRef = useRef({ color, penWidth, currentLayer, setShapes });
+  inkOptsRef.current = { color, penWidth, currentLayer, setShapes };
+  useEffect(() => () => {
+    const d = dragRef.current;
+    if (d.kind !== "curve" || d.points.length < 2) return;
+    const opts = inkOptsRef.current;
+    const ink = buildCurve(d.points, opts.color, opts.penWidth, d.tangents);
+    if (!ink) return;
+    opts.setShapes((prev) => [...prev, { ...ink, layer: opts.currentLayer }]);
+  }, []);
+
   /** 控制点拖动：window 级监听（SVG 的 pointer capture 在 iOS 上不可靠） */
   const handleDrag = useHandleDrag({
     svgRef,
@@ -231,7 +250,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   });
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (tool !== "curve" && drag.kind === "curve") setDrag({ kind: "none" });
+    // 切走曲线工具时把已有控制点落形，而不是直接丢掉
+    // —— 此前「点一下别的工具，画好的曲线就消失」就是这里静默清空的
+    if (tool !== "curve" && drag.kind === "curve") finishCurveRef.current?.();
     // 关键：画布上的拖拽必须只画图，不能让宿主把它当成「拖动面板窗口」。
     // preventDefault 让这次触摸不被宿主的原生手势接管，stopPropagation 断掉冒泡。
     e.preventDefault();
@@ -306,7 +327,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       // 只有「又快又几乎落在同一点」才算双击收尾——只看时间会把正常连点吞掉
       // 双击收尾：只有已经攒够 2 个点才认；点数不够时把这一下当成正常加点（否则第二条点永远加不进去）
       const enough = drag && drag.kind === "curve" && drag.points.length >= 2;
-      if (enough && prev && now - prev.at < 260 && Math.hypot(w.x - prev.x, w.y - prev.y) < 0.8) {
+      if (enough && prev && now - prev.at < CURVE_DBL_MS && Math.hypot(w.x - prev.x, w.y - prev.y) < CURVE_DBL_GAP) {
         lastCurveDown.current = null;
         finishCurveRef.current?.();
         return;
@@ -511,7 +532,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (!d || d.kind !== "curve") return;
     // 只有 1 个点就收尾等于把用户刚画的取消掉——继续等他点第二个点
     if (d.points.length < 2) {
-      onToast?.("再点一个位置就能画成曲线");
+      // 只有一个点：结束这次草稿（不清空的话切走工具后它会回来）
+      setDrag({ kind: "none" });
+      onToast?.("曲线至少需要 2 个控制点，已取消");
       return;
     }
     setDrag({ kind: "none" });

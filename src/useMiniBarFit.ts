@@ -13,12 +13,11 @@ import { useEffect, useState } from "react";
 
 import { logEvent } from "./debug/log";
 
-const BTN = 30; // 与 mini 模式 .mini-btn.icon 一致
-const GAP = 6; // 与 mini 模式 .mini-bar 的 gap 一致
-const BAR_PAD = 20; // body 左右 padding（10 + 10）
-const V_TOP = 26 + 6; // 竖排：徽章 26 + 与首个按钮的间距
-const V_BOTTOM = 16;
-const H_FALLBACK = 64;
+const BTN = 34; // 与 mini 模式 .mini-btn.icon 的 --mini-btn 一致
+const GAP = 2; // 与 .mini-bar 的 --mini-gap 一致
+const BADGE_BLOCK = 26 + 6 + 1 + 6; // 徽章 26 + 分隔线 1 + 两侧各 6px 呼吸位
+const BAR_PAD = 16; // .mini-bar 的四周边距（8 + 8）
+const H_FALLBACK = 50; // 单行高度：8 + 34 + 8
 
 /** 长条上限：横向最宽 460、竖向最高 460 */
 const MAX_LONG = 460;
@@ -53,24 +52,26 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     let applied = false;
 
     /** 唯一的目标尺寸来源：首次应用与 resize 纠回都走这里，避免两套值互相拉扯 */
+    // 统一栅格：BAR_PAD + 徽章块 + n 个按钮 + (n-1) 个间距（横竖同构，只是主轴不同）
+    // 竖排不画分隔线，徽章块 = 26 + 6（下留白）
+    const badgeBlock = vertical ? 26 + 6 : BADGE_BLOCK;
+    const longSide = BAR_PAD + badgeBlock + n * BTN + (n - 1) * GAP;
+    const shortSide = BAR_PAD + BTN;
+
     const target = (): { w: number; h: number } => {
       if (vertical) {
         // 竖向高度按按钮数算：读 scrollHeight 会被当前面板高度反过来压缩，形成自我收缩
-        const w = Math.min(MAX_SHORT, BTN + 2 * 10 + 6); // 30 + 左右留白 + 余量 = 56
-        const h = Math.min(MAX_LONG, V_TOP + n * (BTN + GAP) + V_BOTTOM);
-        return { w, h };
+        return { w: Math.min(MAX_SHORT, shortSide), h: Math.min(MAX_LONG, longSide) };
       }
       const bar = document.querySelector(".mini-bar");
-      // display:none 时 scrollWidth 为 0（非 mini 的展开态），这时量不出宽度，退回估算
+      // display:none 时 scrollWidth 为 0（非 mini 的展开态），这时量不出宽度，退回栅格值
       if (bar && bar.scrollWidth > 0) {
-        // 横排按 DOM 实测：徽章、换行、字体宽度都会影响，按按钮数估算永远差几十像素
-        const w = Math.min(MAX_LONG, Math.max(120, Math.round(bar.scrollWidth) + BAR_PAD));
-        const h = Math.min(MAX_SHORT, Math.max(46, Math.round(bar.scrollHeight) + BAR_PAD));
+        // 横排优先 DOM 实测（字体、换行都会影响），四舍五入到整数
+        const w = Math.min(MAX_LONG, Math.max(120, Math.round(bar.scrollWidth)));
+        const h = Math.min(MAX_SHORT, Math.max(H_FALLBACK, Math.round(bar.scrollHeight)));
         return { w, h };
       }
-      // DOM 还没出来时退回估算（徽章 + n 个按钮）
-      const w = Math.min(MAX_LONG, Math.max(120, 26 + GAP + n * BTN + (n - 1) * GAP + BAR_PAD));
-      return { w, h: H_FALLBACK };
+      return { w: Math.min(MAX_LONG, longSide), h: Math.min(MAX_SHORT, H_FALLBACK) };
     };
 
     const apply = () => {

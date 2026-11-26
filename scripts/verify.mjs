@@ -314,6 +314,20 @@ async function main() {
       .filter((p) => (p.getAttribute("d") || "").includes("NaN")).length);
     const c1 = await curvePaths();
     record("缩放后曲线仍在且无 NaN", c1 >= c0 && nanCount === 0, `path=${c1} nan=${nanCount}`);
+
+    // 再画一条：点 3 下后不收尾，直接切到「选择」工具 —— 应自动落形而不是消失
+    await clickRailTool(page, "曲线");
+    const q1 = worldToPage(box, -2.5, 2);
+    const q2 = worldToPage(box, 0, -2.5);
+    const q3 = worldToPage(box, 2.5, 2);
+    for (const q of [q1, q2, q3]) {
+      await page.mouse.click(q.x, q.y);
+      await page.waitForTimeout(160);
+    }
+    await clickRailTool(page, "选择");
+    await page.waitForTimeout(250);
+    const c2 = await curvePaths();
+    record("切工具时曲线自动落形（不再丢草稿）", c2 > c1, `path=${c1} → ${c2}`);
     await context.close();
   }
 

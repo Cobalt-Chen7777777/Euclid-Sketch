@@ -69,9 +69,9 @@ export function AngleIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 19 L20 19" />
-      <path d="M4 19 L18.5 6.5" />
-      <path d="M13 19 A 9 9 0 0 0 10.4 12.6" />
+      <path d="M4 18 L20 18" />
+      <path d="M4 18 L18.5 5.5" />
+      <path d="M13 18 A 9 9 0 0 0 10.4 11.6" />
     </svg>
   );
 }
@@ -374,7 +374,7 @@ export function PointToolIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.9} aria-hidden="true">
-      <circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="5.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }

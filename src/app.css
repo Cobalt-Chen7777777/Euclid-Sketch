@@ -1140,14 +1140,6 @@ html:has(.panel.theme-dark) body { background: #17150f; }
   width: 30px; height: 30px; padding: 0;
   display: grid; place-items: center;
 }
-/* 迷你模式：紧凑条 + 毛玻璃 */
-:root[data-mode="mini"] body { padding: 8px 10px; }
-:root[data-mode="mini"] .mini-bar {
-  height: 36px;
-  padding: 0 4px;
-  border-radius: 12px;
-  background: var(--chrome);
-}
 
 /* 窗口拖动缩放的尺寸预览 HUD */
 .size-hud {
@@ -1296,17 +1288,6 @@ a.set-row {
   background: var(--pill);
 }
 
-/* 迷你条竖排：靠右缘停靠，按钮自上而下 */
-.mini-bar.vertical {
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px;
-  width: auto;
-  height: auto;
-  border-radius: 999px;
-}
-.mini-bar.vertical .mini-title { display: none; }
 
 /* 工具栏停靠位置：左（默认竖排）/ 右（竖排）/ 上（横排）/ 下（横排） */
 .rail.rail-right {
@@ -1388,18 +1369,6 @@ a.set-row {
 .hist-snaps { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; }
 .hist-snap-title { margin: 0; padding: 6px 12px 2px; font-size: 11px; color: var(--muted); }
 
-/* 迷你条自适应：不再靠滚动，按钮多了就把面板撑开（由 useMiniBarFit 调 mn.size） */
-:root[data-mode="mini"] .mini-bar {
-  width: max-content;
-  max-width: none;
-  overflow: visible;
-  flex-wrap: wrap;
-  row-gap: 6px;
-}
-:root[data-mode="mini"] .mini-bar.vertical {
-  width: auto;
-  flex-wrap: nowrap;
-}
 :root[data-mode="mini"] body {
   overflow: visible;
 }
@@ -1438,67 +1407,111 @@ a.set-row {
   word-break: break-all;
 }
 
-/* 迷你条竖排：按钮水平居中，间距与横排一致 */
+/* ============================================================
+   迷你条（收起态）：横竖共用一套 8px 栅格
+   徽章 26 + 分隔线 1 + 按钮 34 + 间距 2，四周留白 8
+   —— 此前同一条被 5 处规则分别改高度/间距/图标尺寸，互相覆盖，
+   表现就是「图标偏离、贴边、怎么调都不齐」，这里收敛为唯一一段。
+   ============================================================ */
+:root[data-mode="mini"] body {
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+:root[data-mode="mini"] .mini-bar {
+  --mini-btn: 34px;
+  --mini-gap: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: none;
+  height: auto;
+  gap: var(--mini-gap);
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--chrome);
+  overflow: visible;
+}
+
+/* 徽章：缩小到 26 让重心与 34 的按钮一致，不再压住整条视觉 */
+:root[data-mode="mini"] .mini-bar > .brand-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  margin: 0;
+  flex: 0 0 auto;
+  /* 收起态面积小，原阴影偏重会显得脏 */
+  box-shadow: 0 1px 3px rgba(37, 99, 235, .25);
+}
+
+/* 分隔线：品牌徽章与功能按钮之间的分组线（横排竖线 / 竖排横线） */
+.mini-divider {
+  flex: 0 0 auto;
+  background: var(--line-strong);
+  opacity: .4;
+  border-radius: 1px;
+  /* 与徽章、首个按钮各留 6px：贴太近会像把徽章框住 */
+  margin: 0 6px;
+}
+:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-divider {
+  width: 1px;
+  height: 16px;
+}
+/* 竖排不用分隔线：50px 宽里一条横线更像杂点，改用间距分组 */
+:root[data-mode="mini"] .mini-bar.vertical > .mini-divider {
+  display: none;
+}
+:root[data-mode="mini"] .mini-bar.vertical > .brand-badge {
+  margin-bottom: 6px;
+}
+
+/* 按钮：34×34 网格，图标 19px 居中，禁止被压缩 */
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon {
+  width: var(--mini-btn);
+  height: var(--mini-btn);
+  padding: 0;
+  margin: 0;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  transition: background .15s ease;
+}
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon:active {
+  background: rgba(120, 114, 105, .16);
+}
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+
+/* 横排：去文字，一行放全 */
+:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-title,
+:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-img,
+:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-text {
+  display: none;
+}
+
+/* 竖排：自上而下，按钮水平居中 */
 :root[data-mode="mini"] .mini-bar.vertical {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 2px 0;
+  border-radius: 14px;
 }
-:root[data-mode="mini"] .mini-bar.vertical > * {
-  flex: none;
-  margin: 0 auto;
-}
-/* 横排：按顺序排开，超宽时整体缩放而不是裁掉 */
-:root[data-mode="mini"] .mini-bar:not(.vertical) {
-  justify-content: center;
-  padding: 2px 0;
+
+/* 迷你条只有 50px 宽：toast 的任何文字都会把面板撑变形，直接不显示 */
+:root[data-mode="mini"] .toast {
+  display: none !important;
 }
 
 /* 3D 视图跟随面板：画布撑满剩余高度，面板拖大就变大 */
 .solid-stage { display: flex; flex-direction: column; min-height: 0; }
 .solid-stage .solid-mount { flex: 1 1 auto; min-height: 200px; }
-
-/* 迷你条图标统一尺寸，竖排也居中不歪 */
-:root[data-mode="mini"] .mini-btn.icon {
-  width: 30px; height: 30px;
-  display: grid; place-items: center;
-  padding: 0;
-}
-:root[data-mode="mini"] .mini-btn svg { width: 16px; height: 16px; display: block; }
-:root[data-mode="mini"] .brand-badge { width: 26px; height: 26px; border-radius: 8px; }
-:root[data-mode="mini"] .mini-bar.vertical .brand-badge { margin: 0 auto 2px; }
-
-/* 迷你条横向：徽章图标保留，只收掉文字，一行放全 */
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-img,
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-text {
-  display: none;
-}
-:root[data-mode="mini"] .mini-bar:not(.vertical) {
-  flex-wrap: nowrap;
-  gap: 6px;
-}
-
-/* 迷你条横向：连品牌文字一起去掉（截图里「Euclid Sketch」仍占着 130px） */
-:root[data-mode="mini"] .mini-bar:not(.vertical) .mini-title {
-  display: none; /* 只去文字，徽章图标保留 */
-}
-
-/* 迷你条竖排：按钮不被 flex 拉伸成高块，间距保持一致 */
-:root[data-mode="mini"] .mini-bar.vertical > .mini-btn {
-  flex: 0 0 auto;
-  height: 30px;
-  width: 30px;
-}
-:root[data-mode="mini"] .mini-bar.vertical {
-  row-gap: 6px;
-  gap: 6px;
-  align-content: flex-start;
-}
-
-/* 迷你条按钮不许被压缩（截图里 5 个图标挤成一坨就是 flex-shrink 造成的） */
-:root[data-mode="mini"] .mini-bar > .mini-btn,
-:root[data-mode="mini"] .mini-bar > .brand-badge {
-  flex: 0 0 auto;
-}

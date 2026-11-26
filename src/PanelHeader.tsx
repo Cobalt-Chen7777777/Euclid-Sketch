@@ -56,6 +56,7 @@ export function PanelHeader({
     <>
       <div className={`mini-bar${orientation === "v" ? " vertical" : ""}`}>
         <span className="brand-badge" aria-hidden="true"><BrandIcon size={13} /></span>
+        <span className="mini-divider" aria-hidden="true" />
         {orientation === "v" ? null : <span className="mini-title">Euclid Sketch</span>}
         {MINI_ACTIONS.filter((a) => actions.includes(a.id)).map((a) => {
           const run = () => {
