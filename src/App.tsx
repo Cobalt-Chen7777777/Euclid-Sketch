@@ -48,6 +48,7 @@ import { CropDialog } from "./stage/CropDialog";
 import { PasteImageSheet } from "./stage/PasteImageSheet";
 import { useCardCropInsert } from "./useCardCropInsert";
 import { useClipboardImage } from "./useClipboardImage";
+import { useSettingsCloud } from "./settings/useSettingsCloud";
 import { logHostEnv } from "./debug/env";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
@@ -247,6 +248,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
   // 启动时把宿主环境记一行（拖拽条高度、窗口尺寸），真机排查布局用
   useEffect(() => { logHostEnv(); }, []);
+
+  // 设置自动备份到目标卡 / 重装后自动恢复
+  useSettingsCloud({ settings, targetCard, onRestore: updateSettings, onRestored: () => showToast("已从上次的卡片恢复插件设置") });
 
   // 卡片图插入：渲染 → 选区裁剪 → 进画布（逻辑在 useCardCropInsert）
   const { cropSrc, setCropSrc, insertCardImage, onCropConfirm } = useCardCropInsert({

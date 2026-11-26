@@ -215,6 +215,15 @@ export function loadSettings(): SketchSettings {
   return { ...DEFAULT_SETTINGS };
 }
 
+/** 本地是否已经有保存过的设置（重装后首次启动时为 false） */
+export function hasStoredSettings(): boolean {
+  try {
+    return !!localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return false;
+  }
+}
+
 export function saveSettings(settings: SketchSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
