@@ -620,6 +620,9 @@ button.with-icon svg { flex: none; }
   transform: translateX(-50%);
   z-index: 14;
   display: flex; align-items: center; gap: 8px;
+  /* 窄面板时换行而不是把按钮挤出可视区（此前 2D/撤销 那排会互相压住、被裁掉半截） */
+  flex-wrap: wrap; justify-content: center;
+  row-gap: 6px;
   pointer-events: none;
   max-width: calc(100% - 16px);
 }
@@ -682,7 +685,8 @@ button.with-icon svg { flex: none; }
   padding: 3px 8px; border-radius: 8px;
   border: 1px solid var(--line);
   cursor: pointer;
-  max-width: 150px; overflow: hidden;
+  /* 卡名过长时省略，不要把整排顶出去 */
+  min-width: 0; max-width: 150px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -1314,9 +1318,21 @@ a.set-row {
   transform: translateX(-50%);
   top: auto;
   bottom: auto;
-  flex-wrap: wrap;
-  justify-content: center;
+  /* 单行不换行：此前换行会把工具栏撑成一个占掉半个画布的大方块，
+     窄面板上还会溢出到面板外；放不下时改为横向滑动 */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  justify-content: safe center;
   max-width: calc(100% - 16px);
+}
+.rail.rail-top::-webkit-scrollbar,
+.rail.rail-bottom::-webkit-scrollbar { display: none; }
+/* 横排时分隔线要竖过来 */
+.rail.rail-top .rail-sep,
+.rail.rail-bottom .rail-sep {
+  width: 1px; height: 16px; margin: 0 4px; align-self: center;
 }
 .rail.rail-top { top: 8px; }
 .rail.rail-bottom { bottom: 8px; }

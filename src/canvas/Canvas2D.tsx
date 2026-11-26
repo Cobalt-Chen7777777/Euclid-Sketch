@@ -16,7 +16,7 @@ import type { InkShape, Point2, PrimitiveType, Shape } from "../model/types";
 import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
-import { isPalmTouch, isStrayInk } from "./palmGuard";
+import { PEN_HAND_WINDOW, PALM_SIZE, isStrayInk } from "./palmGuard";
 import {
   fitViewport,
   panRange,
@@ -260,11 +260,12 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     e.preventDefault();
     e.stopPropagation();
 
-    // 笔优先与手掌防误触：在登记指针之前判定，避免手掌被算进「双指手势」
+    // 笔优先：记录笔的在场状态
     if (e.pointerType === "pen") {
       penActive.current = true;
       lastPenAt.current = Date.now();
-    } else if (isPalmTouch(e, { active: penActive.current, lastAt: lastPenAt.current }, options.palmReject)) {
+    } else if (options.palmReject && e.pointerType === "touch" && Math.max(e.width ?? 0, e.height ?? 0) >= PALM_SIZE) {
+      // 手掌：接触面积太大，连登记都不要，否则会被算进「双指手势」乱平移
       return;
     }
 
@@ -293,6 +294,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
 
     // 手指画图开关：关闭后手指触摸不画图（双指手势在上面已处理），只有笔/鼠标可作图
     if (e.pointerType === "touch" && !options.allowTouchDraw) return;
+    // 笔在屏上或刚抬起：单指不画图，避免写字时虎口蹭出笔画。
+    // 注意此时指针已经登记过，所以双指捏合缩放仍然正常。
+    if (e.pointerType === "touch" && options.palmReject
+      && (penActive.current || Date.now() - lastPenAt.current < PEN_HAND_WINDOW)) return;
 
     const worldRaw = toWorld(sp, v);
     // 手柄只在选择 / 曲线工具下抢：绘制工具优先画新图形，避免在旧图形上起笔时改到它

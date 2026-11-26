@@ -13,9 +13,9 @@ import type { Viewport } from "./viewport";
 import type { Point2 } from "../model/types";
 
 /** 接触面积上限（CSS 像素）：超过就按手掌处理 */
-const PALM_SIZE = 36;
+export const PALM_SIZE = 36;
 /** 笔抬起后仍然忽略手指的时间窗（毫秒） */
-const PEN_HAND_WINDOW = 700;
+export const PEN_HAND_WINDOW = 700;
 /** 误触笔迹的长度上限（屏幕像素）与时长上限（毫秒） */
 const STRAY_LEN = 8;
 const STRAY_MS = 160;
