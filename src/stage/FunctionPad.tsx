@@ -28,12 +28,17 @@ const FN_KEYS: [string, string][] = [
   ["rad", " rad"], ["1/x", "1/("],
 ];
 
-/** 主键盘：4 行 × 5 列 */
+/**
+ * 主键盘：4 行 × 6 列。
+ *
+ * 从 5 列重排成 6 列，是为了把画方程要用的 `y` `=` `,` `t` 塞进来——
+ * 仍然 4 行，面板高度不变；键位只是变窄一点，没有多占一屏。
+ */
 const PAD_KEYS: string[] = [
-  "7", "8", "9", "÷", "⌫",
-  "4", "5", "6", "×", "C",
-  "1", "2", "3", "−", "(",
-  "0", ".", "x", "+", ")",
+  "7", "8", "9", "÷", "(", ")",
+  "4", "5", "6", "×", "⌫", "C",
+  "1", "2", "3", "−", "x", "y",
+  "0", ".", "=", "+", ",", "t",
 ];
 
 const SYMBOL_MAP: Record<string, string> = { "÷": "/", "×": "*", "−": "-" };
@@ -66,16 +71,28 @@ export function FunctionPad(props: Props) {
   // 不再牵动画布整棵树（之前逐字上抛状态，输入法下会明显卡顿）。
   const [expr, setExprState] = useState("");
   // 小窗：可拖动（仅顶部拖动浮条）、两档尺寸、函数 / 算式两种模式
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  /** 面板位置：相对 CSS 锚点的位移。用 transform 而不是 left/top——
+      拖动时只走合成层，不触发重排，才跟手 */
+  const [pos, setPos] = useState<{ dx: number; dy: number } | null>(null);
   const [compact, setCompact] = useState(false);
   const [mode, setMode] = useState<"fn" | "calc">("fn");
-  /** 拖动浮条：按住它才能移动面板（真机验证：整面板任意处拖动会被 MN 宿主手势干扰，不灵敏） */
-  const barDrag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  const padRef = useRef<HTMLDivElement | null>(null);
+  /** 拖动状态：起点、起始位移、允许的位移范围（保证整块始终留在画布内） */
+  const barDrag = useRef<{
+    px: number; py: number; dx0: number; dy0: number;
+    minX: number; maxX: number; minY: number; maxY: number;
+  } | null>(null);
+  /** 拖动中最后一帧的位移（松手时用它提交，避免解析 transform 字符串） */
+  const barLastShift = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   /** 拖动期间挂在浮条上的原生触摸拦截的清理函数 */
   const barDragCleanup = useRef<(() => void) | null>(null);
-  /** rAF 节流：最新的指针位置与动画帧句柄 */
-  const barLast = useRef<{ x: number; y: number } | null>(null);
-  const barRaf = useRef<number | null>(null);
+
+  /** 位移限制在画布内：面板整块不能拖出去 */
+  const clampShift = (dx: number, dy: number, d: NonNullable<typeof barDrag.current>) => ({
+    dx: Math.min(d.maxX, Math.max(d.minX, dx)),
+    dy: Math.min(d.maxY, Math.max(d.minY, dy)),
+  });
+
   const onBarDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     e.preventDefault();
@@ -91,43 +108,47 @@ export function FunctionPad(props: Props) {
       bar.removeEventListener("touchstart", stopTouch);
       bar.removeEventListener("touchmove", stopTouch);
     };
-    // 起点 = 面板相对定位父级（.stage）的偏移。不能用视口 rect：
-    // style.left/top 是相对 .stage 的，用视口坐标会把 header 高度算进去，首次拖动整块跳变
-    const panel = (e.currentTarget.closest(".fnpad") as HTMLElement | null) ?? e.currentTarget;
-    barDrag.current = { px: e.clientX, py: e.clientY, ox: panel.offsetLeft, oy: panel.offsetTop };
-    barLast.current = null;
-    if (barRaf.current != null) {
-      cancelAnimationFrame(barRaf.current);
-      barRaf.current = null;
-    }
+    const pad = padRef.current;
+    const stage = pad?.parentElement;
+    if (!pad || !stage) return;
+    const padBox = pad.getBoundingClientRect();
+    const stageBox = stage.getBoundingClientRect();
+    barDrag.current = {
+      px: e.clientX, py: e.clientY,
+      dx0: pos?.dx ?? 0, dy0: pos?.dy ?? 0,
+      minX: stageBox.left - padBox.left,
+      maxX: stageBox.right - padBox.right,
+      minY: stageBox.top - padBox.top,
+      maxY: stageBox.bottom - padBox.bottom,
+    };
   };
+
+  /**
+   * 拖动中直接写 DOM 的 transform，不走 setState：
+   * 这个面板有 40 多个按键，每帧重渲染整棵树就是「不跟手」的根源。
+   * 松手时才提交一次 state，重新渲染的结果与拖动中的最后一帧一致，不会跳。
+   */
   const onBarDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = barDrag.current;
-    if (!d) return;
-    // rAF 节流：拖动帧合并到下一帧渲染，避免高频 setState 拖累整棵树
-    if (barRaf.current == null) {
-      barRaf.current = requestAnimationFrame(() => {
-        barRaf.current = null;
-        const cur = barDrag.current;
-        if (!cur || barLast.current == null) return;
-        setPos({
-          x: cur.ox + barLast.current.x - cur.px,
-          y: Math.max(4, cur.oy + barLast.current.y - cur.py),
-        });
-      });
-    }
-    barLast.current = { x: e.clientX, y: e.clientY };
+    const pad = padRef.current;
+    if (!d || !pad) return;
+    const { dx, dy } = clampShift(d.dx0 + (e.clientX - d.px), d.dy0 + (e.clientY - d.py), d);
+    barLastShift.current = { dx, dy };
+    pad.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
   };
+
   const onBarDragEnd = () => {
+    const d = barDrag.current;
+    const pad = padRef.current;
     barDrag.current = null;
-    barLast.current = null;
-    if (barRaf.current != null) {
-      cancelAnimationFrame(barRaf.current);
-      barRaf.current = null;
-    }
     barDragCleanup.current?.();
     barDragCleanup.current = null;
+    if (!d || !pad) return;
+    // 读回最后一帧的实际位移，提交给 React；两个值一致，所以不会闪
+    const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(pad.style.transform);
+    if (m) setPos({ dx: Number(m[1]), dy: Number(m[2]) });
   };
+
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
   const curves = shapes.filter(isFormulaShape);
 
@@ -216,7 +237,8 @@ export function FunctionPad(props: Props) {
       className={`fnpad${compact ? " fnpad-compact" : ""}`}
       role="dialog"
       aria-label="函数输入"
-      style={pos ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" } : undefined}
+      ref={padRef}
+      style={pos ? { transform: `translate3d(${pos.dx}px, ${pos.dy}px, 0)` } : undefined}
     >
       {/* 拖动浮条：按住这里移动面板 */}
       <div
@@ -234,7 +256,7 @@ export function FunctionPad(props: Props) {
             <button className={mode === "fn" ? "on" : ""} onClick={() => setMode("fn")}>函数</button>
             <button className={mode === "calc" ? "on" : ""} onClick={() => setMode("calc")}>算式</button>
           </div>
-          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCompact((v) => !v)} aria-label="切换面板大小" title="放大 / 缩小面板">
+          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => { setPos(null); setCompact((v) => !v); }} aria-label="切换面板大小" title="放大 / 缩小面板">
             ⤢
           </button>
           <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setExpr(expr.slice(0, -1))} aria-label="退格">
@@ -271,7 +293,10 @@ export function FunctionPad(props: Props) {
           </div>
         </div>
       ) : (
-        <p className="fnpad-empty">输入表达式后点「绘制」· 三角函数用弧度，写角度加 °（如 tan60°）</p>
+        <p className="fnpad-empty">
+          函数：sin(x)+x/2 · 方程：x^2+y^2=1、xy=1 · 参数方程：x=cos(t),y=sin(t)
+          <br />三角函数用弧度，写角度加 °（如 tan60°）
+        </p>
       )}
 
       {/* 单行工具条：标签/输入/求值/绘制全部固定高度，永不换行 */}
@@ -290,7 +315,7 @@ export function FunctionPad(props: Props) {
             setExprState(e.currentTarget.value);
           }}
           onKeyDown={(e) => e.key === "Enter" && draw()}
-          placeholder="sin(x)+x/2"
+          placeholder="sin(x)+x/2 或 xy=1"
           inputMode="text"
           autoComplete="off"
           autoCorrect="off"
@@ -344,7 +369,7 @@ export function FunctionPad(props: Props) {
           <button
             key={key}
             type="button"
-            className={`fnpad-key${SYMBOL_MAP[key] ? " op" : ""}${key === "x" ? " var" : ""}${key === "C" ? " danger" : ""}`}
+            className={`fnpad-key${SYMBOL_MAP[key] ? " op" : ""}${key === "x" || key === "y" || key === "t" ? " var" : ""}${key === "C" ? " danger" : ""}`}
             onClick={() => pressPadKey(key)}
           >
             {key}

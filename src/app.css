@@ -833,6 +833,8 @@ button.with-icon svg { flex: none; }
 /* ---------- 函数计算器面板（底部抽屉） ---------- */
 .fnpad {
   position: absolute;
+  /* 拖动只写 transform：提示浏览器走合成层，避免每帧重排 */
+  will-change: transform;
   left: 8px; right: 8px; bottom: 8px;
   z-index: 19;
   max-height: 90%;
@@ -973,11 +975,13 @@ button.with-icon svg { flex: none; }
 
 .fnpad-keys {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* 6 列：4 行放下 24 键（数字、四则、括号、退格、清空、x/y/t、等号、逗号），
+     行数不变所以面板高度不变 */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px;
 }
 .fnpad-key {
-  height: 38px; padding: 0; font-size: 14px;
+  height: 38px; padding: 0; font-size: 13.5px;
   border: 1px solid var(--line); border-radius: 10px;
   background: var(--surface-2); color: var(--ink);
 }

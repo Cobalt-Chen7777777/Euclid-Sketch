@@ -48,6 +48,7 @@ import { CropDialog } from "./stage/CropDialog";
 import { PasteImageSheet } from "./stage/PasteImageSheet";
 import { useCardCropInsert } from "./useCardCropInsert";
 import { useClipboardImage } from "./useClipboardImage";
+import { useOpenAsMini } from "./useOpenAsMini";
 import { useSettingsCloud } from "./settings/useSettingsCloud";
 import { logHostEnv } from "./debug/env";
 import { useImageActions } from "./useImageActions";
@@ -187,6 +188,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing && !isResizing);
   // 快捷键（Ctrl/Cmd+Z / Shift+Z / Ctrl+Y）监听挂在面板根元素上
   useUndoHotkeys(autoFitRef, undo, redo);
+
+  useOpenAsMini(settings, collapse, setCollapsed);
 
   const onCollapse = useCallback(() => {
     setCollapsed(true);

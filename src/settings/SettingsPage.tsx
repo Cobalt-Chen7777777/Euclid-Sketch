@@ -467,6 +467,10 @@ export function SettingsPage({
                 />
               }
             />
+            <SettingRow icon={<MinimizeIcon />} title="默认以迷你条打开"
+              subtitle="每次唤起插件先收成迷你浮条，点「展开」才进入完整画布"
+              trailing={<Toggle checked={settings.openAsMini} label="默认以迷你条打开"
+                onChange={(openAsMini) => onChange({ openAsMini })} />} />
             <SettingRow
               icon={<WindowIcon />}
               title="立即适应内容高度"

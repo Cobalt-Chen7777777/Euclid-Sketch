@@ -63,6 +63,8 @@ export interface SketchSettings {
   rememberWindowSize: boolean;
   /** 窗口：面板高度跟随内容自动调整（官方 mn.fit()） */
   autoFitHeight: boolean;
+  /** 窗口：唤起面板时默认以迷你条打开，点「展开」才进入完整画布 */
+  openAsMini: boolean;
 }
 
 export const DEFAULT_SETTINGS: SketchSettings = {
@@ -95,6 +97,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   specialAngleSnap: false,
   rememberWindowSize: true,
   autoFitHeight: false,
+  openAsMini: false,
 };
 
 const STORAGE_KEY = "math-sketch-addon.settings.v1";
@@ -202,6 +205,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     specialAngleSnap: readBoolean(source.specialAngleSnap, DEFAULT_SETTINGS.specialAngleSnap),
     rememberWindowSize: readBoolean(source.rememberWindowSize, DEFAULT_SETTINGS.rememberWindowSize),
     autoFitHeight: readBoolean(source.autoFitHeight, DEFAULT_SETTINGS.autoFitHeight),
+    openAsMini: readBoolean(source.openAsMini, DEFAULT_SETTINGS.openAsMini),
   };
 }
 

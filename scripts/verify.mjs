@@ -120,13 +120,13 @@ async function main() {
     await page.locator('.seg button:has-text("函数")').click();
     await page.waitForSelector(".fnpad");
     record("拖动浮条存在", (await page.locator(".fnpad-dragbar").count()) === 1);
-    const before = await page.locator(".fnpad").evaluate((el) => el.style.left || "(unset)");
+    const before = await page.locator(".fnpad").evaluate((el) => el.style.transform || "(unset)");
     const bar = await page.locator(".fnpad-dragbar").boundingBox();
     await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
     await page.mouse.down();
     await page.mouse.move(bar.x + bar.width / 2 + 80, bar.y + bar.height / 2 - 40, { steps: 6 });
     await page.mouse.up();
-    const after = await page.locator(".fnpad").evaluate((el) => el.style.left || "(unset)");
+    const after = await page.locator(".fnpad").evaluate((el) => el.style.transform || "(unset)");
     record("浮条拖动生效", before !== after, `${before} → ${after || "(set)"}`);
 
     // ---------- 3. 撤销/重做（画笔一笔） ----------
