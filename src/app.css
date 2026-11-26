@@ -1416,3 +1416,16 @@ a.set-row {
   background: rgba(120, 114, 105, .38);
   border-radius: 3px;
 }
+
+/* 立体参数：滑块旁的数值可手输 */
+.param-num {
+  width: 56px;
+  padding: 3px 6px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--ink);
+  background: var(--item-bg, #fff);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.param-num:focus { outline: 2px solid var(--accent, #2563eb); outline-offset: 1px; }

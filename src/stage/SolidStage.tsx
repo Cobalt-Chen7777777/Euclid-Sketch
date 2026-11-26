@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import type { SolidKind, SolidShape } from "../model/types";
 import { SolidView, type SolidMode } from "../solid/SolidView";
+import { ParamNumber } from "./ParamNumber";
 import { SOLID_LIBRARY } from "../solid/solids";
 
 interface Props {
@@ -69,7 +70,15 @@ export function SolidStage({ solid, onPick, onParam, onReady, dark = false, onEx
                   value={solid.params[p.key] ?? p.default}
                   onChange={(e) => onParam(p.key, Number(e.target.value))}
                 />
-                <output>{(solid.params[p.key] ?? p.default).toFixed(p.step < 1 ? 1 : 0)}</output>
+                <ParamNumber
+                  value={solid.params[p.key] ?? p.default}
+                  step={p.step}
+                  decimals={p.step < 1 ? 2 : 1}
+                  min={p.min}
+                  max={p.max}
+                  ariaLabel={p.label}
+                  onCommit={(v) => onParam(p.key, v)}
+                />
               </label>
             ))}
           </div>
