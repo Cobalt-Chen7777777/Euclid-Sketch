@@ -352,7 +352,7 @@ export function FunctionPad(props: Props) {
           </>
         )}
         {mode === "calc" ? null : (
-          <button type="button" className="fnbar-eq" onClick={evaluate} aria-label="求值">=</button>
+          <button type="button" className="fnbar-eq" onClick={evaluate} aria-label="求值" title="代入 x 求值">求值</button>
         )}
         <button
           type="button"

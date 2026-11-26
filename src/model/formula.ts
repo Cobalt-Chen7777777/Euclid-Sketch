@@ -30,6 +30,15 @@ export function normalize(input: string): string {
     // 上标：从微信/网页复制来的 x²+y²=1 也要认
     .replace(/²/g, "^2")
     .replace(/³/g, "^3")
+    // 中文数学写法：语音/输入法常出「x方加y方等于1」
+    .replace(/加/g, "+")
+    .replace(/减/g, "-")
+    .replace(/乘/g, "*")
+    .replace(/除/g, "/")
+    .replace(/等于/g, "=")
+    .replace(/的平方/g, "^2")
+    .replace(/平方/g, "^2")
+    .replace(/([xy\d)])\s*方/g, "$1^2")
     .replace(/（/g, "(")
     .replace(/）/g, ")")
     .replace(/\[/g, "(")
