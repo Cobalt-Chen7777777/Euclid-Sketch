@@ -7,6 +7,7 @@
  */
 import { useRef, useState } from "react";
 
+import { blockHostTouch } from "../touchGuard";
 import { RAIL_CATALOG } from "./model";
 
 interface Preset { name: string; tools: string[] }
@@ -26,8 +27,12 @@ export function RailCustomizer({ railTools, railPresets, onChange }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const touchCleanup = useRef<(() => void) | null>(null);
   const startHold = (id: string, e: React.PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
+    // 长按拖拽排序时，拦住宿主原生手势，别让面板跟着走
+    touchCleanup.current?.();
+    touchCleanup.current = blockHostTouch(e.currentTarget);
     holdTimer.current = setTimeout(() => setDragging(id), 300);
   };
   const cancelHold = () => {
@@ -35,6 +40,8 @@ export function RailCustomizer({ railTools, railPresets, onChange }: Props) {
       clearTimeout(holdTimer.current);
       holdTimer.current = null;
     }
+    touchCleanup.current?.();
+    touchCleanup.current = null;
     setDragging(null);
   };
 

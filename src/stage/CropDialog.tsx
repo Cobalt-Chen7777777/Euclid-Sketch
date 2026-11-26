@@ -9,6 +9,8 @@
 /* eslint-disable no-restricted-globals, no-restricted-syntax -- 拖框要挂 window 级 pointermove；选区位置是运行时数值，只能用动态 style */
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { blockHostTouch } from "../touchGuard";
+
 export interface CropRect {
   x: number;
   y: number;
@@ -83,7 +85,7 @@ export function CropDialog({ src, onCancel, onConfirm }: Props) {
       }
       setRect(next);
     };
-    const up = () => { drag.current = null; };
+    const up = () => { drag.current = null; touchCleanup.current?.(); touchCleanup.current = null; };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     return () => {
@@ -92,9 +94,13 @@ export function CropDialog({ src, onCancel, onConfirm }: Props) {
     };
   }, [view]);
 
+  const touchCleanup = useRef<(() => void) | null>(null);
   const start = useCallback((kind: DragKind) => (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // 拦住宿主原生手势：否则拖选区时面板会跟着走
+    touchCleanup.current?.();
+    touchCleanup.current = blockHostTouch(e.currentTarget as HTMLElement);
     drag.current = { kind, px: e.clientX, py: e.clientY, start: rect };
   }, [rect]);
 
