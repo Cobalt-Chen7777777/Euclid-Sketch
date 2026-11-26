@@ -103,7 +103,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   // 角度工具的三步草稿：顶点 → 第一条边 → 第二条边
   const [angleDraft, setAngleDraft] = useState<{ v: Point2; arm1?: Point2; tool: Tool } | null>(null);
   const [hoverWorld, setHoverWorld] = useState<Point2 | null>(null);
-  const lastCurveDown = useRef(0);
+  const lastCurveDown = useRef<{ at: number; x: number; y: number } | null>(null);
   const finishCurveRef = useRef<(() => void) | null>(null);
   const pointers = useRef<Map<number, Point2>>(new Map());
   const pinch = useRef<{ dist: number; center: Point2 } | null>(null);
@@ -294,13 +294,15 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       // 曲线：每点一下加一个控制点；按下后拖动 = 该点的切线（钢笔手感）
       // 双击判定放在这里：第二次按下就直接收尾，避免先把一个重合点加进去再被去重删掉
       const now = Date.now();
-      if (lastCurveDown.current && now - lastCurveDown.current < 320) {
-        lastCurveDown.current = 0;
+      const w = snap(worldRaw);
+      const prev = lastCurveDown.current;
+      // 只有「又快又几乎落在同一点」才算双击收尾——只看时间会把正常连点吞掉
+      if (prev && now - prev.at < 220 && Math.hypot(w.x - prev.x, w.y - prev.y) < 0.25) {
+        lastCurveDown.current = null;
         finishCurveRef.current?.();
         return;
       }
-      lastCurveDown.current = now;
-      const w = snap(worldRaw);
+      lastCurveDown.current = { at: now, x: w.x, y: w.y };
       setDrag((d) => (d && d.kind === "curve"
         ? { ...d, points: [...d.points, w], tangents: [...d.tangents, undefined] }
         : { kind: "curve", points: [w], tangents: [undefined] }));
@@ -498,6 +500,11 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const finishCurve = () => {
     const d = drag;
     if (!d || d.kind !== "curve") return;
+    // 只有 1 个点就收尾等于把用户刚画的取消掉——继续等他点第二个点
+    if (d.points.length < 2) {
+      onToast?.("再点一个位置就能画成曲线");
+      return;
+    }
     setDrag({ kind: "none" });
     // 双击结束会多落一个点：与上一个点几乎重合时丢掉，避免出现「一坨」控制点。
     // 但不能把点数降到 2 以下——否则整条曲线会被 buildCurve 判为无效而「消失」。
@@ -537,7 +544,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     drag.kind === "draw"
       ? createPrimitiveByDrag(placeType, drag.start, drag.raw, color, placeSides)
       : drag.kind === "curve"
-        ? ({ id: "preview-curve", type: "ink", points: drag.points, color, width: penWidth, smooth: true } as Shape)
+        ? (drag.points.length >= 2
+            ? ({ id: "preview-curve", type: "ink", points: drag.points, color, width: penWidth, smooth: true } as Shape)
+            : null)
         : drag.kind === "ink"
         ? ({
             id: "preview",

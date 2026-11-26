@@ -49,13 +49,20 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     // 等宿主切完 mini 标记、DOM 定型后再量真实尺寸——按按钮数估算总会漏掉某些元素
     const timer = setTimeout(() => {
       const bar = document.querySelector(".mini-bar");
-      const pad = 24; // body padding + 安全余量
+      const pad = 10;
+      // 竖向高度按按钮数算：若读 scrollHeight，面板变矮会让内容被压缩，下一轮测得更矮，形成自我收缩
+      const vH = 26 + 6 + n * 36 + 16;
+      const vW = BTN + 16;
+      if (vertical) {
+        api.size?.(vW, Math.min(MAX_LONG, Math.max(80, vH)));
+        logEvent("mini", `竖 ${n} 个按钮 → ${vW}×${Math.min(MAX_LONG, vH)}`);
+        return;
+      }
       if (bar) {
         const rw = Math.round(bar.scrollWidth) + pad;
         const rh = Math.round(bar.scrollHeight) + pad;
-        if (vertical) api.size?.(Math.min(MAX_SHORT, Math.max(46, rw)), Math.min(MAX_LONG, Math.max(80, rh)));
-        else api.size?.(Math.min(MAX_LONG, Math.max(120, rw)), Math.min(MAX_SHORT, Math.max(46, rh)));
-        logEvent("mini", `${vertical ? "竖" : "横"} 实测 ${rw}×${rh} → ${vertical ? "窄柱" : "长条"}`);
+        api.size?.(Math.min(MAX_LONG, Math.max(120, rw)), Math.min(MAX_SHORT, Math.max(46, rh)));
+        logEvent("mini", `横 实测 ${rw}×${rh} → 长条`);
         return;
       }
       // DOM 还没出来时退回估算

@@ -1484,3 +1484,15 @@ a.set-row {
 :root[data-mode="mini"] .mini-bar:not(.vertical) .mini-title {
   display: none; /* 只去文字，徽章图标保留 */
 }
+
+/* 迷你条竖排：按钮不被 flex 拉伸成高块，间距保持一致 */
+:root[data-mode="mini"] .mini-bar.vertical > .mini-btn {
+  flex: 0 0 auto;
+  height: 30px;
+  width: 30px;
+}
+:root[data-mode="mini"] .mini-bar.vertical {
+  row-gap: 6px;
+  gap: 6px;
+  align-content: flex-start;
+}
