@@ -1715,3 +1715,5 @@ body::-webkit-scrollbar,
   user-select: text;
 }
 .set-emoji { font-size: 15px; color: var(--muted); }
+
+.mini-required-hint { font-size: 11px; color: var(--muted); line-height: 1.5; }

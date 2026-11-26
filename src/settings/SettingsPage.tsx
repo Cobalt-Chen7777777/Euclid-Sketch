@@ -250,24 +250,19 @@ export function SettingsPage({
                 <b>迷你条按钮</b>
                 <small>点选后按此顺序显示</small>
                 <span className="chips">
-                  {MINI_ACTIONS.map((a) => {
-                    const required = MINI_REQUIRED_ACTIONS.includes(a.id);
-                    const on = required || settings.miniActions.includes(a.id);
+                  {MINI_ACTIONS.filter((a) => !MINI_REQUIRED_ACTIONS.includes(a.id)).map((a) => {
+                    const on = settings.miniActions.includes(a.id);
                     return (
                       <button key={a.id} type="button" className={`chip${on ? " on" : ""}`}
-                        disabled={required}
-                        title={required ? "固定保留：收起后靠它才打得开面板" : undefined}
-                        onClick={() => {
-                          if (required) return;
-                          onChange({
-                            miniActions: on
-                              ? settings.miniActions.filter((x) => x !== a.id)
-                              : [...settings.miniActions, a.id],
-                          });
-                        }}>{a.label.replace("快速", "")}</button>
+                        onClick={() => onChange({
+                          miniActions: on
+                            ? settings.miniActions.filter((x) => x !== a.id)
+                            : [...settings.miniActions, a.id],
+                        })}>{a.label.replace("快速", "")}</button>
                     );
                   })}
                 </span>
+                <small className="mini-required-hint">「展开面板」固定保留，不在可选项里——收起后靠它才打得开</small>
               </span>
             </div>
           </SettingsGroup>
