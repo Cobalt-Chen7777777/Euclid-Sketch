@@ -10,17 +10,14 @@
       · 64 网格内四周留白 4–6；描边 3–5；端点与转角圆角
       · 负空间缝隙 ≥2，避免小尺寸抗锯齿粘连；内容 100% 不透明
 
-    构图：尺规合一 —— 圆规（铰链 + 两腿）立在带刻度的直尺上，
-         尺在下、刻度朝下，避让圆规腿；两者共构成一个完整剪影。
+    构图：圆规立在它刚画出的一段弧上。
+         铰链在最上方（实心圆点），两条腿张开落在弧线之上；弧线用较细的描边，
+         与腿之间留出 ≥2 的缝隙，44px 下不会糊成一块。
   -->
   <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
-    <!-- 直尺：横条 + 向下的刻度 -->
-    <path d="M9 48 L55 48" stroke-width="5" />
-    <path d="M15 48 L15 53.5 M25 48 L25 53.5 M35 48 L35 53.5 M45 48 L45 53.5" stroke-width="3.2" />
-    <!-- 圆规：两腿落在尺上 -->
-    <path d="M32 13 L20 46" stroke-width="4.6" />
-    <path d="M32 13 L44 46" stroke-width="4.6" />
-    <!-- 铰链 -->
-    <circle cx="32" cy="11.6" r="3.2" fill="#ffffff" stroke="none" />
+    <path d="M32 15 L19.5 43" stroke-width="4.6" />
+    <path d="M32 15 L44.5 43" stroke-width="4.6" />
+    <path d="M17 45.5 Q32 37.5 47 45.5" stroke-width="3.4" />
+    <circle cx="32" cy="11.4" r="3.4" fill="#ffffff" stroke="none" />
   </g>
 </svg>
