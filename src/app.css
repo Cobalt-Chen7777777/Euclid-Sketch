@@ -1429,3 +1429,10 @@ a.set-row {
   border-radius: 7px;
 }
 .param-num:focus { outline: 2px solid var(--accent, #2563eb); outline-offset: 1px; }
+.debug-recent {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  word-break: break-all;
+}

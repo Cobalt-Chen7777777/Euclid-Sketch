@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 
-import { clearLogs, exportLogs, logCount } from "../debug/log";
+import { clearLogs, exportLogs, logCount, recentLogs, logEvent } from "../debug/log";
 import { ChevronIcon, InfoIcon } from "../icons";
 
 interface Props {
@@ -18,11 +18,17 @@ export function DebugSection({ version, debug, onChangeDebug }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copied, setCopied] = useState(false);
   const [liveCount, setLiveCount] = useState(() => logCount());
+  const [recent, setRecent] = useState<string[]>(() => recentLogs(5));
   // 调试模式打开时每秒刷一次条数，否则「当前 0 条」会一直是 0
   useEffect(() => {
     if (!debug) return;
-    const t = setInterval(() => setLiveCount(logCount()), 1000);
+    const t = setInterval(() => { setLiveCount(logCount()); setRecent(recentLogs(5)); }, 1000);
     return () => clearInterval(t);
+  }, [debug]);
+
+  // 打开诊断时记一条，确认写入通道是通的（否则「0 条」分不清是没日志还是没埋点）
+  useEffect(() => {
+    if (debug) logEvent("debug", "打开诊断面板");
   }, [debug]);
 
   /** 1.2 秒内连点 5 次切换调试模式 */
@@ -67,6 +73,15 @@ export function DebugSection({ version, debug, onChangeDebug }: Props) {
             </span>
             <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
           </div>
+          {recent.length > 0 ? (
+            <div className="set-row">
+              <span className="set-tile"><InfoIcon /></span>
+              <span className="set-text">
+                <b>最近 {recent.length} 条</b>
+                <small className="debug-recent">{recent.join(" ｜ ")}</small>
+              </span>
+            </div>
+          ) : null}
           <div className="set-row tappable" onClick={() => { clearLogs(); setCopied(false); }}>
             <span className="set-tile"><InfoIcon /></span>
             <span className="set-text">

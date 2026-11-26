@@ -47,6 +47,10 @@ export function exportLogs(): string {
     .join("\n");
 }
 
+export function recentLogs(n: number): string[] {
+  return buf.slice(-n).map((e) => `[${e.kind}] ${e.detail.slice(0, 42)}`);
+}
+
 export function logCount(): number {
   return buf.length;
 }
