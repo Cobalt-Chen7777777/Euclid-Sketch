@@ -19,6 +19,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { issuePanelSize } from "./panelSize";
+
 /** 面板尺寸（CSS 逻辑像素，≈ pt） */
 export interface PanelSize {
   width: number;
@@ -113,7 +115,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     const last = appliedRef.current;
     if (last && last.width === size.width && last.height === size.height) return;
     appliedRef.current = size;
-    if (isMnAvailable()) mn.size(size.width, size.height);
+    issuePanelSize(size.width, size.height);
   }, []);
 
   const commit = useCallback((size: PanelSize) => {
@@ -174,7 +176,7 @@ export function useResizablePanel(options?: { remember?: boolean }) {
         if (raf == null) {
           raf = requestAnimationFrame(() => {
             raf = null;
-            if (isMnAvailable()) mn.size(latest.width, latest.height);
+            issuePanelSize(latest.width, latest.height, true); // 拖动跟手：每帧都要发
             appliedRef.current = latest;
             setPreviewSize(latest);
           });
@@ -228,12 +230,15 @@ export function useResizablePanel(options?: { remember?: boolean }) {
    * 以前这里写死 300×54，紧接着 useMiniBarFit 又改成实测的 273×50，
    * 一次收起要动两次尺寸 —— 动画上就是「先缩成一个尺寸，再跳一下」。
    */
-  const collapse = useCallback(() => {
+  const collapse = useCallback((size?: PanelSize) => {
     if (!isMnAvailable()) return;
+    const target = size ?? { width: PANEL_LIMITS.miniWidth, height: PANEL_LIMITS.miniHeight };
     mn.mode("mini");
+    // 必须自己配 size：宿主只在收到 size 时才会真正把面板缩下去并同步 data-mode，
+    // 只调 mode 会留下一个「小尺寸但仍按 workspace 布局渲染」的空面板。
+    issuePanelSize(target.width, target.height, true);
     void notifyNative("collapse");
-    // 记录迷你尺寸，避免展开时被「去重」拦掉
-    appliedRef.current = { width: PANEL_LIMITS.miniWidth, height: PANEL_LIMITS.miniHeight };
+    appliedRef.current = target;
   }, []);
 
   /** 从迷你条展开，恢复收起前的尺寸 */

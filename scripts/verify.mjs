@@ -360,7 +360,30 @@ async function main() {
     await context.close();
   }
 
-  // ---------- 13. 0.3.0-beta.2：迷你条按按钮数撑开（不需滑动） ----------
+  // ---------- 13. 收起：宿主不写 data-mode 也要正常显示迷你条 ----------
+  {
+    const { page, context } = await newPage(browser);
+    await page.waitForTimeout(300);
+    await page.locator('.appbar button[aria-label="收起插件窗口"]').click();
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => {
+      const bar = document.querySelector(".mini-bar");
+      const cs = bar ? getComputedStyle(bar) : null;
+      const r = bar ? bar.getBoundingClientRect() : null;
+      return {
+        display: cs?.display ?? "none",
+        w: r ? Math.round(r.width) : 0,
+        h: r ? Math.round(r.height) : 0,
+        pad: getComputedStyle(document.body).paddingTop,
+      };
+    });
+    record("收起后迷你条可见（不依赖宿主 data-mode）",
+      state.display === "flex" && state.w >= 200 && state.h >= 40 && state.pad === "0px",
+      `${state.display} ${state.w}x${state.h} padding=${state.pad}`);
+    await context.close();
+  }
+
+  // ---------- 14. 0.3.0-beta.2：迷你条按按钮数撑开（不需滑动） ----------
   {
     const { page, context } = await newPage(browser);
     await page.waitForTimeout(300);
@@ -375,8 +398,10 @@ async function main() {
     const barOk = last ? last[0] >= 200 && last[1] >= 46 && last[1] <= 90 : false;
     record("迷你条横排一行放全", barOk, last ? `${last[0]}×${last[1]}` : "未调用 mn.size");
 
-    // 尺寸被宿主重置后要能自己纠回来
-    await page.evaluate(() => { window.__mnSizes.length = 0; window.dispatchEvent(new Event("resize")); });
+    // 尺寸被宿主重置后要能自己纠回来（等去重窗口 700ms 过期再触发，符合真实时序）
+    await page.evaluate(() => { window.__mnSizes.length = 0; });
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.dispatchEvent(new Event("resize")));
     await page.waitForTimeout(300);
     const again = await page.evaluate(() => window.__mnSizes);
     record("宿主重置后自动纠回", again.length >= 1, again.length ? `${again[0][0]}×${again[0][1]}` : "未纠正");

@@ -1,7 +1,26 @@
 # 更新日志
 
-当前开发版本：**0.3.0-beta.6**（仅本地，未发布）
+当前开发版本：**0.3.0-beta.7**（仅本地，未发布）
 > ⚠️ MarginNote 对「同版本或更低版本」的包会跳过安装：升级前请先删除设备上已有的旧插件 / 旧模板（`.mnaddon` 与 `.mntemplate` 建议都装，卡片菜单命令依赖模板生效）。
+
+## 0.3.0-beta.7（2026-11-26）
+
+> 修「收起后是一个空白小面板」：面板缩成了条尺寸，却仍按全尺寸布局渲染，body 的 44px 顶部留白把内容全挤没了，只剩白底和右下角把手。
+
+### 修复
+
+- **收起后空白**：不是所有宿主都会在 `mn.mode("mini")` 后写 `<html data-mode>`。标记没写、`[data-mode="mini"]` 的样式全部不生效，于是「面板尺寸是条、布局还是全屏」。现在收起态由钩子自己补上标记，展开时再交还宿主；同时 `collapse()` 恢复下发一次 `mn.size`（宿主收到 size 才会真正把面板缩下去）
+- **收起尺寸要动两次**：上一次把 `collapse()` 里的 `mn.size` 去掉后，尺寸只由 420ms 后的钩子下发；而钩子估算公式漏算了分隔线两侧的 `gap`（算出 269，实测 273），两者不一致就又动了一次。现在两边共用 `estimateMiniSize()` 同一套栅格
+- **尺寸下发统一出口**：新增 `src/panelSize.ts`，`useResizablePanel` 与 `useMiniBarFit` 都走它，同值 700ms 内只发一次。之前两个 hook 各自去重，跨 hook 的重复下发挡不住 —— 宿主会把尺寸动画**重播一遍**（看着抖一下）
+
+实测调用序列（scripts/probe-collapse.mjs）：
+
+```
+初始化   size 420x620
+收起     mode mini      size 273x50     ← 一次
+展开     mode workspace  size 420x620    ← 一次，之后无干扰
+宿主不写 data-mode 时：data-mode=mini（兜底）· mini-bar=flex 273x50 · body padding=0
+```
 
 ## 0.3.0-beta.6（2026-11-26）
 

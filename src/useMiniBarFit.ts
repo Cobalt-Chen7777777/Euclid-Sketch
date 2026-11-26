@@ -9,13 +9,15 @@
  * 关键约束：目标尺寸只能有**一处**计算。此前 420ms 后应用和 resize 纠回各用一套常量
  * （44 / 实测值、+20 / +16），两边来回拉扯，表现就是「切后台回来 UI 自己变大变小」。
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { logEvent } from "./debug/log";
+import { issuePanelSize } from "./panelSize";
 
 const BTN = 34; // 与 mini 模式 .mini-btn.icon 的 --mini-btn 一致
 const GAP = 2; // 与 .mini-bar 的 --mini-gap 一致
-const BADGE_BLOCK = 26 + 6 + 1 + 6; // 徽章 26 + 分隔线 1 + 两侧各 6px 呼吸位
+// 徽章 26 + 两侧 gap + 分隔线 1 + 两侧各 6px 呼吸位（margin 在 gap 之外叠加，别漏）
+const BADGE_BLOCK = 26 + GAP + 6 + 1 + 6 + GAP;
 const BAR_PAD = 16; // .mini-bar 的四周边距（8 + 8）
 const H_FALLBACK = 50; // 单行高度：8 + 34 + 8
 
@@ -23,11 +25,27 @@ const H_FALLBACK = 50; // 单行高度：8 + 34 + 8
 const MAX_LONG = 460;
 const MAX_SHORT = 320;
 
+/**
+ * 迷你条的目标尺寸（纯栅格估算，不读 DOM）。
+ * 收起瞬间 DOM 还没定型，只能先按这套常量给宿主一个准确值；
+ * 随后 useMiniBarFit 会按 DOM 实测再校正一次（两者一致，不会二次跳动）。
+ */
+export function estimateMiniSize(count: number, vertical: boolean): { w: number; h: number } {
+  const n = Math.max(1, count);
+  // 竖排不画分隔线：徽章 26 + 下留白 6 + 与下一个按钮的 gap
+  const badgeBlock = vertical ? 26 + 6 + GAP : BADGE_BLOCK;
+  const longSide = BAR_PAD + badgeBlock + n * BTN + (n - 1) * GAP;
+  const shortSide = BAR_PAD + BTN;
+  return vertical
+    ? { w: Math.min(MAX_SHORT, shortSide), h: Math.min(MAX_LONG, longSide) }
+    : { w: Math.min(MAX_LONG, longSide), h: Math.min(MAX_SHORT, shortSide) };
+}
+
 function readMini(): boolean {
   return document.documentElement.getAttribute("data-mode") === "mini";
 }
 
-export function useMiniBarFit(count: number, vertical: boolean, expanded: boolean) {
+export function useMiniBarFit(count: number, vertical: boolean, collapsed: boolean) {
   const [mini, setMini] = useState(readMini);
 
   useEffect(() => {
@@ -36,7 +54,27 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     return () => obs.disconnect();
   }, []);
 
-  const active = mini || expanded;
+  const active = mini || collapsed;
+
+  /**
+   * 兜底：并非所有宿主都会在 mn.mode("mini") 后写 <html data-mode>。
+   * 真机上出现过「面板缩成了条尺寸，但仍按 workspace 布局渲染」—— 结果是一片空白小面板
+   * （body 的 44px 顶部留白把内容全挤掉了）。这里在收起态自己补上标记，展开时再交还。
+   */
+  const selfSet = useRef(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    const current = el.getAttribute("data-mode");
+    if (active && current !== "mini") {
+      el.setAttribute("data-mode", "mini");
+      selfSet.current = true;
+      return;
+    }
+    if (!active && selfSet.current && current === "mini") {
+      el.removeAttribute("data-mode");
+      selfSet.current = false;
+    }
+  }, [active]);
 
   useEffect(() => {
     if (!active) return;
@@ -48,13 +86,12 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     const n = Math.max(1, count);
     /** 本轮连续纠正次数：宿主不接受这个尺寸时别硬顶，避免和它打乒乓 */
     let fixes = 0;
-    /** 上次下发的目标值：同一值短时间内不重复下发，否则宿主动画会被重播一次（看起来抖一下） */
-    let lastTarget: { w: number; h: number; at: number } | null = null;
 
     /** 唯一的目标尺寸来源：首次应用与 resize 纠回都走这里，避免两套值互相拉扯 */
     // 统一栅格：BAR_PAD + 徽章块 + n 个按钮 + (n-1) 个间距（横竖同构，只是主轴不同）
     // 竖排不画分隔线，徽章块 = 26 + 6（下留白）
-    const badgeBlock = vertical ? 26 + 6 : BADGE_BLOCK;
+    // 竖排不画分隔线：徽章 26 + 下留白 6 + 与下一个按钮的 gap
+  const badgeBlock = vertical ? 26 + 6 + GAP : BADGE_BLOCK;
     const longSide = BAR_PAD + badgeBlock + n * BTN + (n - 1) * GAP;
     const shortSide = BAR_PAD + BTN;
 
@@ -90,18 +127,15 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
         return;
       }
       if (fixes >= 3) return;
-      // 宿主动画有几百毫秒，期间内尺寸还没跟上；同一目标值不重复下发，避免动画被重播
-      if (lastTarget && lastTarget.w === w && lastTarget.h === h && Date.now() - lastTarget.at < 700) return;
-      lastTarget = { w, h, at: Date.now() };
       fixes += 1;
-      api.size?.(w, h);
+      // 统一出口自带「同值 700ms 内不重复下发」，避免宿主动画被重播
+      if (!issuePanelSize(w, h)) return;
       logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 → ${w}×${h}（当前 ${curW}×${curH}）`);
     };
 
-    // 收起瞬间先立即量一次：mn.mode("mini") 之后 CSS 已经切到迷你布局，
-    // 此时 scrollWidth 就是真实宽度，一次到位，不用等到 420ms 才从小面板跳成条。
-    const kick = setTimeout(apply, 0);
-    // 宿主切完 mini 标记、DOM 定型后再兜底量一次；420ms 避开 MN 自己的展开动画
+    // 收起那一刻的尺寸由 useResizablePanel.collapse() 用同一套栅格直接下发过了，
+    // 这里不再「立即量一次」—— 两次相同值的 mn.size 会让宿主把尺寸动画重播一遍（看着抖一下）。
+    // 只在宿主切完 mini 标记、DOM 定型后兜底校正；宿主自己重置尺寸时靠 resize 纠回。
     const timer = setTimeout(apply, 420);
     // 宿主会自己重置过面板尺寸（切后台回来、旋转、动画收尾），尺寸一变就纠回来
     const onResize = () => {
@@ -111,7 +145,6 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     window.addEventListener("resize", onResize);
 
     return () => {
-      clearTimeout(kick);
       clearTimeout(timer);
       window.removeEventListener("resize", onResize);
     };

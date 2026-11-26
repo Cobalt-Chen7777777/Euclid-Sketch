@@ -42,7 +42,7 @@ import { useLayers } from "./useLayers";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useDocAutosave, loadDoc } from "./useDocAutosave";
-import { useMiniBarFit } from "./useMiniBarFit";
+import { estimateMiniSize, useMiniBarFit } from "./useMiniBarFit";
 import { HistoryDialog } from "./stage/HistoryDialog";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
@@ -183,8 +183,10 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
   const onCollapse = useCallback(() => {
     setCollapsed(true);
-    collapse();
-  }, [collapse]);
+    // 与迷你条同一套栅格算出尺寸：收起只动一次尺寸，不会「先缩到一个值再跳一下」
+    const bar = estimateMiniSize(settings.miniActions.length, settings.miniOrientation === "v");
+    collapse({ width: bar.w, height: bar.h });
+  }, [collapse, settings.miniActions.length, settings.miniOrientation]);
   const onExpand = useCallback(() => {
     setCollapsed(false);
     expand();
