@@ -3,6 +3,7 @@
   font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
   --page: #f4f2ee;
   --surface: #fffefb;
+  --panel: #fffdf8;
   --surface-2: #faf8f3;
   --line: #e7e2d8;
   --line-strong: #d8d1c4;
@@ -537,6 +538,7 @@ button.with-icon svg { flex: none; }
   --glass-hi: rgba(255, 255, 255, .14);
   --page: #1c1a17;
   --surface: #272521;
+  --panel: #272521;
   --surface-2: #302d28;
   --line: #423d37;
   --line-strong: #514b44;
@@ -1357,7 +1359,7 @@ a.set-row {
 .paste-panel {
   width: min(420px, 100%);
   display: flex; flex-direction: column; gap: 8px;
-  background: var(--panel, #fffdf8);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
@@ -1391,7 +1393,7 @@ a.set-row {
   width: min(560px, 100%);
   max-height: 100%;
   display: flex; flex-direction: column; gap: 8px;
-  background: var(--panel, #fffdf8);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px;
@@ -1449,7 +1451,7 @@ a.set-row {
   max-height: 64vh;
   display: flex;
   flex-direction: column;
-  background: var(--panel, #fffdf8);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
@@ -1475,7 +1477,7 @@ a.set-row {
   padding: 6px 12px;
   font-size: 12px;
   color: var(--ink);
-  border-bottom: 1px solid rgba(120, 114, 105, .10);
+  border-bottom: 1px solid var(--line);
 }
 .hist-list li > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hist-list li > em { text-align: right; }
@@ -1484,6 +1486,8 @@ a.set-row {
 .hist-empty { margin: 0; padding: 16px; font-size: 12px; color: var(--muted); }
 .cache-msg { color: #0f7b5f; }
 .chip.danger { color: #b42318; border-color: rgba(180, 35, 24, .35); }
+.panel.theme-dark .chip.danger { color: #f97066; border-color: rgba(249, 112, 102, .42); }
+.panel.theme-dark .update-status.bad { color: #f97066; }
 .hist-snaps { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; }
 .hist-snap-title {
   margin: 0;

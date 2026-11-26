@@ -48,6 +48,7 @@ import { CropDialog } from "./stage/CropDialog";
 import { PasteImageSheet } from "./stage/PasteImageSheet";
 import { useCardCropInsert } from "./useCardCropInsert";
 import { useClipboardImage } from "./useClipboardImage";
+import { logHostEnv } from "./debug/env";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
 import { fileToImageShape } from "./model/image";
@@ -243,6 +244,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       showToast(e instanceof Error ? e.message : "图片导入失败");
     }
   }, [viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
+
+  // 启动时把宿主环境记一行（拖拽条高度、窗口尺寸），真机排查布局用
+  useEffect(() => { logHostEnv(); }, []);
 
   // 卡片图插入：渲染 → 选区裁剪 → 进画布（逻辑在 useCardCropInsert）
   const { cropSrc, setCropSrc, insertCardImage, onCropConfirm } = useCardCropInsert({
