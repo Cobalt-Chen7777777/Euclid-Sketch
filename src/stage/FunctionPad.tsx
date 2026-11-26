@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax -- 小窗拖动位置必须动态 style */
+/* eslint-disable no-restricted-syntax, no-restricted-globals -- 小窗拖动位置必须动态 style；窗口缩放时要重新测量是否放得下 */
 /**
  * 函数面板：科学计算器式界面。
  *
@@ -80,9 +80,15 @@ export function FunctionPad(props: Props) {
     const pad = padRef.current;
     const stage = pad?.parentElement;
     if (!pad || !stage) return;
-    if (pad.scrollHeight > stage.clientHeight * 0.88) setCompact(true);
+    // 内容真的溢出才缩：scrollHeight > 可视高度
+    if (pad.scrollHeight > pad.clientHeight + 2) setCompact(true);
   }, []);
-  useEffect(() => { autoFit(); }, [autoFit]);
+  useEffect(() => {
+    autoFit();
+    const onResize = () => autoFit();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [autoFit]);
   const [mode, setMode] = useState<"fn" | "calc">("fn");
   const padRef = useRef<HTMLDivElement | null>(null);
   /** 拖动状态：起点、起始位移、允许的位移范围（保证整块始终留在画布内） */
