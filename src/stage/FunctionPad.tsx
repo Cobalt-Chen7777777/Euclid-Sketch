@@ -11,7 +11,7 @@
  * 求值直接用与绘图同一套求值器（model/expr），所以键位上能按的，
  * 画出来和算出来的结果完全一致。
  */
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { compileExpr } from "../model/expr";
 import { isFormulaShape } from "../model/formula";
@@ -75,6 +75,14 @@ export function FunctionPad(props: Props) {
       拖动时只走合成层，不触发重排，才跟手 */
   const [pos, setPos] = useState<{ dx: number; dy: number } | null>(null);
   const [compact, setCompact] = useState(false);
+  /** 放不下时自动缩成紧凑版：内容高度超过可视高度的 88% 就缩 */
+  const autoFit = useCallback(() => {
+    const pad = padRef.current;
+    const stage = pad?.parentElement;
+    if (!pad || !stage) return;
+    if (pad.scrollHeight > stage.clientHeight * 0.88) setCompact(true);
+  }, []);
+  useEffect(() => { autoFit(); }, [autoFit]);
   const [mode, setMode] = useState<"fn" | "calc">("fn");
   const padRef = useRef<HTMLDivElement | null>(null);
   /** 拖动状态：起点、起始位移、允许的位移范围（保证整块始终留在画布内） */
@@ -83,7 +91,6 @@ export function FunctionPad(props: Props) {
     minX: number; maxX: number; minY: number; maxY: number;
   } | null>(null);
   /** 拖动中最后一帧的位移（松手时用它提交，避免解析 transform 字符串） */
-  const barLastShift = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   /** 拖动期间挂在浮条上的原生触摸拦截的清理函数 */
   const barDragCleanup = useRef<(() => void) | null>(null);
 
@@ -133,8 +140,7 @@ export function FunctionPad(props: Props) {
     const pad = padRef.current;
     if (!d || !pad) return;
     const { dx, dy } = clampShift(d.dx0 + (e.clientX - d.px), d.dy0 + (e.clientY - d.py), d);
-    barLastShift.current = { dx, dy };
-    pad.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+    pad.style.setProperty("transform", `translate3d(${dx}px, ${dy}px, 0)`);
   };
 
   const onBarDragEnd = () => {
@@ -145,7 +151,7 @@ export function FunctionPad(props: Props) {
     barDragCleanup.current = null;
     if (!d || !pad) return;
     // 读回最后一帧的实际位移，提交给 React；两个值一致，所以不会闪
-    const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(pad.style.transform);
+    const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(pad.style.getPropertyValue("transform"));
     if (m) setPos({ dx: Number(m[1]), dy: Number(m[2]) });
   };
 

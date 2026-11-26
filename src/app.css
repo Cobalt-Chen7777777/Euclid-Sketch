@@ -316,7 +316,7 @@ button.with-icon svg { flex: none; }
 .tabbar.sub button.active { background: var(--pill); color: var(--ink); box-shadow: none; }
 
 /* ---------- 设置页（版式参考 CardLink） ---------- */
-.settings-page { display: grid; gap: 10px; padding-bottom: 72px; }
+.settings-page { display: grid; gap: 10px; padding: 0 14px 72px; }
 
 .page-head { padding: 2px 2px 0; }
 .page-head h1 { margin: 0; font-size: 16px; }
@@ -838,6 +838,7 @@ button.with-icon svg { flex: none; }
   left: 8px; right: 8px; bottom: 8px;
   z-index: 19;
   max-height: 90%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
