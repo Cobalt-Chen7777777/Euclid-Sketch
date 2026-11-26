@@ -223,13 +223,16 @@ export function useResizablePanel(options?: { remember?: boolean }) {
     commit({ width: PANEL_LIMITS.defaultWidth, height: PANEL_LIMITS.defaultHeight });
   }, [commit]);
 
-  /** 收起为迷你条：mode 只改标记，必须自己配 size */
+  /**
+   * 收起为迷你条：只切模式标记，尺寸交给 useMiniBarFit 按 DOM 实测来定。
+   * 以前这里写死 300×54，紧接着 useMiniBarFit 又改成实测的 273×50，
+   * 一次收起要动两次尺寸 —— 动画上就是「先缩成一个尺寸，再跳一下」。
+   */
   const collapse = useCallback(() => {
     if (!isMnAvailable()) return;
     mn.mode("mini");
-    mn.size(PANEL_LIMITS.miniWidth, PANEL_LIMITS.miniHeight);
     void notifyNative("collapse");
-    // 记录实际尺寸，避免展开时被「去重」拦掉
+    // 记录迷你尺寸，避免展开时被「去重」拦掉
     appliedRef.current = { width: PANEL_LIMITS.miniWidth, height: PANEL_LIMITS.miniHeight };
   }, []);
 

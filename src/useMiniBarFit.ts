@@ -48,8 +48,8 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     const n = Math.max(1, count);
     /** 本轮连续纠正次数：宿主不接受这个尺寸时别硬顶，避免和它打乒乓 */
     let fixes = 0;
-    /** 展开态是否已经应用过一次 */
-    let applied = false;
+    /** 上次下发的目标值：同一值短时间内不重复下发，否则宿主动画会被重播一次（看起来抖一下） */
+    let lastTarget: { w: number; h: number; at: number } | null = null;
 
     /** 唯一的目标尺寸来源：首次应用与 resize 纠回都走这里，避免两套值互相拉扯 */
     // 统一栅格：BAR_PAD + 徽章块 + n 个按钮 + (n-1) 个间距（横竖同构，只是主轴不同）
@@ -76,15 +76,9 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
 
     const apply = () => {
       const { w, h } = target();
-      const isMini = readMini();
-      if (!isMini) {
-        // 展开态只需要按内容调一次尺寸；反复调会和宿主的窗口动画打架
-        if (applied) return;
-        applied = true;
-        api.size?.(w, h);
-        logEvent("mini", `展开态 ${n} 个按钮 → ${w}×${h}`);
-        return;
-      }
+      // 只有真·mini 面板才调 mn.size。展开态由 useResizablePanel 负责，
+      // 这里再改一次会把刚展开的面板弹回长条尺寸（展开动画回弹的根因）。
+      if (!readMini()) return;
       // 幂等的判据是「面板现状是否已经到位」，不是「目标值是否变过」：
       // 宿主切后台回来会把面板重置成默认小窗，目标值没变但面板已经不对了，
       // 只比目标值就会漏掉这种情况——这正是「切回来 UI 错乱」修不掉的原因。
@@ -96,12 +90,18 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
         return;
       }
       if (fixes >= 3) return;
+      // 宿主动画有几百毫秒，期间内尺寸还没跟上；同一目标值不重复下发，避免动画被重播
+      if (lastTarget && lastTarget.w === w && lastTarget.h === h && Date.now() - lastTarget.at < 700) return;
+      lastTarget = { w, h, at: Date.now() };
       fixes += 1;
       api.size?.(w, h);
       logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 → ${w}×${h}（当前 ${curW}×${curH}）`);
     };
 
-    // 等宿主切完 mini 标记、DOM 定型后再量真实尺寸；420ms 避开 MN 自己的展开动画
+    // 收起瞬间先立即量一次：mn.mode("mini") 之后 CSS 已经切到迷你布局，
+    // 此时 scrollWidth 就是真实宽度，一次到位，不用等到 420ms 才从小面板跳成条。
+    const kick = setTimeout(apply, 0);
+    // 宿主切完 mini 标记、DOM 定型后再兜底量一次；420ms 避开 MN 自己的展开动画
     const timer = setTimeout(apply, 420);
     // 宿主会自己重置过面板尺寸（切后台回来、旋转、动画收尾），尺寸一变就纠回来
     const onResize = () => {
@@ -111,6 +111,7 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
     window.addEventListener("resize", onResize);
 
     return () => {
+      clearTimeout(kick);
       clearTimeout(timer);
       window.removeEventListener("resize", onResize);
     };
