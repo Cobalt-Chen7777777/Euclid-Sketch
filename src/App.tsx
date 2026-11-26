@@ -230,7 +230,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const onImportImage = useCallback(async (file: File, index = 0) => {
     try {
-      const shape = await fileToImageShape(file, viewport, color, shapes, index);
+      const shape = await fileToImageShape(file, viewport, color, shapes, index, settings.imageInsertScale);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
       setViewport((vp) => zoomToBox(vp, shape));
@@ -238,7 +238,24 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     } catch (e) {
       showToast(e instanceof Error ? e.message : "图片导入失败");
     }
-  }, [viewport, color, shapes, setShapes, showToast]);
+  }, [viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
+
+  /** 从剪贴板插入图片；面板环境可能不给读权限，失败时提示走文件导入 */
+  const onInsertClipboardImage = useCallback(async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        await onImportImage(new File([blob], "clipboard.png", { type }));
+        return;
+      }
+      showToast("剪贴板里没有图片，先复制一张再试");
+    } catch {
+      showToast("读不到剪贴板（宿主未授权），请用「从文件导入图片」");
+    }
+  }, [onImportImage, showToast]);
 
   /** 从目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定） */
   const onImportCardImage = useCallback(async (noteidArg?: string) => {
@@ -256,7 +273,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
         return;
       }
-      const shape = await imageSrcToShape(rendered.src, viewport, color, true, shapes);
+      const shape = await imageSrcToShape(rendered.src, viewport, color, true, shapes, 0, settings.imageInsertScale);
       setShapes((prev) => [...prev, shape]);
       setSelectedId(shape.id);
       setViewport((vp) => zoomToBox(vp, shape));
@@ -264,7 +281,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [targetCard, refreshContext, lockTarget, viewport, color, shapes, setShapes, showToast]);
+  }, [targetCard, refreshContext, lockTarget, viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
 
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));
@@ -559,6 +576,9 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onExportPng={() => { void onExportPng(); }}
               onCopyPng={() => { void onCopyPng(); }}
               onImportImageFile={() => imageInputRef.current?.click()}
+              onInsertClipboard={() => { void onInsertClipboardImage(); }}
+              imageInsertScale={settings.imageInsertScale}
+              onImageInsertScale={(imageInsertScale) => updateSettings({ imageInsertScale })}
               lockRadius={lockRadius}
               lockedRadius={lockedRadius}
             />

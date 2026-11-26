@@ -66,6 +66,11 @@ interface Props {
   onCopyPng: () => void;
   /** 从本地文件导入图片（备用来源；主入口为卡片渲染图） */
   onImportImageFile: () => void;
+  /** 从剪贴板插入图片（宿主不授权时会提示改用文件导入） */
+  onInsertClipboard: () => void;
+  /** 插入图片的大小系数（1 大 / 0.7 中 / 0.45 小） */
+  imageInsertScale: number;
+  onImageInsertScale: (scale: number) => void;
   lockRadius: boolean;
   lockedRadius: number | null;
 }
@@ -125,7 +130,7 @@ export function OptionsDrawer(props: Props) {
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
     onToggleDashed, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
-    dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile,
+    dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile, onInsertClipboard, imageInsertScale, onImageInsertScale,
   } = props;
 
   const selectedShape = shapes.find((s) => s.id === selectedId) ?? null;
@@ -484,6 +489,15 @@ export function OptionsDrawer(props: Props) {
           <button type="button" className="chip export-chip" onClick={onExportPng}>导出 PNG 图片（2×）</button>
           <button type="button" className="chip export-chip" onClick={onCopyPng}>复制草图图片</button>
           <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
+          <button type="button" className="chip export-chip" onClick={onInsertClipboard}>从剪贴板插入</button>
+          <div className="chips">
+            <span className="drawer-hint">插入大小</span>
+            {[[1, "大"], [0.7, "中"], [0.45, "小"]].map(([v, label]) => (
+              <button key={String(v)} type="button"
+                className={`chip${Math.abs(imageInsertScale - (v as number)) < 0.01 ? " on" : ""}`}
+                onClick={() => onImageInsertScale(v as number)}>{label}</button>
+            ))}
+          </div>
           <p className="drawer-hint">「复制草图图片」后可直接在 MN 卡片批注/子卡里长按粘贴；导出含全部图形；卡片图请用左侧「插入卡片图」</p>
         </section>
       </div>

@@ -35,6 +35,8 @@ export interface SketchSettings {
   allowTouchDraw: boolean;
   /** 手掌防误触：忽略大接触面积、笔在位时的手指，以及误触产生的极短笔迹 */
   palmReject: boolean;
+  /** 插入图片的大小系数（1 = 视口 80%，0.7 = 中，0.45 = 小） */
+  imageInsertScale: number;
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
   /** 工具栏显示的工具按钮（顺序即显示顺序） */
@@ -74,6 +76,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   debug: false,
   allowTouchDraw: true,
   palmReject: true,
+  imageInsertScale: 1,
   dashStyle: false,
   railTools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "image"],
   railPresets: [
@@ -182,6 +185,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     debug: readBoolean(source.debug, DEFAULT_SETTINGS.debug),
     allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
     palmReject: readBoolean(source.palmReject, DEFAULT_SETTINGS.palmReject),
+    imageInsertScale: readNumber(source.imageInsertScale, DEFAULT_SETTINGS.imageInsertScale, 0.3, 1),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),
     railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
     railPresets: readRailPresets(source.railPresets, DEFAULT_SETTINGS.railPresets),

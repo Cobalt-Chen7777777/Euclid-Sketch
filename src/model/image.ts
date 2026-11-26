@@ -17,9 +17,10 @@ export async function fileToImageShape(
   color: string,
   existing: Shape[] = [],
   offsetIndex = 0,
+  insertScale = 1,
 ): Promise<ImageShape> {
   const src = await readAsDataURL(file);
-  return imageSrcToShape(src, viewport, color, false, existing, offsetIndex);
+  return imageSrcToShape(src, viewport, color, false, existing, offsetIndex, insertScale);
 }
 
 /** 把一张图片 dataURL 压缩并生成画布图形（卡片渲染图 / 文件导入共用） */
@@ -33,6 +34,8 @@ export async function imageSrcToShape(
   existing: Shape[] = [],
   /** 本次批量导入中的序号（0 起），同批多图错位用 */
   offsetIndex = 0,
+  /** 插入大小系数（1 = 视口 80%），设置里的「插入大小」 */
+  insertScale = 1,
 ): Promise<ImageShape> {
   const img = await loadImage(rawSrc);
 
@@ -61,6 +64,9 @@ export async function imageSrcToShape(
     hWorld = maxH;
     wWorld = hWorld * (iw / ih);
   }
+  // 用户在设置里选的插入大小（大 / 中 / 小）
+  wWorld *= insertScale;
+  hWorld *= insertScale;
   const cx = (viewport.xRange[0] + viewport.xRange[1]) / 2;
   const cy = (viewport.yRange[0] + viewport.yRange[1]) / 2;
   // 位置：以视口中心为基准，按「已有图片数 + 本次导入序号」阶梯错开。

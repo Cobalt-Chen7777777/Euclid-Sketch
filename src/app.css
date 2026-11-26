@@ -29,7 +29,10 @@
 }
 
 html {
-  background: var(--page);
+  /* 底色不画在 html 上：宿主做窗口尺寸动画时，html 会先按新矩形铺一块直角底，
+     几帧后才切到迷你条的圆角层，肉眼看就是「矩形→圆角」的残影。
+     改成整条链路透明、由 #root 自绘并裁圆角，任何尺寸变化都只会看到圆角。 */
+  background: transparent;
   height: 100%;
 }
 
@@ -45,7 +48,13 @@ body {
   overscroll-behavior: none;
 }
 
-#root { height: 100%; }
+#root {
+  height: 100%;
+  /* 面板底色 + 自家圆角裁切：展开 / 收起、窗口动画中都只有圆角，不会露出直角 */
+  background: var(--page);
+  border-radius: 14px;
+  overflow: hidden;
+}
 
 .panel {
   position: relative;
@@ -588,7 +597,7 @@ button.with-icon svg { flex: none; }
   z-index: 15;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
   padding: 5px;
   background: var(--chrome);
   border: 1px solid var(--line);
@@ -597,7 +606,7 @@ button.with-icon svg { flex: none; }
 }
 .rail-btn {
   display: grid; place-items: center;
-  width: 36px; height: 36px; padding: 0;
+  width: 38px; height: 38px; padding: 0;
   border: none; border-radius: 10px;
   background: transparent; color: var(--muted);
 }
@@ -705,10 +714,10 @@ button.with-icon svg { flex: none; }
 .drawer-body {
   flex: 1; min-height: 0; overflow: auto;
   padding: 10px 12px 14px;
-  display: grid; gap: 14px; align-content: start;
+  display: grid; gap: 16px; align-content: start;
 }
 .drawer-sec h3 {
-  margin: 0 0 7px; font-size: 11px; font-weight: 700;
+  margin: 0 0 8px; font-size: 11px; font-weight: 700;
   color: var(--muted); letter-spacing: .4px;
 }
 .drawer-sec h3 em {
@@ -727,9 +736,9 @@ button.with-icon svg { flex: none; }
 .drawer-input-row { display: flex; gap: 6px; }
 .drawer-input-row .input { padding: 8px; font-size: 12px; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
-  padding: 5px 9px; font-size: 11.5px;
+  padding: 8px 11px; font-size: 11.5px;
   border: 1px solid var(--line); border-radius: 8px;
   background: var(--surface-2); color: var(--ink);
 }
@@ -961,8 +970,8 @@ button.with-icon svg { flex: none; }
 .fnpad-key.var { font-family: ui-monospace, Menlo, monospace; font-style: italic; }
 
 /* panel 之外的页面底色：用 :has 跟着主题走（Safari 15.4+ 支持） */
-html:has(.panel.theme-dark) { background: #17150f; }
-html:has(.panel.theme-dark) body { background: #17150f; }
+html:has(.panel.theme-dark) { background: transparent; }
+#root:has(.panel.theme-dark) { background: #17150f; }
 .panel.theme-dark {
   /* 深色下加强列表项 / 色块对比（用户反馈「图形下的 UI 反色 / 显色 bug」） */
   --item-bg: #383430;
@@ -1438,6 +1447,8 @@ a.set-row {
 :root[data-mode="mini"] #root {
   border-radius: 14px;
   overflow: hidden;
+  /* 迷你态不要面板底色：圆角浮条自己画，外面应当透明 */
+  background: transparent;
 }
 
 :root[data-mode="mini"] .mini-bar {
