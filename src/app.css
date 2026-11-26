@@ -46,16 +46,21 @@ body {
   /* 顶部 36px 是 MN 原生拖拽条，这里不再用 body padding 让开——
      padding 区域仍会被 #root 的不透明底覆盖，等于把拖拽条盖住、面板拖不动。
      改成 #root 自己下移，顶部那条整条透明，宿主的拖动手势能直接拿到。 */
-  padding: 0 10px 10px;
+  padding: 0;
   color: #2a2723;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
 
 #root {
-  /* 让开顶部原生拖拽条；高度同步扣掉，避免把内容顶出面板 */
-  margin-top: calc(var(--mn-drag-h, 36px) + 8px);
-  height: calc(100% - var(--mn-drag-h, 36px) - 8px);
+  /* 贴住四边定位，而不是靠百分比高度：
+     百分比在 WKWebView 里一旦某一层高度链算错，内容就只占上半截、下面留一片空白。
+     这样写窗口多高 #root 就多高；顶部让出原生拖拽条 + 8px 呼吸位。 */
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  top: calc(var(--mn-drag-h, 36px) + 8px);
+  bottom: 10px;
   /* 面板底色 + 自家圆角裁切：展开 / 收起、窗口动画中都只有圆角，不会露出直角 */
   background: var(--page);
   border-radius: 14px;
@@ -1559,8 +1564,10 @@ a.set-row {
   background: transparent;
 }
 :root[data-mode="mini"] #root {
-  margin-top: 0;
-  height: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   border-radius: 14px;
   overflow: hidden;
   /* 迷你态不要面板底色：圆角浮条自己画，外面应当透明 */
