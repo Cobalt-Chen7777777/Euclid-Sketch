@@ -52,7 +52,7 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
       const pad = 10;
       // 竖向高度按按钮数算：若读 scrollHeight，面板变矮会让内容被压缩，下一轮测得更矮，形成自我收缩
       const vH = 26 + 6 + n * 36 + 16;
-      const vW = BTN + 16;
+      const vW = BTN + 26; // 按钮 30 + 两侧留白，太窄会把图标挤没
       if (vertical) {
         api.size?.(vW, Math.min(MAX_LONG, Math.max(80, vH)));
         logEvent("mini", `竖 ${n} 个按钮 → ${vW}×${Math.min(MAX_LONG, vH)}`);
