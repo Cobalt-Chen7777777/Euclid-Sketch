@@ -10,6 +10,23 @@ import { newId } from "./types";
 
 const MAX_SIDE = 1200;
 
+/** 按图片自然像素裁出一块，返回新的 dataURL（卡片选区插入用） */
+export async function cropImageToDataUrl(
+  src: string,
+  rect: { x: number; y: number; w: number; h: number },
+): Promise<string> {
+  const img = await loadImage(src);
+  const w = Math.max(1, Math.round(rect.w));
+  const h = Math.max(1, Math.round(rect.h));
+  // 超过上限时等比缩，避免插入一张几百万像素的图把 localStorage 撑爆
+  const scale = Math.min(1, MAX_SIDE / Math.max(w, h));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * scale));
+  canvas.height = Math.max(1, Math.round(h * scale));
+  canvas.getContext("2d")?.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
 /** 从文件导入（读为 dataURL 后走同一压缩管线） */
 export async function fileToImageShape(
   file: File,

@@ -37,6 +37,8 @@ export interface SketchSettings {
   palmReject: boolean;
   /** 插入图片的大小系数（1 = 视口 80%，0.7 = 中，0.45 = 小） */
   imageInsertScale: number;
+  /** 插入卡片图时先弹选区（只插题目区时可以裁掉多余内容） */
+  askCardCrop: boolean;
   /** 线型：画布样式开关——开启后画什么都画成虚线 */
   dashStyle: boolean;
   /** 工具栏显示的工具按钮（顺序即显示顺序） */
@@ -77,6 +79,7 @@ export const DEFAULT_SETTINGS: SketchSettings = {
   allowTouchDraw: true,
   palmReject: true,
   imageInsertScale: 1,
+  askCardCrop: true,
   dashStyle: false,
   railTools: ["select", "pen", "curve", "eraser", "lasso", "angle", "line", "point", "circle", "place", "image"],
   railPresets: [
@@ -186,6 +189,7 @@ export function normalizeSettings(raw: unknown): SketchSettings {
     allowTouchDraw: readBoolean(source.allowTouchDraw, DEFAULT_SETTINGS.allowTouchDraw),
     palmReject: readBoolean(source.palmReject, DEFAULT_SETTINGS.palmReject),
     imageInsertScale: readNumber(source.imageInsertScale, DEFAULT_SETTINGS.imageInsertScale, 0.3, 1),
+    askCardCrop: readBoolean(source.askCardCrop, DEFAULT_SETTINGS.askCardCrop),
     dashStyle: readBoolean(source.dashStyle ?? (source as Record<string, unknown>).dashedDefault, DEFAULT_SETTINGS.dashStyle),
     railTools: readRailTools(source.railTools, DEFAULT_SETTINGS.railTools),
     railPresets: readRailPresets(source.railPresets, DEFAULT_SETTINGS.railPresets),

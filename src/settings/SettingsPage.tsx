@@ -298,6 +298,18 @@ export function SettingsPage({
               }
             />
             <SettingRow
+              icon={<ImageIcon />}
+              title="插入卡片图时选择区域"
+              subtitle="卡片长图可以只裁出题目区再插入；关掉则直接整张插入"
+              trailing={
+                <Toggle
+                  checked={settings.askCardCrop}
+                  label="插入卡片图时选择区域"
+                  onChange={(askCardCrop) => onChange({ askCardCrop })}
+                />
+              }
+            />
+            <SettingRow
               icon={<MagnetIcon />}
               title="手掌防误触"
               subtitle="忽略大面积接触、笔在位时落下的手指，以及点一下就走的极短笔迹"

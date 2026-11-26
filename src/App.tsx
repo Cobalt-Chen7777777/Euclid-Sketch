@@ -44,9 +44,13 @@ import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useDocAutosave, loadDoc } from "./useDocAutosave";
 import { estimateMiniSize, useMiniBarFit } from "./useMiniBarFit";
 import { HistoryDialog } from "./stage/HistoryDialog";
+import { CropDialog } from "./stage/CropDialog";
+import { PasteImageSheet } from "./stage/PasteImageSheet";
+import { useCardCropInsert } from "./useCardCropInsert";
+import { useClipboardImage } from "./useClipboardImage";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
-import { fileToImageShape, imageSrcToShape } from "./model/image";
+import { fileToImageShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
 const VIEW_W = 400;
@@ -240,22 +244,16 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     }
   }, [viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
 
-  /** 从剪贴板插入图片；面板环境可能不给读权限，失败时提示走文件导入 */
-  const onInsertClipboardImage = useCallback(async () => {
-    try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const type = item.types.find((t) => t.startsWith("image/"));
-        if (!type) continue;
-        const blob = await item.getType(type);
-        await onImportImage(new File([blob], "clipboard.png", { type }));
-        return;
-      }
-      showToast("剪贴板里没有图片，先复制一张再试");
-    } catch {
-      showToast("读不到剪贴板（宿主未授权），请用「从文件导入图片」");
-    }
-  }, [onImportImage, showToast]);
+  // 卡片图插入：渲染 → 选区裁剪 → 进画布（逻辑在 useCardCropInsert）
+  const { cropSrc, setCropSrc, insertCardImage, onCropConfirm } = useCardCropInsert({
+    viewport, color, shapes, setShapes, setSelectedId, setViewport, showToast,
+    insertScale: settings.imageInsertScale,
+  });
+
+  const { pasteOpen, setPasteOpen, onInsertClipboardImage } = useClipboardImage({
+    onFile: (file) => { void onImportImage(file); },
+    showToast,
+  });
 
   /** 从目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定） */
   const onImportCardImage = useCallback(async (noteidArg?: string) => {
@@ -273,15 +271,16 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
         return;
       }
-      const shape = await imageSrcToShape(rendered.src, viewport, color, true, shapes, 0, settings.imageInsertScale);
-      setShapes((prev) => [...prev, shape]);
-      setSelectedId(shape.id);
-      setViewport((vp) => zoomToBox(vp, shape));
-      showToast("已插入卡片图；卡片上若残留草图批注文字会一并显示，可在 MN 里删除该批注");
+      // 渲染接口只能出整张长图，所以「只插题目区」交给本地区域裁剪
+      if (settings.askCardCrop) {
+        setCropSrc(rendered.src);
+        return;
+      }
+      await insertCardImage(rendered.src, true);
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [targetCard, refreshContext, lockTarget, viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
+  }, [targetCard, refreshContext, lockTarget, showToast, settings.askCardCrop, insertCardImage, setCropSrc]);
 
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));
@@ -414,6 +413,14 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       />
 
       <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} onClearHistory={clearHistory} />
+      <PasteImageSheet
+        open={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        onImage={(file) => { setPasteOpen(false); void onImportImage(file); }}
+      />
+      {cropSrc ? (
+        <CropDialog src={cropSrc} onCancel={() => setCropSrc(null)} onConfirm={(rect) => { void onCropConfirm(rect); }} />
+      ) : null}
       {toast ? <div className="toast" role="status">{toast}</div> : null}
       <ImagePreviewLayer src={preview?.src ?? null} reason={preview?.reason} onClose={closePreview} onExport={() => { void onExportPng(); }} />
       {/* 窗口拖动缩放中：尺寸预览 HUD（拖动期间不调宿主接口，松手才生效） */}
