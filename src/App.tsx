@@ -42,6 +42,7 @@ import { useLayers } from "./useLayers";
 import { HiddenFileInputs } from "./HiddenFileInputs";
 import { readDocumentFile, toExportDoc } from "./io/documents";
 import { useDocAutosave, loadDoc } from "./useDocAutosave";
+import { useMiniBarFit } from "./useMiniBarFit";
 import { HistoryDialog } from "./stage/HistoryDialog";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
@@ -175,6 +176,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   });
   // 收起为迷你条时暂停高度自适应，否则 mn.fit 会把迷你条撑回内容高度；拖动把手缩放时也暂停（避免 mn.fit 拉锯）
   const [collapsed, setCollapsed] = useState(false);
+  useMiniBarFit(settings.miniActions.length, settings.miniOrientation === "v", collapsed);
   const autoFitRef = useAutoFitHeight(settings.autoFitHeight && !collapsed && !typing && !isResizing);
   // 快捷键（Ctrl/Cmd+Z / Shift+Z / Ctrl+Y）监听挂在面板根元素上
   useUndoHotkeys(autoFitRef, undo, redo);

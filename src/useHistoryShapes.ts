@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Shape } from "./model/types";
 
 const MERGE_MS = 700;
-const MAX_STEPS = 60;
+const MAX_STEPS = 150;
 
 interface HistoryApi {
   /** 包装后的 setShapes：所有会改图形的操作都走它 */

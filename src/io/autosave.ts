@@ -7,7 +7,7 @@ import type { SketchDocument } from "../model/types";
 
 const DOC_KEY = "mathsketch.doc.v2";
 const SNAP_KEY = "mathsketch.snapshots.v2";
-const MAX_SNAPS = 5;
+const MAX_SNAPS = 15;
 /** 单条快照上限（字符），超了不入库，避免撑爆 localStorage */
 const MAX_CHARS = 600_000;
 

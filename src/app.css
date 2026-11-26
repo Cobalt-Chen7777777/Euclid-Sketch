@@ -1387,3 +1387,32 @@ a.set-row {
 .chip.danger { color: #b42318; border-color: rgba(180, 35, 24, .35); }
 .hist-snaps { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; }
 .hist-snap-title { margin: 0; padding: 6px 12px 2px; font-size: 11px; color: var(--muted); }
+
+/* 迷你条自适应：不再靠滚动，按钮多了就把面板撑开（由 useMiniBarFit 调 mn.size） */
+:root[data-mode="mini"] .mini-bar {
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  flex-wrap: nowrap;
+}
+:root[data-mode="mini"] .mini-bar.vertical {
+  width: auto;
+  flex-wrap: nowrap;
+}
+:root[data-mode="mini"] body {
+  overflow: visible;
+}
+
+/* 历史列表：条目多了可在框内上下滑动翻阅 */
+.hist-list {
+  max-height: 44vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.hist-snaps .hist-list { max-height: 30vh; }
+.hist-list::-webkit-scrollbar { width: 6px; }
+.hist-list::-webkit-scrollbar-thumb {
+  background: rgba(120, 114, 105, .38);
+  border-radius: 3px;
+}

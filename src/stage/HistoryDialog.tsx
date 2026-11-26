@@ -67,9 +67,9 @@ export function HistoryDialog({ open, list, currentCount, onJump, onClose, onRes
 
         {snaps.length > 0 ? (
           <div className="hist-snaps">
-            <p className="hist-snap-title">上次关闭前的画布{snaps.length > 3 ? `（最近 3 份 / 共 ${snaps.length} 份）` : ""}</p>
+            <p className="hist-snap-title">上次关闭前的画布{snaps.length > 10 ? `（最近 10 份 / 共 ${snaps.length} 份）` : ""}</p>
             <ul className="hist-list">
-              {snaps.slice(0, 3).map((s) => (
+              {snaps.slice(0, 10).map((s) => (
                 <li key={s.ts}>
                   <span>{new Date(s.ts).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).replace("/", "/")}</span>
                   <em>{s.count} 个图形</em>
