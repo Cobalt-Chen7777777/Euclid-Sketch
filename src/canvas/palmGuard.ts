@@ -7,20 +7,26 @@
  *   2. 笔优先：笔正在屏幕上，或刚抬起不到 700ms（写字时虎口本来就贴着屏）
  *   3. 极短笔迹：时长短、屏幕位移极小，不是有意的笔画
  */
+import { logEvent } from "../debug/log";
 import { toScreen } from "./viewport";
 
 import type { Viewport } from "./viewport";
 import type { Point2 } from "../model/types";
 
-/** 接触面积上限（CSS 像素）：超过就按手掌处理 */
-export const PALM_SIZE = 36;
+/**
+ * 接触面积上限（CSS 像素）：超过就当作手掌、连指针都不登记。
+ * 定在 120 是刻意保守——iOS 给网页的 width/height 并不总是真实接触面积，
+ * 手指也能报到 30~50；阈值定低了会把手指标成手掌，两次单指就再也拼不成双指捏合。
+ * 手掌实测远大于此，120 只会拦到真正的大面积接触。
+ */
+export const PALM_SIZE = 120;
 /** 笔抬起后仍然忽略手指的时间窗（毫秒） */
 export const PEN_HAND_WINDOW = 700;
 /** 误触笔迹的长度上限（屏幕像素）与时长上限（毫秒） */
 const STRAY_LEN = 8;
 const STRAY_MS = 160;
 
-/** 笔的在场状态，由画布层在 pointerdown / pointerup 里维护 */
+/** 笔的在场状态，由画布层持有并在 pointerdown / pointerup 里更新 */
 export interface PenState {
   active: boolean;
   lastAt: number;
@@ -33,16 +39,41 @@ interface PointerLike {
 }
 
 /**
- * 这次按下的指针要不要直接忽略。
- * 只处理 touch；笔与鼠标永远放行（笔按下时由调用方自行更新 PenState）。
+ * pointerdown 时的统一判定：维护笔的在场状态，并给出这次指针要不要忽略。
+ * 返回 penInHand 供调用方决定「手指这次能不能落笔」——注意即使 penInHand，
+ * 指针也要照常登记，否则两指捏合会被拆成两次单指。
  */
-export function isPalmTouch(e: PointerLike, pen: PenState, palmReject: boolean, now = Date.now()): boolean {
-  if (!palmReject || e.pointerType !== "touch") return false;
-  const size = Math.max(e.width ?? 0, e.height ?? 0);
-  if (size >= PALM_SIZE) return true;
-  if (pen.active) return true;
-  if (now - pen.lastAt < PEN_HAND_WINDOW) return true;
-  return false;
+export function notePointerStart(
+  e: PointerLike,
+  pen: PenState,
+  palmReject: boolean,
+  now = Date.now(),
+): { penInHand: boolean; ignore: boolean } {
+  const penInHand = pen.active || now - pen.lastAt < PEN_HAND_WINDOW;
+  if (e.pointerType === "pen") {
+    pen.active = true;
+    pen.lastAt = now;
+    return { penInHand, ignore: false };
+  }
+  if (e.pointerType !== "touch") return { penInHand, ignore: false };
+
+  const w = e.width ?? 0;
+  const h = e.height ?? 0;
+  // 真机排查用：只在可疑时记一行（笔在手，或接触面积偏大），避免刷满诊断日志
+  if (penInHand || Math.max(w, h) >= 40) {
+    logEvent("palm", `touch size=${Math.round(w)}x${Math.round(h)} pen=${penInHand ? 1 : 0}`);
+  }
+  // 只有在「笔在手」且面积特别大时才丢；否则手指一律放行，保证捏合可用
+  const ignore = palmReject && penInHand && Math.max(w, h) >= PALM_SIZE;
+  return { penInHand, ignore };
+}
+
+/** pointerup 时更新笔的在场状态 */
+export function notePointerEnd(e: PointerLike, pen: PenState, now = Date.now()): void {
+  if (e.pointerType === "pen") {
+    pen.active = false;
+    pen.lastAt = now;
+  }
 }
 
 /** 手指误触：时长短 + 屏幕上的总位移极小 */

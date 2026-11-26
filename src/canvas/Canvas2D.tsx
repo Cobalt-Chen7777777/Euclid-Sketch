@@ -16,7 +16,7 @@ import type { InkShape, Point2, PrimitiveType, Shape } from "../model/types";
 import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
 import { ShapeLayer } from "./ShapeLayer";
-import { PEN_HAND_WINDOW, PALM_SIZE, isStrayInk } from "./palmGuard";
+import { notePointerEnd, notePointerStart, isStrayInk, type PenState } from "./palmGuard";
 import {
   fitViewport,
   panRange,
@@ -114,10 +114,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const finishCurveRef = useRef<((keepTool?: boolean) => void) | null>(null);
   const pointers = useRef<Map<number, Point2>>(new Map());
   const pinch = useRef<{ dist: number; center: Point2 } | null>(null);
-  /** 笔是否正在屏幕上（用于笔优先：笔在位时忽略手指） */
-  const penActive = useRef(false);
-  /** 笔最后一次抬起的时间（毫秒），用于「笔刚抬起、虎口还在屏上」的窗口期 */
-  const lastPenAt = useRef(0);
+  /** 笔的在场状态（active / 最后一次抬起时间），由 palmGuard 维护 */
+  const pen = useRef<PenState>({ active: false, lastAt: 0 });
 
 
   // WKWebView 里只有非 passive 的 touchstart 才能拦住宿主原生手势（拖窗口/滚动）。
@@ -260,14 +258,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     e.preventDefault();
     e.stopPropagation();
 
-    // 笔优先：记录笔的在场状态
-    if (e.pointerType === "pen") {
-      penActive.current = true;
-      lastPenAt.current = Date.now();
-    } else if (options.palmReject && e.pointerType === "touch" && Math.max(e.width ?? 0, e.height ?? 0) >= PALM_SIZE) {
-      // 手掌：接触面积太大，连登记都不要，否则会被算进「双指手势」乱平移
-      return;
-    }
+    // 笔优先 + 手掌防误触：判定与诊断日志都在 palmGuard 里
+    const { penInHand, ignore } = notePointerStart(e, pen.current, options.palmReject);
+    if (ignore) return;
 
     // 捕获挂在 svg 本身：捕获在子节点上时，预览重渲染可能把节点换掉导致捕获丢失
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -296,8 +289,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (e.pointerType === "touch" && !options.allowTouchDraw) return;
     // 笔在屏上或刚抬起：单指不画图，避免写字时虎口蹭出笔画。
     // 注意此时指针已经登记过，所以双指捏合缩放仍然正常。
-    if (e.pointerType === "touch" && options.palmReject
-      && (penActive.current || Date.now() - lastPenAt.current < PEN_HAND_WINDOW)) return;
+    if (e.pointerType === "touch" && options.palmReject && penInHand) return;
 
     const worldRaw = toWorld(sp, v);
     // 手柄只在选择 / 曲线工具下抢：绘制工具优先画新图形，避免在旧图形上起笔时改到它
@@ -505,7 +497,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     pointers.current.delete(e.pointerId);
     if (pointers.current.size < 2) pinch.current = null;
     // 笔离屏：开始计算虎口误触窗口期
-    if (e.pointerType === "pen") { penActive.current = false; lastPenAt.current = Date.now(); }
+    notePointerEnd(e, pen.current);
 
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
