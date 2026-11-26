@@ -40,16 +40,19 @@ body {
   margin: 0;
   box-sizing: border-box;
   height: 100%;
-  /* 顶部 36px 是 MN 原生拖拽条；若宿主没注入 --mn-drag-h 就按 36px 兜底，
-     避免把可点元素顶到拖拽条下面（否则一按就变成拖窗口） */
-  padding: calc(var(--mn-drag-h, 36px) + 8px) 10px 10px;
+  /* 顶部 36px 是 MN 原生拖拽条，这里不再用 body padding 让开——
+     padding 区域仍会被 #root 的不透明底覆盖，等于把拖拽条盖住、面板拖不动。
+     改成 #root 自己下移，顶部那条整条透明，宿主的拖动手势能直接拿到。 */
+  padding: 0 10px 10px;
   color: #2a2723;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
 
 #root {
-  height: 100%;
+  /* 让开顶部原生拖拽条；高度同步扣掉，避免把内容顶出面板 */
+  margin-top: calc(var(--mn-drag-h, 36px) + 8px);
+  height: calc(100% - var(--mn-drag-h, 36px) - 8px);
   /* 面板底色 + 自家圆角裁切：展开 / 收起、窗口动画中都只有圆角，不会露出直角 */
   background: var(--page);
   border-radius: 14px;
@@ -281,6 +284,10 @@ button.with-icon svg { flex: none; }
 .appnav {
   display: flex; gap: 2px; padding: 3px;
   background: var(--pill); border-radius: 10px;
+  /* 吸顶：内容滚动时不会被下面的画布压住（用户反馈「还是有遮盖」） */
+  position: sticky;
+  top: 0;
+  z-index: 11;
 }
 .appnav.full { width: 100%; }
 .appnav.full button { flex: 1; }
@@ -717,11 +724,12 @@ button.with-icon svg { flex: none; }
 }
 .drawer-body {
   flex: 1; min-height: 0; overflow: auto;
-  padding: 10px 12px 14px;
-  display: grid; gap: 16px; align-content: start;
+  padding: 12px 14px 16px;
+  display: grid; gap: 20px; align-content: start;
 }
+.drawer-sec { display: grid; gap: 9px; }
 .drawer-sec h3 {
-  margin: 0 0 8px; font-size: 11px; font-weight: 700;
+  margin: 0 0 1px; font-size: 12px; font-weight: 700;
   color: var(--muted); letter-spacing: .4px;
 }
 .drawer-sec h3 em {
@@ -736,7 +744,7 @@ button.with-icon svg { flex: none; }
   text-align: right; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.drawer-hint { margin: 7px 0 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.drawer-hint { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--muted); }
 .drawer-input-row { display: flex; gap: 6px; }
 .drawer-input-row .input { padding: 8px; font-size: 12px; }
 
@@ -1232,8 +1240,8 @@ a.set-row {
 /* 图层面板 */
 .layer-list { display: flex; flex-direction: column; gap: 6px; }
 .layer-row {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 6px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px;
   border-radius: 9px;
   border: 1px solid transparent;
 }
@@ -1546,6 +1554,8 @@ a.set-row {
   background: transparent;
 }
 :root[data-mode="mini"] #root {
+  margin-top: 0;
+  height: 100%;
   border-radius: 14px;
   overflow: hidden;
   /* 迷你态不要面板底色：圆角浮条自己画，外面应当透明 */
