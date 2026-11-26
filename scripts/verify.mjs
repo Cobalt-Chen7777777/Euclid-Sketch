@@ -308,7 +308,7 @@ async function main() {
     // 以画布中心放大 8 档：跨度过大时曾出现曲线整条消失
     const c = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
     await page.mouse.move(c.x, c.y);
-    for (let i = 0; i < 8; i += 1) await page.mouse.wheel(0, -160);
+    for (let i = 0; i < 40; i += 1) await page.mouse.wheel(0, -160);
     await page.waitForTimeout(300);
     const nanCount = await page.evaluate(() => [...document.querySelectorAll(".canvas-svg path")]
       .filter((p) => (p.getAttribute("d") || "").includes("NaN")).length);
@@ -331,7 +331,36 @@ async function main() {
     await context.close();
   }
 
-  // ---------- 12. 0.3.0-beta.2：迷你条按按钮数撑开（不需滑动） ----------
+  // ---------- 12. 尺寸动画：viewBox 与容器始终一致（否则方框被拉伸畸变） ----------
+  {
+    const { page, context } = await newPage(browser);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      window.__stretch = [];
+      const svg = document.querySelector(".canvas-svg");
+      const sample = () => {
+        const r = svg.getBoundingClientRect();
+        const vb = (svg.getAttribute("viewBox") || "0 0 0 0").split(/\s+/).map(Number);
+        window.__stretch.push(Math.max(Math.abs(r.width - vb[2]), Math.abs(r.height - vb[3])));
+      };
+      window.__ro = new ResizeObserver(sample);
+      window.__ro.observe(svg);
+      sample();
+    });
+    for (let i = 1; i <= 12; i += 1) {
+      await page.setViewportSize({ width: 520 - i * 12, height: 700 - i * 16 });
+      await page.waitForTimeout(30);
+    }
+    await page.waitForTimeout(200);
+    const worst = await page.evaluate(() => {
+      window.__ro.disconnect();
+      return Math.max(...window.__stretch);
+    });
+    record("尺寸变化全程无拉伸", worst <= 0.5, `最大偏差 ${Math.round(worst * 10) / 10}px`);
+    await context.close();
+  }
+
+  // ---------- 13. 0.3.0-beta.2：迷你条按按钮数撑开（不需滑动） ----------
   {
     const { page, context } = await newPage(browser);
     await page.waitForTimeout(300);

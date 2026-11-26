@@ -1413,10 +1413,19 @@ a.set-row {
    —— 此前同一条被 5 处规则分别改高度/间距/图标尺寸，互相覆盖，
    表现就是「图标偏离、贴边、怎么调都不齐」，这里收敛为唯一一段。
    ============================================================ */
+:root[data-mode="mini"] {
+  /* html 默认有 --page 底色，mini 模式下它会在圆角迷你条外面露出一块白色直角方框
+     —— 真机上看到「方框畸变 / 圆角不连贯」就是这个。必须整条链路都透明。 */
+  background: transparent;
+}
 :root[data-mode="mini"] body {
   padding: 0;
   overflow: visible;
   background: transparent;
+}
+:root[data-mode="mini"] #root {
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 :root[data-mode="mini"] .mini-bar {

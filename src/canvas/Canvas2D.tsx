@@ -108,7 +108,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   const [angleDraft, setAngleDraft] = useState<{ v: Point2; arm1?: Point2; tool: Tool } | null>(null);
   const [hoverWorld, setHoverWorld] = useState<Point2 | null>(null);
   const lastCurveDown = useRef<{ at: number; x: number; y: number } | null>(null);
-  const finishCurveRef = useRef<(() => void) | null>(null);
+  const finishCurveRef = useRef<((keepTool?: boolean) => void) | null>(null);
   const pointers = useRef<Map<number, Point2>>(new Map());
   const pinch = useRef<{ dist: number; center: Point2 } | null>(null);
 
@@ -132,35 +132,31 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
   useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl || typeof ResizeObserver !== "function") return;
-    let raf: number | null = null;
-    let started = false;
 
     const apply = () => {
-      if (frozen) return;
       const rect = svgEl.getBoundingClientRect();
       if (rect.width < 40 || rect.height < 40) return;
+      // 拖动把手缩放窗口时也要同步（frozen 只用来省掉网格重绘，不能省 viewBox）：
+      // 之前 frozen 直接 return，整个拖动过程 SVG 都在被单向拉伸 —— 就是「方框畸变」。
+      // 关键：先在当前帧把 viewBox 写成容器实际尺寸，再交给 React 更新 state。
+      // React 的 setState 在 ResizeObserver 回调里会被调度到下一次渲染，中间那一帧
+      // preserveAspectRatio="none" 会把网格/方框非等比拉伸——真机上看到的就是
+      // 「缩放动画中方框畸变、圆角不连贯」。双写消除这一帧（后续渲染写入相同的值，不跳变）。
+      svgEl.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
       setViewport((prev) => {
-        // viewBox 必须与容器像素尺寸一致：差 1px 就会被 preserveAspectRatio="none" 拉伸，
-        // 看起来就是「关一下开关 / 拉一下窗口，画面自己缩放变形」。所以阈值收到 0.5px。
+        // 阈值 0.5px：差 1px 就会被拉伸，所以不能像以前那样容忍 6px
         if (Math.abs(prev.width - rect.width) < 0.5 && Math.abs(prev.height - rect.height) < 0.5) return prev;
         // fitViewport 固定 px/单位：尺寸变化只改变「看得到多少」，图形大小与位置都不动
         return fitViewport(prev, rect.width, rect.height);
       });
     };
 
-    // rAF 合并：同一帧内的多次尺寸变化只算一次。
-    // 不用 120ms 延迟——那段空窗期里 svg 会被拉伸，正是「自己缩放」的观感来源。
+    // 同步 apply：ResizeObserver 回调本身在 layout 之后、paint 之前，
+    // 此时 setState 能让 viewBox 与容器尺寸在同一帧对齐。
+    // 之前用 rAF 合并会晚一帧 —— 那一帧里 svg 被 preserveAspectRatio=none 拉伸，
+    // 表现就是「拖窗口时网格/方框突然变形一下」。
     const schedule = () => {
-      if (!started) {
-        started = true;
-        apply();
-        return;
-      }
-      if (raf != null) return;
-      raf = requestAnimationFrame(() => {
-        raf = null;
-        apply();
-      });
+      apply();
     };
 
     const observer = new ResizeObserver(schedule);
@@ -168,7 +164,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     schedule();
     return () => {
       observer.disconnect();
-      if (raf != null) cancelAnimationFrame(raf);
     };
   }, [setViewport, svgRef, frozen]);
 
@@ -274,7 +269,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
         };
       }
-      setDrag({ kind: "none" });
+      // 正在画曲线时双指缩放：先落形再缩放（此前直接 setDrag none，草稿跟着手势一起没了）
+      if (drag.kind === "curve") finishCurveRef.current?.(true);
+      else setDrag({ kind: "none" });
       return;
     }
 
@@ -526,8 +523,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     setDrag({ kind: "none" });
   };
 
-  /** 双击（或切走工具）结束曲线：去重后落成平滑笔迹 */
-  const finishCurve = () => {
+  /** 双击（或切走工具）结束曲线：去重后落成平滑笔迹。keepTool=true 时留在曲线工具 */
+  const finishCurve = (keepTool = false) => {
     const d = drag;
     if (!d || d.kind !== "curve") return;
     // 只有 1 个点就收尾等于把用户刚画的取消掉——继续等他点第二个点
@@ -548,7 +545,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       onToast?.("曲线至少需要 2 个控制点，已取消");
       return;
     }
-    onRequestTool?.("select");
+    if (!keepTool) onRequestTool?.("select");
     setShapes((prev) => [...prev, { ...ink, layer: currentLayer }]);
     onSelect(ink.id);
     onToast?.(`曲线完成：${ink.points.length} 个控制点，拖手柄调曲率`);
@@ -647,6 +644,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           showTicks={options.showTicks}
           gridStep={options.gridStep}
           strokeWidth={options.strokeWidth}
+          gridLite={frozen}
         />
       </svg>
       {/* 图片锁定徽标：HTML 覆盖层（SVG 内固定尺寸图形会随 viewBox 拉伸变形，锁会歪） */}

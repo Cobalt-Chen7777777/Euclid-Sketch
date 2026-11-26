@@ -38,6 +38,8 @@ interface Props {
   showTicks?: boolean;
   /** 网格密度，覆盖坐标系自带的 grid（设置项） */
   gridStep?: number;
+  /** 拖动缩放窗口期间：网格步长放大 4 倍，减少每帧重绘量（图形与坐标轴照常） */
+  gridLite?: boolean;
   /** 描边线宽（设置项） */
   strokeWidth?: number;
 }
@@ -344,7 +346,7 @@ const ShapeNode = memo(function ShapeNode({ shape, v, selected, strokeWidth }: S
 
 const StaticLayer = memo(function StaticLayer({
   shapes, viewport: v, highlightId, selectionIds, lassoPoints,
-  showGrid = true, showTicks = true, gridStep, strokeWidth = 2,
+  showGrid = true, showTicks = true, gridStep, strokeWidth = 2, gridLite = false,
 }: Omit<Props, "preview" | "previewShape">) {
   // 「画不出来」要真的数出来：此前 renderedInk 直接传 ink 总数，drawn 恒等于 ink，
   // render.bad 永远不会触发，日志看不出曲线是否渲染失败
@@ -362,7 +364,9 @@ const StaticLayer = memo(function StaticLayer({
   }, [shapes, v]);
   useRenderAudit({ shapes, viewport: v, renderedInk: inkStats.ink - inkStats.bad });
   const coord = shapes.find((s) => s.type === "coord");
-  const step = gridStep ?? (coord && coord.type === "coord" ? coord.grid : 1);
+  const baseStep = gridStep ?? (coord && coord.type === "coord" ? coord.grid : 1);
+  // 拖动缩放时降低网格密度：每帧重绘 240 条线是掉帧主因
+  const step = gridLite ? baseStep * 4 : baseStep;
   const grid = gridLines(v, step);
   const selected = shapes.find((s) => s.id === highlightId);
   const handles = selected ? getHandles(selected) : [];

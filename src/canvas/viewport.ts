@@ -91,15 +91,39 @@ export function fitViewport(v: Viewport, width: number, height: number): Viewpor
   };
 }
 
+/**
+ * 缩放极限（世界单位跨度）。
+ * 双指每帧最多 0.5 倍，连续捏合几十帧后跨度会塌到 1e-9 以下：
+ * 此时 toScreen 的 (p - x0) / span 已经丢失全部有效位，所有坐标挤成同一个值，
+ * 曲线/图形看上去「整条消失」（其实是画成了一个点）。所以跨度必须有硬边界。
+ */
+export const MIN_SPAN = 0.02;
+export const MAX_SPAN = 4000;
+
+/** 跨度异常（塌缩成 0 或 NaN）时的兜底视野 */
+function fallbackRange(v: Viewport): Viewport {
+  return { ...v, xRange: [-8, 8], yRange: [-8, 8] };
+}
+
 /** 以某屏幕点为中心缩放视口 */
 export function zoomViewport(v: Viewport, anchor: Point2, factor: number): Viewport {
-  const worldAnchor = toWorld(anchor, v);
   const [x0, x1] = v.xRange;
   const [y0, y1] = v.yRange;
-  const newW = (x1 - x0) * factor;
-  const newH = (y1 - y0) * factor;
-  const rx = (worldAnchor.x - x0) / (x1 - x0);
-  const ry = (worldAnchor.y - y0) / (y1 - y0);
+  const spanX = x1 - x0;
+  const spanY = y1 - y0;
+  // 已经坏掉的视口先复位，否则后续每帧都会算出 NaN
+  if (!Number.isFinite(spanX) || !Number.isFinite(spanY) || spanX <= 0 || spanY <= 0) {
+    return fallbackRange(v);
+  }
+  // 到达缩放上下限就停手：继续缩放只会让坐标失去精度
+  const nextSpanX = spanX * factor;
+  if (!Number.isFinite(nextSpanX) || nextSpanX < MIN_SPAN || nextSpanX > MAX_SPAN) return v;
+
+  const worldAnchor = toWorld(anchor, v);
+  const newW = spanX * factor;
+  const newH = spanY * factor;
+  const rx = (worldAnchor.x - x0) / spanX;
+  const ry = (worldAnchor.y - y0) / spanY;
   return {
     ...v,
     xRange: [worldAnchor.x - newW * rx, worldAnchor.x + newW * (1 - rx)],
