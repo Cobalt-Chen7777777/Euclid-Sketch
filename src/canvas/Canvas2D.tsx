@@ -297,7 +297,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       const w = snap(worldRaw);
       const prev = lastCurveDown.current;
       // 只有「又快又几乎落在同一点」才算双击收尾——只看时间会把正常连点吞掉
-      if (prev && now - prev.at < 220 && Math.hypot(w.x - prev.x, w.y - prev.y) < 0.25) {
+      // 双击收尾：只有已经攒够 2 个点才认；点数不够时把这一下当成正常加点（否则第二条点永远加不进去）
+      const enough = drag && drag.kind === "curve" && drag.points.length >= 2;
+      if (enough && prev && now - prev.at < 260 && Math.hypot(w.x - prev.x, w.y - prev.y) < 0.8) {
         lastCurveDown.current = null;
         finishCurveRef.current?.();
         return;

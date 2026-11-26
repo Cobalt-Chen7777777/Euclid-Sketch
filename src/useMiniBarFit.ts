@@ -42,11 +42,25 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
       logEvent("mini", "mn.size 不可用");
       return;
     }
+    let lastW = 0;
+    let lastH = 0;
+    const apply = (w: number, h: number) => {
+      if (Math.abs(w - lastW) < 6 && Math.abs(h - lastH) < 6) return;
+      lastW = w;
+      lastH = h;
+      api.size?.(w, h);
+    };
 
     const n = Math.max(1, count);
     const long = Math.min(MAX_LONG, n * BTN + (n - 1) * GAP + PAD + EDGE + BADGE);
 
     // 等宿主切完 mini 标记、DOM 定型后再量真实尺寸——按按钮数估算总会漏掉某些元素
+    const vH = 26 + 6 + n * 36 + 20;
+    const vW = BTN + 26;
+    const hH = 44;
+    const barEl = document.querySelector(".mini-bar");
+    const hW = Math.min(MAX_LONG, Math.max(120, Math.round(barEl?.scrollWidth ?? n * (BTN + GAP)) + 12));
+
     const timer = setTimeout(() => {
       const bar = document.querySelector(".mini-bar");
       const pad = 10;
@@ -54,14 +68,14 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
       const vH = 26 + 6 + n * 36 + 16;
       const vW = BTN + 26; // 按钮 30 + 两侧留白，太窄会把图标挤没
       if (vertical) {
-        api.size?.(vW, Math.min(MAX_LONG, Math.max(80, vH)));
+        apply(vW, Math.min(MAX_LONG, vH));
         logEvent("mini", `竖 ${n} 个按钮 → ${vW}×${Math.min(MAX_LONG, vH)}`);
         return;
       }
       if (bar) {
         const rw = Math.round(bar.scrollWidth) + pad;
         const rh = Math.round(bar.scrollHeight) + pad;
-        api.size?.(Math.min(MAX_LONG, Math.max(120, rw)), Math.min(MAX_SHORT, Math.max(46, rh)));
+        apply(Math.min(MAX_LONG, Math.max(120, rw)), Math.min(MAX_SHORT, Math.max(46, rh)));
         logEvent("mini", `横 实测 ${rw}×${rh} → 长条`);
         return;
       }
@@ -69,8 +83,18 @@ export function useMiniBarFit(count: number, vertical: boolean, expanded: boolea
       const rowW = n * BTN + (n - 1) * GAP + PAD;
       api.size?.(vertical ? Math.min(MAX_SHORT, BTN + PAD) : Math.min(MAX_LONG, rowW), vertical ? long : Math.min(MAX_SHORT, BTN + PAD));
       logEvent("mini", `${vertical ? "竖" : "横"} 估算 ${n} 个按钮`);
-    }, 320);
+    }, 420);
 
-    return () => clearTimeout(timer);
+    const onResize = () => {
+      // 宿主改了面板尺寸（切后台回来、动画结束）就再纠一次
+      if (vertical) apply(vW, Math.min(MAX_LONG, vH));
+      else apply(hW, hH);
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", onResize);
+    };
   }, [active, count, vertical]);
 }

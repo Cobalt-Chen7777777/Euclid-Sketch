@@ -1496,3 +1496,9 @@ a.set-row {
   gap: 6px;
   align-content: flex-start;
 }
+
+/* 迷你条按钮不许被压缩（截图里 5 个图标挤成一坨就是 flex-shrink 造成的） */
+:root[data-mode="mini"] .mini-bar > .mini-btn,
+:root[data-mode="mini"] .mini-bar > .brand-badge {
+  flex: 0 0 auto;
+}
