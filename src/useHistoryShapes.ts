@@ -9,6 +9,7 @@
  * - canUndo / canRedo 用 state 暴露，供按钮禁用态渲染。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logEvent } from "./debug/log";
 
 import type { Shape } from "./model/types";
 
@@ -68,6 +69,7 @@ export function useHistoryShapes(
     const nextLen = typeof updater === "function" ? updater(before).length : updater.length;
     // 增删图形属于结构性操作：不参与合并，否则连点几次只留一步
     const structural = nextLen !== before.length;
+    if (structural) logEvent("shapes", `${before.length} → ${nextLen}`);
     if (structural || now - lastCommitRef.current > MERGE_MS) {
       pastRef.current = [...pastRef.current.slice(-(MAX_STEPS - 1)), before];
       futureRef.current = [];

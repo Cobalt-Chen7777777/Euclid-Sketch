@@ -56,6 +56,8 @@ export function SolidStage({ solid, onPick, onParam, onReady, dark = false, onEx
           <SolidView
             solid={solid}
             height={300}
+            editable
+            onParam={(key, value) => onParam(key, value)}
             onReady={onReady}
             mode={mode}
             resetSignal={resetSignal}

@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { SolidShape } from "../model/types";
+import { useSolidHandles } from "./useSolidHandles";
 
 /** ghost：半透明面 + 棱线；solid：不透明面 + 可见棱实线 + 隐藏棱虚线 */
 export type SolidMode = "ghost" | "solid";
@@ -23,9 +24,14 @@ interface Props {
   resetSignal?: number;
   /** 深色主题：场景底色、网格与坐标轴都要跟着变 */
   dark?: boolean;
+  /** 拖动模型上的手柄改参数（不传则只看不能改） */
+  onParam?: (key: string, value: number) => void;
+  /** 是否显示可拖手柄 */
+  editable?: boolean;
 }
 
 interface SceneRefs {
+  scene: THREE.Scene;
   group: THREE.Group;
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
@@ -60,7 +66,7 @@ function buildGeometry(solid: SolidShape): THREE.BufferGeometry {
   }
 }
 
-export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetSignal = 0, dark = false }: Props) {
+export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetSignal = 0, dark = false, onParam, editable = false }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneRefs | null>(null);
   const onReadyRef = useRef(onReady);
@@ -71,6 +77,8 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
   }, [onReady]);
 
   // 初始化场景（仅一次，依赖 height）
+  useSolidHandles({ sceneRef, solid, onParam, enabled: editable && !!onParam });
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -123,7 +131,7 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
     const group = new THREE.Group();
     scene.add(group);
 
-    sceneRef.current = { group, camera, controls, renderer };
+    sceneRef.current = { scene, group, camera, controls, renderer };
 
     let raf = 0;
     const animate = () => {
@@ -147,7 +155,8 @@ export function SolidView({ solid, height = 320, onReady, mode = "ghost", resetS
     });
     observer.observe(mount);
 
-    return () => {
+
+  return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
       controls.dispose();

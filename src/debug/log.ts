@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals, no-console -- 诊断日志需要读 window 的错误事件并兜底打印 */
+/* eslint-disable no-restricted-globals, no-restricted-syntax, no-console -- 诊断日志要读 window/document 的错误事件与环境信息 */
 /**
  * 本机诊断日志：环形缓冲 200 条，记录错误、警告与关键操作。
  * 开启方式：设置 → 关于 → 连点版本号 5 次。
@@ -61,6 +61,12 @@ let installed = false;
 export function installLogHooks() {
   if (installed) return;
   installed = true;
+  // 启动横幅：先记环境，排查时至少知道跑的是哪一版、什么模式
+  const mode = document.documentElement.getAttribute("data-mode") || "workspace";
+  const theme = document.documentElement.getAttribute("data-theme") || "light";
+  push("boot", `mode=${mode} theme=${theme} ua=${navigator.userAgent.slice(0, 60)}`);
+  logEvent("boot", `viewport ${window.innerWidth}×${window.innerHeight} dpr=${window.devicePixelRatio}`);
+
   window.addEventListener("error", (e) => push("error", e.message || e.error));
   window.addEventListener("unhandledrejection", (e) => push("rejection", e.reason));
   const origError = console.error.bind(console);

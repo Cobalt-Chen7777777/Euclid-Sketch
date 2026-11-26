@@ -2,7 +2,7 @@
  * 调试区：版本号连点 5 次开关调试模式；开启后显示本机诊断日志。
  * 独立成文件是为了不让 SettingsPage.tsx 继续膨胀（已接近 500 行上限）。
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { clearLogs, exportLogs, logCount } from "../debug/log";
 import { ChevronIcon, InfoIcon } from "../icons";
@@ -17,6 +17,13 @@ export function DebugSection({ version, debug, onChangeDebug }: Props) {
   const hits = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copied, setCopied] = useState(false);
+  const [liveCount, setLiveCount] = useState(() => logCount());
+  // 调试模式打开时每秒刷一次条数，否则「当前 0 条」会一直是 0
+  useEffect(() => {
+    if (!debug) return;
+    const t = setInterval(() => setLiveCount(logCount()), 1000);
+    return () => clearInterval(t);
+  }, [debug]);
 
   /** 1.2 秒内连点 5 次切换调试模式 */
   const tapVersion = () => {
@@ -56,7 +63,7 @@ export function DebugSection({ version, debug, onChangeDebug }: Props) {
             <span className="set-tile"><InfoIcon /></span>
             <span className="set-text">
               <b>{copied ? "已复制到剪贴板" : "复制诊断日志"}</b>
-              <small>当前 {logCount()} 条 · 含错误、警告与关键操作</small>
+              <small>当前 {liveCount} 条 · 含错误、警告与关键操作</small>
             </span>
             <span className="set-trail"><span className="set-chevron"><ChevronIcon /></span></span>
           </div>
