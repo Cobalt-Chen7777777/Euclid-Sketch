@@ -35,6 +35,8 @@ interface DialogProps {
   open: boolean;
   list: { step: number; count: number }[];
   currentCount: number;
+  /** 当前画布内容：用来过滤掉「和当前一模一样」的快照，避免它跟「当前」那行重复 */
+  currentShapes?: unknown;
   onJump: (n: number) => void;
   onClose: () => void;
   onRestore: ((doc: SketchDocument) => void) | undefined;
@@ -45,12 +47,20 @@ interface DialogProps {
 }
 
 export function HistoryDialog({
-  open, list, currentCount, onJump, onClose, onRestore, onClearHistory, onClearSnapshots,
+  open, list, currentCount, currentShapes, onJump, onClose, onRestore, onClearHistory, onClearSnapshots,
 }: DialogProps) {
   // 删除快照后强制重渲染（快照存在 localStorage，不在 React 状态里）
   const [, setTick] = useState(0);
   if (!open) return null;
-  const snaps = listSnapshots();
+  const currentKey = currentShapes === undefined ? null : JSON.stringify(currentShapes);
+  const seen = new Set<string>();
+  const snaps = listSnapshots().filter((s2) => {
+    const key = JSON.stringify(s2.doc.shapes);
+    if (key === currentKey) return false;   // 和当前画布一模一样 → 不算「上次关闭的画布」
+    if (seen.has(key)) return false;        // 历史里重复的存档只留最新一条
+    seen.add(key);
+    return true;
+  });
 
   const dropSnapshot = (ts: number) => {
     removeSnapshot(ts);

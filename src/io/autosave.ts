@@ -1,13 +1,13 @@
 /**
  * 画布自动保存 + 历史快照。
  * - doc：当前画布，防抖写入，关闭插件后重开能继续编辑
- * - snapshots：最近几次的完整存档（环形 5 条），可在「历史记录」里恢复
+ * - snapshots：最近几次的完整存档（环形 40 条），可在「历史记录」里恢复
  */
 import type { SketchDocument } from "../model/types";
 
 const DOC_KEY = "mathsketch.doc.v2";
 const SNAP_KEY = "mathsketch.snapshots.v2";
-const MAX_SNAPS = 15;
+const MAX_SNAPS = 40;
 /** 单条快照上限（字符），超了不入库，避免撑爆 localStorage */
 const MAX_CHARS = 600_000;
 

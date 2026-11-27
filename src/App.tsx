@@ -386,7 +386,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
         onQuickSettings={() => { onExpand(); setView("settings"); }}
       />
 
-      <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} onClearHistory={clearHistory} />
+      <HistoryDialog open={histOpen} list={historyList} currentCount={shapes.length} currentShapes={shapes} onJump={jumpBack} onClose={() => setHistOpen(false)} onRestore={setDoc} onClearHistory={clearHistory} />
       <PasteImageSheet
         open={pasteOpen}
         onClose={() => setPasteOpen(false)}
