@@ -4,7 +4,7 @@
 
 | 文件 | 用途 |
 |---|---|
-| [forum-current-raw.md](forum-current-raw.md) | **线上正文镜像**（社区帖 68960 第 1 楼，第 28 版）。改帖前先对照这份；正文含 `upload://` 图片与附件短链，只能定点替换，不能整篇覆盖 |
+| [forum-current-raw.md](forum-current-raw.md) | **线上正文镜像**（社区帖 68960 第 1 楼，第 29 版）。改帖前先对照这份；正文含 `upload://` 图片与附件短链，只能定点替换，不能整篇覆盖 |
 | [install-and-usage.md](install-and-usage.md) | 安装与使用说明（分发用精简版） |
 | [mn-publish-guide.md](mn-publish-guide.md) | 发布到 MN 社区 / 申请签名认证的操作指南（beta 只发社区帖，不入库） |
 | [mn-certify-request.md](mn-certify-request.md) | 给 MN 管理员的认证私信模板（正式版转正时使用） |

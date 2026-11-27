@@ -81,7 +81,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **套索**：框选后可复制 / 剪切 / 粘贴 / 删除，粘贴自动错位；框住多个图形可直接整组拖动
 - **网格吸附**：拖动点、圆心、端点时除吸附已有点外，也会吸附到网格交点（设置可关）
 
-![几何参数](upload://nioeROBySU26pcgyzCJuKNDgC6Y.png)
+![几何参数](upload://pTzJywRv60BTCNPieDgxSlBPDff.png)
 
 ### 曲线（钢笔式）
 
@@ -138,7 +138,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **关闭前快照**：图形增减 3 秒后留档，关闭面板 / 切后台时立即落盘，保留最近 40 份完整画布，可整份恢复；与当前画布内容相同的存档不会重复列出，可逐条删除或一键清空
 - **缓存管理**：设置 → 关于 → 缓存管理，可查看画布 / 快照 / 设置各占多少，一键清除画布缓存（不动设置）
 
-![历史记录](upload://wbU4SOVmPEqzjazowYo8EjrL0tS.jpeg)
+![历史记录](upload://l70Oxbp4cibXJsjGEkhPHOkeEOt.jpeg)
 
 ### 窗口与主题
 
