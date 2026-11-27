@@ -170,7 +170,8 @@ export function OptionsDrawer(props: Props) {
           </p>
         </section>
 
-        {/* 线型：画布样式开关（与颜色/笔宽同级） */}
+        {/* 线型：只对会生成图形的工具显示 */}
+        {["place", "select", "circle", "line", "point", "angle", "arc"].includes(tool) ? (
         <section className="drawer-sec">
           <h3>线型</h3>
           <div className="chips">
@@ -179,6 +180,7 @@ export function OptionsDrawer(props: Props) {
           </div>
           <p className="drawer-hint">虚线开启后，新画的线段 / 圆 / 矩形等都是虚线；已有图形在下方列表可单独切换</p>
         </section>
+        ) : null}
 
         {/* 几何参数：选中线段 / 圆 / 圆弧 / 角度 / 点时可精确输入 */}
         {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle" || selectedShape.type === "point") ? (
@@ -354,7 +356,8 @@ export function OptionsDrawer(props: Props) {
         </section>
         ) : null}
 
-        {/* 画笔 */}
+        {/* 笔宽：只在画笔 / 曲线下显示 */}
+        {tool === "pen" || tool === "curve" ? (
         <section className="drawer-sec">
           <h3>笔宽</h3>
           {/* 笔宽档位：细 / 中 / 粗 一键切换，减少进抽屉细调 */}
@@ -376,6 +379,7 @@ export function OptionsDrawer(props: Props) {
             <p className="drawer-hint">半径已锁定 {lockedRadius.toFixed(2)}，点一下即成圆</p>
           ) : null}
         </section>
+        ) : null}
 
         {/* 颜色 */}
         <section className="drawer-sec">

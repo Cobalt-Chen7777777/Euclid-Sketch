@@ -268,8 +268,12 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const reach1 = at(start, armLen);
       const reach2 = at(start + span, armLen2);
       const deg = angleSpanDeg(a);
-      const isRight = Math.abs(deg - 90) < 0.6;
-      const label = Number.isInteger(Math.round(deg)) ? `${Math.round(deg)}°` : `${deg.toFixed(1)}°`;
+      // 直角符号和标签必须同源：之前 isRight 用 ±0.6° 判定、标签用四舍五入，
+      // 89.4~89.5° 这段会同时命中「标签 89°」和「直角符号」，看起来就是 89° 却画了方角
+      // 与标签四舍五入同一档：凡是会显示成 90° 的，才画直角符号
+      const isRight = Math.abs(deg - 90) < 0.5;
+      const shownDeg = isRight ? 90 : deg;
+      const label = Number.isInteger(Math.round(shownDeg)) ? `${Math.round(shownDeg)}°` : `${shownDeg.toFixed(1)}°`;
 
       // 直角画方角标记，其余画弧
       const mark = isRight ? (() => {
