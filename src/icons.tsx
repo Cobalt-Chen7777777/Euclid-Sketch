@@ -609,3 +609,46 @@ export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: numbe
     case "curve": return <CurveToolIcon size={size} />;
   }
 }
+
+/** 撤销：回旋箭头 */
+export function UndoIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+    </Glyph>
+  );
+}
+
+/** 重做：回旋箭头（反向） */
+export function RedoIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
+    </Glyph>
+  );
+}
+
+/** 画布背景：带坐标轴的画布框 */
+export function CanvasBgIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
+      <path d="M3.5 12h17" />
+      <path d="M12 3.5v17" />
+    </Glyph>
+  );
+}
+
+/** 一键清空：扫帚（Lucide broom，ISC） */
+export function BroomIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="M13.5 10.5 22 2" />
+      <path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z" />
+      <path d="m5 18 2-2" />
+      <path d="m7.699 10.7 5.602 5.601" />
+    </Glyph>
+  );
+}

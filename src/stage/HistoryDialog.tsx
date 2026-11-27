@@ -26,7 +26,7 @@ export function HistoryButton({ count, onOpen }: ButtonProps) {
       aria-label="历史记录"
       title={count ? "历史记录（" + count + " 步）" : "历史记录 / 上次画布"}
     >
-      <HistoryIcon size={14} />
+      <HistoryIcon size={15} />
     </button>
   );
 }
