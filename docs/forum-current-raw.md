@@ -21,16 +21,16 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **12 种几何图形**：圆 / 椭圆 / 圆弧 / 矩形 / 正多边形 / 星形 / 菱形 / 梯形 / 箭头 / 射线 / 直线 / 点，画完可拖控制点改
 - **画圆显示实时半径**：拖动时圆右上角实时显示 r；开启「锁定半径」后点一下即画等半径圆
 - **立体模型**：10 种常见几何体，透明 / 实体两种画法，实体模式下被挡住的棱自动画成虚线；**模型上可直接拖蓝点改半径与高度**
-- **数值控制**：选中线段输入精确长度、选中圆输入半径，单位为网格
-- **图片入卡**：插入当前题目卡或从文件导入任意图片，等比缩放不变形，导入即锁定防误擦
-- **复制草图**：整张草图复制到剪贴板，直接粘贴进卡片批注
+- **数值控制**：选中线段输入精确长度、选中圆输入半径，单位为网格；拖动控制点改尺寸时角上实时显示当前参数
+- **图片入卡**：插入当前题目卡或从文件导入任意图片，等比缩放不变形，导入即锁定防误擦；插入卡片图可拖动选框只取需要的一块
+- **复制草图**：整张草图复制到剪贴板，直接粘贴进卡片批注；也可直接粘贴剪贴板里的图片
 - **画布自动保存**：内容变化 1.2 秒后写入本机，关掉插件再打开可以接着画
-- **历史记录**：撤销按钮旁的时钟打开弹窗，按步列出「第 N 步 · 当时图形数」，任意一步都能「回到这里」；另存最近 15 份关闭前的完整画布，可整份恢复
+- **历史记录**：撤销按钮旁的时钟打开弹窗，按步列出「第 N 步 · 当时图形数」，任意一步都能「回到这里」；另存最近 40 份关闭前的完整画布，可整份恢复、逐条删除
 - **按参数创建图形**：二次点击已在用的图形按钮（或长按），直接在视野中心放一个默认尺寸的图形并打开参数面板
 - **诊断日志**：设置 → 关于 → 版本号连点 5 次开启调试模式，可复制日志反馈问题
 - **目标卡四重保障**：摘录自动跟随 / 当前页推断 / 卡片菜单命令 / 顶栏同步
 - **图层**：新建图层、切换当前绘制层、整层隐藏或锁定、选中图形移到指定层
-- **撤销重做与套索**：150 步撤销、框选后复制剪切粘贴、整组拖动；框选时有轨迹虚线，选中图形套蓝色虚线包围盒
+- **撤销重做与套索**：400 步撤销、框选后复制剪切粘贴、整组拖动；框选时有轨迹虚线，选中图形套蓝色虚线包围盒
 - **深色模式与窗口**：跟随 MN 白天/夜间，窗口可自由缩放、可收起成迷你浮条
 - **界面可配置**：工具栏可停靠左 / 右 / 上 / 下；迷你条可切横向 / 竖向，按钮可自选（画点、线段、圆、角度、插入卡片图、复制草图、展开、关闭）
 - **网格密度**：1 / 5 / 10 / 50 / 100 五档
@@ -59,7 +59,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - 两条独立的作图记录：手画笔迹（`ink`）与参数化图形彼此独立，「清除全部函数」不会删掉手画的图元
 - **画布跨会话保留**：关掉面板、切到别的卡片再回来，画布还在（本版起自动保存到本机）
 
-![画布](upload://lr0Q1EdvXCrUPCgRDBOP2zFNKvG.png)
+![画布](upload://2Jsrg5S8HFIU7QJQJeRr2m1uX6g.png)
 
 ### 函数与计算器
 
@@ -78,10 +78,10 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **12 种图形**：圆、椭圆、圆弧、矩形、正多边形（边数可调）、星形、菱形、梯形、箭头、射线、直线、点
 - **圆**：按下定圆心、拖动定半径，拖动中实时显示 r；开启「锁定半径」后点一下即画等半径圆（原圆规工具已并入）
 - **数值微调**：选中线段输入精确长度（锚定起点，只改长度不改方向）、圆输入半径、圆弧输入半径与起止角、角度输入边长、任何图形输入位置 x / y；选中图形时参数区只显示当前图形的项
-
-![计算器](upload://oyZBj1izmozCM26Ffo105UQCG5W.png)
 - **套索**：框选后可复制 / 剪切 / 粘贴 / 删除，粘贴自动错位；框住多个图形可直接整组拖动
 - **网格吸附**：拖动点、圆心、端点时除吸附已有点外，也会吸附到网格交点（设置可关）
+
+![几何参数](upload://nioeROBySU26pcgyzCJuKNDgC6Y.png)
 
 ### 曲线（钢笔式）
 
@@ -135,10 +135,10 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **自动保存**：内容变化 1.2 秒后写入本机；关掉面板再打开直接接着画
 - **历史记录弹窗**：撤销 / 重做右侧的时钟按钮打开，按步列出「第 N 步 · 当时图形数」，点「回到这里」直接跳回那一步，不必连按撤销
 - **撤销粒度**：增删图形各算一步（连点几个点可以逐个退回）；同一图形上的连续微调合并成一步
-- **关闭前快照**：图形增减 3 秒后留档，关闭面板 / 切后台时立即落盘，保留最近 15 份完整画布，可整份恢复
+- **关闭前快照**：图形增减 3 秒后留档，关闭面板 / 切后台时立即落盘，保留最近 40 份完整画布，可整份恢复；与当前画布内容相同的存档不会重复列出，可逐条删除或一键清空
 - **缓存管理**：设置 → 关于 → 缓存管理，可查看画布 / 快照 / 设置各占多少，一键清除画布缓存（不动设置）
 
-![历史记录](upload://17J6dpwUyLvinGOlWaeUqLv2UBe.jpeg)
+![历史记录](upload://wbU4SOVmPEqzjazowYo8EjrL0tS.jpeg)
 
 ### 窗口与主题
 
@@ -352,13 +352,15 @@ MN 对同版本或更低版本的包会跳过安装。请先删除旧插件和�
 
 ## 下载
 
-主推版本（0.3.0-beta.3 测试版）：
+主推版本（0.3.0-beta.4 测试版）：
 
-- [Euclid Sketch-0.3.0-beta.3.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/7MoVGIOfBNbVbCyvd9979hSvAQj.mntemplate) (483.7 KB)
-- [Euclid Sketch-0.3.0-beta.3.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/l0kzlSn9O4OoU5BMFLHhs5cSSCg.mnaddon) (482.5 KB)
+- [Euclid Sketch-0.3.0-beta.4.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/xYzD2UwNuAh946MZutg1w9v2aa2.mntemplate) (485.2 KB)
+- [Euclid Sketch-0.3.0-beta.4.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/zwcSWRxyon5qHdYdCkwkKdBCOkG.mnaddon) (484.1 KB)
 
 历史版本（回退用，附件同样提供）：
 
+- [Euclid Sketch-0.3.0-beta.3.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/7MoVGIOfBNbVbCyvd9979hSvAQj.mntemplate) (483.7 KB)
+- [Euclid Sketch-0.3.0-beta.3.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/l0kzlSn9O4OoU5BMFLHhs5cSSCg.mnaddon) (482.5 KB)
 - [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/gXf5WiKaypCd21lNQjtmKFCmKAn.mntemplate) (470.7 KB)
 - [Euclid Sketch-0.3.0-beta.2.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/bR5GjClfvpnae6RwgQmbDI0GBR5.mnaddon) (469.6 KB)
 - [Euclid Sketch-0.3.0-beta.1.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/6PSJNzngFPeN18lqOamp7sd7ukC.mntemplate) (459.9 KB)
