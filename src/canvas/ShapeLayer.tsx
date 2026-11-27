@@ -33,6 +33,8 @@ interface Props {
   preview?: { cx: number; cy: number; r: number } | null;
   /** 拖动绘制/笔迹的实时预览图形 */
   previewShape?: Shape | null;
+  /** 拖动控制点缩放中的图形：只借它显示实时参数，不画半透明预览 */
+  labelShape?: Shape | null;
   /** 显示网格（设置项） */
   showGrid?: boolean;
   /** 显示刻度数字（设置项） */
@@ -509,7 +511,7 @@ const StaticLayer = memo(function StaticLayer({
 });
 
 export function ShapeLayer({
-  preview, previewShape,
+  preview, previewShape, labelShape,
   ...rest
 }: Props) {
   return (
@@ -529,10 +531,11 @@ export function ShapeLayer({
       {/* 拖动绘制 / 笔迹实时预览 */}
       {(() => {
         // 绘制中的实时参数：圆看半径、线段看长度、矩形看宽高、圆弧看半径与跨度……
-        const label = previewShape ? previewLabel(previewShape) : preview ? `r = ${preview.r.toFixed(2)}` : "";
+        const shown = previewShape ?? labelShape ?? null;
+        const label = shown ? previewLabel(shown) : preview ? `r = ${preview.r.toFixed(2)}` : "";
         if (!label) return null;
-        const box = previewShape
-          ? shapeBBox(previewShape)
+        const box = shown
+          ? shapeBBox(shown)
           : { x1: (preview?.cx ?? 0) - (preview?.r ?? 0), y1: (preview?.cy ?? 0) - (preview?.r ?? 0),
               x2: (preview?.cx ?? 0) + (preview?.r ?? 0), y2: (preview?.cy ?? 0) + (preview?.r ?? 0) };
         const at = toScreen({ x: box.x2, y: box.y1 }, rest.viewport);

@@ -663,6 +663,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           selectionIds={selectionIds}
           lassoPoints={drag.kind === "lasso" ? drag.points : null}
           previewShape={previewShape}
+          labelShape={drag.kind === "handle" ? shapes.find((s2) => s2.id === drag.id) ?? null : null}
           showGrid={options.showGrid}
           showTicks={options.showTicks}
           gridStep={options.gridStep}
