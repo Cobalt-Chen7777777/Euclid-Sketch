@@ -68,6 +68,10 @@ interface Props {
   onImportImageFile: () => void;
   /** 从剪贴板插入图片（宿主不授权时会提示改用文件导入） */
   onInsertClipboard: () => void;
+  /** 当前工具（用于按工具简化菜单） */
+  tool: string;
+  /** 按参数创建：在视野中心放一个默认尺寸的图形 */
+  onQuickCreate: (kind: string) => void;
   /** 插入图片的大小系数（1 大 / 0.7 中 / 0.45 小） */
   imageInsertScale: number;
   onImageInsertScale: (scale: number) => void;
@@ -125,12 +129,13 @@ function ParamInput({ value, step, onCommit, positive = true }: {
 export function OptionsDrawer(props: Props) {
   const {
     onClose, canvasBg, onCanvasBg,
-    placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
+    tool, placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
     historySteps = 0, onJumpBack,
     color, onColor,
     shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
     onToggleDashed, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
     dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile, onInsertClipboard, imageInsertScale, onImageInsertScale,
+    onQuickCreate,
   } = props;
 
   const selectedShape = shapes.find((s) => s.id === selectedId) ?? null;
@@ -316,7 +321,8 @@ export function OptionsDrawer(props: Props) {
           </section>
         ) : null}
 
-        {/* 图元类型：选中图形时隐藏，只专注当前图形的参数 */}
+        {/* 插入图形：只在绘图类工具下显示（画笔 / 橡皮 / 套索 / 曲线没有插入图形的需求） */}
+        {["place", "select", "circle", "line", "point", "angle", "arc"].includes(tool) ? (
         <section className="drawer-sec" style={selectedShape ? { display: "none" } : undefined}>
           <h3>插入图形</h3>
           <div className="chips">
@@ -339,8 +345,14 @@ export function OptionsDrawer(props: Props) {
               <output>{placeSides}</output>
             </label>
           ) : null}
-          <p className="drawer-hint">选好类型后按住拖动：拖多远决定多大，拖动中实时预览</p>
+          <div className="chips">
+            <button type="button" className="chip primary" onClick={() => onQuickCreate(placeType)}>
+              按参数创建{placeType === "polygon" ? `（${placeSides} 边）` : ""}
+            </button>
+          </div>
+          <p className="drawer-hint">也可以直接在画布上按住拖动来画</p>
         </section>
+        ) : null}
 
         {/* 画笔 */}
         <section className="drawer-sec">

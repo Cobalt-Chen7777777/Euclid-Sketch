@@ -59,7 +59,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - 两条独立的作图记录：手画笔迹（`ink`）与参数化图形彼此独立，「清除全部函数」不会删掉手画的图元
 - **画布跨会话保留**：关掉面板、切到别的卡片再回来，画布还在（本版起自动保存到本机）
 
-![画布](upload://up17yFfCKijs7fOLTXGHvG57Pav.png)
+![画布](upload://lr0Q1EdvXCrUPCgRDBOP2zFNKvG.png)
 
 ### 函数与计算器
 
@@ -79,7 +79,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **圆**：按下定圆心、拖动定半径，拖动中实时显示 r；开启「锁定半径」后点一下即画等半径圆（原圆规工具已并入）
 - **数值微调**：选中线段输入精确长度（锚定起点，只改长度不改方向）、圆输入半径、圆弧输入半径与起止角、角度输入边长、任何图形输入位置 x / y；选中图形时参数区只显示当前图形的项
 
-![几何参数](upload://m8JppcaiML1pvkEwA0M8PLjho8X.png)
+![计算器](upload://oyZBj1izmozCM26Ffo105UQCG5W.png)
 - **套索**：框选后可复制 / 剪切 / 粘贴 / 删除，粘贴自动错位；框住多个图形可直接整组拖动
 - **网格吸附**：拖动点、圆心、端点时除吸附已有点外，也会吸附到网格交点（设置可关）
 
@@ -138,7 +138,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **关闭前快照**：图形增减 3 秒后留档，关闭面板 / 切后台时立即落盘，保留最近 15 份完整画布，可整份恢复
 - **缓存管理**：设置 → 关于 → 缓存管理，可查看画布 / 快照 / 设置各占多少，一键清除画布缓存（不动设置）
 
-![历史记录](upload://93kDWZZLA5Ra8eXTWviCQcl1pxw.png)
+![历史记录](upload://17J6dpwUyLvinGOlWaeUqLv2UBe.jpeg)
 
 ### 窗口与主题
 
@@ -150,7 +150,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - 工具栏可停靠左 / 右（竖排）或上 / 下（横排，超宽自动换行）
 - 切到后台再回来，面板尺寸会自动校正回目标值，不会停在错误的小窗
 
-![迷你条](upload://mMMRfdcykdmLXt4XPnBQYrTiehV.png)
+![迷你条](upload://8w0WdmKcTA8ubGSYtk630tZrgac.png)
 - 深色模式默认跟随 MN 的白天/夜间，也可手动锁定浅色 / 深色
 
 ## 常见问题
@@ -340,13 +340,15 @@ MN 对同版本或更低版本的包会跳过安装。请先删除旧插件和�
 
 ## 下载
 
-主推版本（0.3.0-beta.2 测试版）：
+主推版本（0.3.0-beta.3 测试版）：
 
-- [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/gXf5WiKaypCd21lNQjtmKFCmKAn.mntemplate) (470.7 KB)
-- [Euclid Sketch-0.3.0-beta.2.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/bR5GjClfvpnae6RwgQmbDI0GBR5.mnaddon) (469.6 KB)
+- [Euclid Sketch-0.3.0-beta.3.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/7MoVGIOfBNbVbCyvd9979hSvAQj.mntemplate) (483.7 KB)
+- [Euclid Sketch-0.3.0-beta.3.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/l0kzlSn9O4OoU5BMFLHhs5cSSCg.mnaddon) (482.5 KB)
 
 历史版本（回退用，附件同样提供）：
 
+- [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/gXf5WiKaypCd21lNQjtmKFCmKAn.mntemplate) (470.7 KB)
+- [Euclid Sketch-0.3.0-beta.2.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/bR5GjClfvpnae6RwgQmbDI0GBR5.mnaddon) (469.6 KB)
 - [Euclid Sketch-0.3.0-beta.1.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/6PSJNzngFPeN18lqOamp7sd7ukC.mntemplate) (459.9 KB)
 - [Euclid Sketch-0.3.0-beta.1.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/zfMNg4J0GuHymIM4mVmy65dWSJp.mnaddon) (458.8 KB)
 - [Euclid Sketch-0.2.1.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/4sLFPc9wzFzYiM9bteI0nzBvGDW.mntemplate) (450.8 KB)

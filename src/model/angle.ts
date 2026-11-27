@@ -86,7 +86,9 @@ export function createAngle(
   const { angle: a2, deg, snapped } = snapSpecialAngle(a1, raw, snapEnabled);
   const r1 = Math.hypot(p1.x - vertex.x, p1.y - vertex.y);
   const r2 = Math.hypot(p2.x - vertex.x, p2.y - vertex.y);
-  const r = Math.max(0.4, Math.min(r1, r2) * 0.42);
+  // 弧半径与臂长成比例：之前用 min(r1,r2)*0.42，当两次点击距离差很大时弧很小、臂很长，显示bug
+  const len = Math.max(0.6, (r1 + r2) / 2);
+  const r = Math.max(0.4, len * 0.42);
 
   return {
     // 两条边等长（教材画法）：取两次点击距离的平均值，视觉上不偏不倚

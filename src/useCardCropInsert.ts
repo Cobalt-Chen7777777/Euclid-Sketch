@@ -6,7 +6,8 @@
  */
 import { useCallback, useState } from "react";
 
-import { cropImageToDataUrl, imageSrcToShape } from "./model/image";
+import { cropImageToDataUrl, fileToImageShape, imageSrcToShape } from "./model/image";
+import { renderCardImage } from "./bridge";
 import type { CropRect } from "./stage/CropDialog";
 import type { Shape } from "./model/types";
 import type { Viewport } from "./canvas/viewport";
@@ -22,10 +23,17 @@ interface Options {
   showToast: (msg: string) => void;
   /** 插入大小系数（设置里的「插入大小」） */
   insertScale: number;
+  /** 卡片渲染流程需要的回调 */
+  targetCard: string;
+  refreshContext: () => Promise<string | null>;
+  lockTarget: (noteid: string) => void;
+  /** 插入卡片图时是否弹选区 */
+  askCardCrop: boolean;
 }
 
 export function useCardCropInsert(o: Options) {
-  const { viewport, color, shapes, setShapes, setSelectedId, setViewport, showToast, insertScale } = o;
+  const { viewport, color, shapes, setShapes, setSelectedId, setViewport, showToast, insertScale,
+    targetCard, refreshContext, lockTarget, askCardCrop } = o;
   /** 待裁剪的卡片图；非空时画布上显示选区弹窗 */
   const [cropSrc, setCropSrc] = useState<string | null>(null);
 
@@ -37,6 +45,41 @@ export function useCardCropInsert(o: Options) {
     setViewport((vp) => zoomToBox(vp, shape));
     showToast("已插入卡片图；卡片上若残留草图批注文字会一并显示，可在 MN 里删除该批注");
   }, [viewport, color, shapes, setShapes, setSelectedId, setViewport, insertScale, showToast]);
+
+  /** 从文件导入图片 */
+  const onImportImage = useCallback(async (file: File, index = 0) => {
+    try {
+      const shape = await fileToImageShape(file, viewport, color, shapes, index, insertScale);
+      setShapes((prev) => [...prev, shape]);
+      setSelectedId(shape.id);
+      setViewport((vp) => zoomToBox(vp, shape));
+      showToast(`已插入图片（约 ${Math.round(shape.src.length / 1024)}KB）`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "图片导入失败");
+    }
+  }, [viewport, color, shapes, setShapes, setSelectedId, setViewport, insertScale, showToast]);
+
+  /** 从目标卡渲染长图插入画布 */
+  const onImportCardImage = useCallback(async (noteidArg?: string) => {
+    const fresh = noteidArg ? (lockTarget(noteidArg), null) : await refreshContext();
+    const nid = noteidArg ?? fresh ?? targetCard;
+    if (!nid) {
+      showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
+      return;
+    }
+    if (!noteidArg && !fresh) showToast("未取到当前选中卡，沿用上次目标卡");
+    try {
+      const rendered = await renderCardImage(nid);
+      if (!rendered) {
+        showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
+        return;
+      }
+      if (askCardCrop) { setCropSrc(rendered.src); return; }
+      await insertCardImage(rendered.src, true);
+    } catch (e) {
+      showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
+    }
+  }, [targetCard, refreshContext, lockTarget, showToast, askCardCrop, insertCardImage]);
 
   /** 选区确认：rect 为 null 表示整张插入 */
   const onCropConfirm = useCallback(async (rect: CropRect | null) => {
@@ -51,5 +94,5 @@ export function useCardCropInsert(o: Options) {
     }
   }, [cropSrc, insertCardImage, showToast]);
 
-  return { cropSrc, setCropSrc, insertCardImage, onCropConfirm };
+  return { cropSrc, setCropSrc, insertCardImage, onCropConfirm, onImportImage, onImportCardImage };
 }

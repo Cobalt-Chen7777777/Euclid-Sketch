@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas2D, type CanvasOptions, type Tool } from "./canvas/Canvas2D";
-import { zoomToBox, type Viewport } from "./canvas/viewport";
-import { renderCardImage, upsertComment } from "./bridge";
+import type { Viewport } from "./canvas/viewport";
+import { upsertComment } from "./bridge";
 import { downloadDocument, downloadBlob, dataUrlToBlob, renderExportDataUrl } from "./export/image";
 import { buildSketchReport } from "./model/describe";
 import { isFormulaShape, parseFormula } from "./model/formula";
@@ -53,7 +53,6 @@ import { useSettingsCloud } from "./settings/useSettingsCloud";
 import { logHostEnv } from "./debug/env";
 import { useImageActions } from "./useImageActions";
 import { toggleImageLock } from "./canvas/imageOps";
-import { fileToImageShape } from "./model/image";
 import { LassoBar } from "./stage/LassoBar";
 
 const VIEW_W = 400;
@@ -237,17 +236,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const lasso = useLassoClipboard(shapes, setShapes, showToast);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const onImportImage = useCallback(async (file: File, index = 0) => {
-    try {
-      const shape = await fileToImageShape(file, viewport, color, shapes, index, settings.imageInsertScale);
-      setShapes((prev) => [...prev, shape]);
-      setSelectedId(shape.id);
-      setViewport((vp) => zoomToBox(vp, shape));
-      showToast(`已插入图片（约 ${Math.round(shape.src.length / 1024)}KB）`);
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "图片导入失败");
-    }
-  }, [viewport, color, shapes, setShapes, showToast, settings.imageInsertScale]);
 
   // 启动时把宿主环境记一行（拖拽条高度、窗口尺寸），真机排查布局用
   useEffect(() => { logHostEnv(); }, []);
@@ -256,42 +244,17 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   useSettingsCloud({ settings, targetCard, onRestore: updateSettings, onRestored: () => showToast("已从上次的卡片恢复插件设置") });
 
   // 卡片图插入：渲染 → 选区裁剪 → 进画布（逻辑在 useCardCropInsert）
-  const { cropSrc, setCropSrc, insertCardImage, onCropConfirm } = useCardCropInsert({
+  const { cropSrc, setCropSrc, onCropConfirm, onImportImage, onImportCardImage } = useCardCropInsert({
     viewport, color, shapes, setShapes, setSelectedId, setViewport, showToast,
     insertScale: settings.imageInsertScale,
+    targetCard, refreshContext, lockTarget,
+    askCardCrop: settings.askCardCrop,
   });
 
   const { pasteOpen, setPasteOpen, onInsertClipboardImage } = useClipboardImage({
     onFile: (file) => { void onImportImage(file); },
     showToast,
   });
-
-  /** 从目标卡渲染长图插入画布（noteidArg 供卡片菜单命令指定） */
-  const onImportCardImage = useCallback(async (noteidArg?: string) => {
-    // 用户在 MN 里可能刚点了另一张卡：插入前重读焦点卡，避免导进错卡
-    const fresh = noteidArg ? (lockTarget(noteidArg), null) : await refreshContext();
-    const nid = noteidArg ?? fresh ?? targetCard;
-    if (!nid) {
-      showToast("请先在 MN 里点选卡片（或在卡片菜单点「设为草图目标卡」）");
-      return;
-    }
-    if (!noteidArg && !fresh) showToast("未取到当前选中卡，沿用上次目标卡；要精确指定请长按卡片 →「导入此卡到草图」");
-    try {
-      const rendered = await renderCardImage(nid);
-      if (!rendered) {
-        showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
-        return;
-      }
-      // 渲染接口只能出整张长图，所以「只插题目区」交给本地区域裁剪
-      if (settings.askCardCrop) {
-        setCropSrc(rendered.src);
-        return;
-      }
-      await insertCardImage(rendered.src, true);
-    } catch (e) {
-      showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
-    }
-  }, [targetCard, refreshContext, lockTarget, showToast, settings.askCardCrop, insertCardImage, setCropSrc]);
 
   const onUpdateShape = useCallback((id: string, updater: (s: Shape) => Shape) => {
     setShapes((prev) => prev.map((s) => (s.id === id ? updater(s) : s)));
@@ -515,6 +478,12 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             cards={cards}
             targetCard={targetCard}
             topic={topic}
+            canvasBg={settings.canvasBg}
+            onCanvasBg={(canvasBg) => updateSettings({ canvasBg })}
+            onClearShapes={() => {
+              setShapes((prev) => prev.filter((s2) => s2.type !== "coord"));
+              showToast("画布已清空");
+            }}
           />
 
           {tab === "fn" ? (
@@ -535,7 +504,11 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               tool={tool}
               placeType={placeType}
               placement={settings.railPlacement} railTools={settings.railTools}
-              onParamCreate={(id) => { quickCreate(id); setOptionsOpen(true); }}
+              onParamCreate={(id) => {
+                setTool("place");
+                setPlaceType(id as import("./model/types").PrimitiveType);
+                setOptionsOpen(true);
+              }}
               onTool={setTool}
               onPlaceType={setPlaceType}
               onImportImage={() => { void onImportCardImage(); }}
@@ -595,6 +568,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               onCopyPng={() => { void onCopyPng(); }}
               onImportImageFile={() => imageInputRef.current?.click()}
               onInsertClipboard={() => { void onInsertClipboardImage(); }}
+              tool={tool}
+              onQuickCreate={(kind) => { quickCreate(kind); setOptionsOpen(true); }}
               imageInsertScale={settings.imageInsertScale}
               onImageInsertScale={(imageInsertScale) => updateSettings({ imageInsertScale })}
               lockRadius={lockRadius}
