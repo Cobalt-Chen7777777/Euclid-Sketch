@@ -481,7 +481,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             canvasBg={settings.canvasBg}
             onCanvasBg={(canvasBg) => updateSettings({ canvasBg })}
             onClearShapes={() => {
-              setShapes((prev) => prev.filter((s2) => s2.type !== "coord"));
+              // 保留坐标系，清掉其余所有图形（之前条件写反，实际是删坐标系、留图形）
+              setShapes((prev) => prev.filter((s2) => s2.type === "coord"));
               showToast("画布已清空");
             }}
           />
