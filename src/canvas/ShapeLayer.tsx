@@ -86,6 +86,7 @@ function previewLabel(shape: Shape): string {
     case "polygon": return `${shape.sides} 边 · r ${f(shape.r)}`;
     case "arc": return `r ${f(shape.r)} · ${Math.round(Math.abs(shape.endAngle - shape.startAngle) * 180 / Math.PI)}°`;
     case "point": return `(${f(shape.x)}, ${f(shape.y)})`;
+    case "image": return `${f(shape.w)} × ${f(shape.h)}`;
     case "poly": {
       const bb = shapeBBox(shape);
       return `${f(bb.x2 - bb.x1)} × ${f(bb.y2 - bb.y1)}`;
@@ -538,10 +539,15 @@ export function ShapeLayer({
           ? shapeBBox(shown)
           : { x1: (preview?.cx ?? 0) - (preview?.r ?? 0), y1: (preview?.cy ?? 0) - (preview?.r ?? 0),
               x2: (preview?.cx ?? 0) + (preview?.r ?? 0), y2: (preview?.cy ?? 0) + (preview?.r ?? 0) };
-        const at = toScreen({ x: box.x2, y: box.y1 }, rest.viewport);
+        // 贴包围盒右上角：世界坐标 y 越大越靠上，取屏幕上更小的那个 y
+        const c1 = toScreen({ x: box.x2, y: box.y1 }, rest.viewport);
+        const c2 = toScreen({ x: box.x2, y: box.y2 }, rest.viewport);
+        const at = { x: Math.min(c1.x, c2.x), y: Math.min(c1.y, c2.y) };
         return (
           <text
-            className="preview-tip" x={at.x + 8} y={at.y - 6}
+            className="preview-tip"
+            x={Math.min(at.x + 8, rest.viewport.width - 96)}
+            y={Math.max(at.y - 6, 14)}
             fontSize={12} fontWeight={600} fill="var(--tip-fill, #b45309)" stroke="var(--tip-stroke, #fff)" strokeWidth={3}
             paintOrder="stroke" textAnchor="start"
           >

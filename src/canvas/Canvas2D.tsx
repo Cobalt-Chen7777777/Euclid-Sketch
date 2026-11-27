@@ -90,7 +90,6 @@ interface Props {
 type DragState =
   | { kind: "none" }
   | { kind: "lasso"; points: Point2[] }
-  | { kind: "handle"; id: string; handle: Handle }
   | { kind: "draw"; start: Point2; current: Point2; raw: Point2 }
   | { kind: "ink"; points: Point2[]; startedAt: number; pointerType: string }
   | { kind: "curve"; points: Point2[]; tangents: (Point2 | undefined)[] }
@@ -663,7 +662,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           selectionIds={selectionIds}
           lassoPoints={drag.kind === "lasso" ? drag.points : null}
           previewShape={previewShape}
-          labelShape={drag.kind === "handle" ? shapes.find((s2) => s2.id === drag.id) ?? null : null}
+          labelShape={handleDrag.dragId ? shapes.find((s2) => s2.id === handleDrag.dragId) ?? null : null}
           showGrid={options.showGrid}
           showTicks={options.showTicks}
           gridStep={options.gridStep}

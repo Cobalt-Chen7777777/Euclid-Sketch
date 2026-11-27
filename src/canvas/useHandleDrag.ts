@@ -4,7 +4,7 @@
  * iOS WKWebView 里 SVG 上的 setPointerCapture 并不可靠（move 事件常丢失），
  * 所以拖动手势统一走 window，命中判定仍在 pointerdown 时做一次。
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Handle } from "../model/geometry";
 import type { Point2, Shape } from "../model/types";
@@ -18,14 +18,21 @@ interface Options {
 
 export function useHandleDrag({ svgRef, toWorldAt, setShapes }: Options) {
   const active = useRef<{ id: string; handle: Handle } | null>(null);
+  /** 正在拖的图形 id：画布据此在拖动中显示实时尺寸 */
+  const [dragId, setDragId] = useState<string | null>(null);
 
   useEffect(() => {
+    const stop = () => {
+      if (!active.current) return;
+      active.current = null;
+      setDragId(null);
+    };
     const move = (e: PointerEvent) => {
       const st = active.current;
       const svg = svgRef.current;
       if (!st || !svg) return;
       // 鼠标左键已松开却没收到 pointerup：直接结束，避免状态残留导致画布持续重绘
-      if (e.pointerType === "mouse" && e.buttons === 0) { active.current = null; return; }
+      if (e.pointerType === "mouse" && e.buttons === 0) { stop(); return; }
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -33,19 +40,22 @@ export function useHandleDrag({ svgRef, toWorldAt, setShapes }: Options) {
       const world = toWorldAt(sp, !st.handle.id.startsWith("h"), st.id);
       setShapes((prev) => prev.map((s) => (s.id === st.id ? st.handle.apply(s, world) : s)));
     };
-    const end = () => { active.current = null; };
     window.addEventListener("pointermove", move, { passive: false });
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
     return () => {
       window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
     };
   }, [svgRef, toWorldAt, setShapes]);
 
   return {
-    start: (id: string, handle: Handle) => { active.current = { id, handle }; },
+    start: (id: string, handle: Handle) => {
+      active.current = { id, handle };
+      setDragId(id);
+    },
     isActive: () => active.current !== null,
+    dragId,
   };
 }
