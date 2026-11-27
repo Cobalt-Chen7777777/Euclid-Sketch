@@ -292,7 +292,7 @@ export type Shape = (
 /** 可拖拽/可创建的 2D 图元类型（不含坐标系、函数、参数方程、3D、点） */
 export type PrimitiveType =
   | "circle" | "ellipse" | "arc" | "rect" | "polygon" | "ray" | "line" | "point"
-  | "star" | "rhombus" | "trapezoid" | "arrow";
+  | "star" | "rhombus" | "trapezoid" | "arrow" | "angle";
 
 export interface SketchDocument {
   version: 1;

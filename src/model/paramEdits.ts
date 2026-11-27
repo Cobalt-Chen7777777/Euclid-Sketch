@@ -60,6 +60,11 @@ export function anchorOf(s: Shape): { x: number; y: number } | null {
     case "polygon":
     case "arc": return { x: s.cx, y: s.cy };
     case "angle": return { x: s.vx, y: s.vy };
+    case "poly": {
+      if (s.points.length === 0) return null;
+      const sum = s.points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+      return { x: sum.x / s.points.length, y: sum.y / s.points.length };
+    }
     default: return null;
   }
 }
@@ -70,4 +75,30 @@ export function anchorPatch(s: Shape, axis: "x" | "y", value: number): Shape {
   if (!a) return s;
   const d = value - (axis === "x" ? a.x : a.y);
   return translateShape(s, axis === "x" ? d : 0, axis === "y" ? d : 0);
+}
+
+/** 椭圆两轴半径 */
+export const ellipseRadiiPatch = (rx: number, ry: number): Partial<{ rx: number; ry: number }> => ({
+  rx: Math.max(0.05, rx), ry: Math.max(0.05, ry),
+});
+
+/** 矩形宽高（保持左上角 x1/y1 不动） */
+export function rectSizePatch(s: { x1: number; y1: number }, w: number, h: number) {
+  return { x2: s.x1 + Math.max(0.05, w), y2: s.y1 + Math.max(0.05, h) };
+}
+
+/** 多边形边数与半径 */
+export const polygonSidesPatch = (n: number) => ({ sides: Math.min(24, Math.max(3, Math.round(n))) });
+export const polygonRadiusPatch = (r: number) => ({ r: Math.max(0.1, r) });
+
+/**
+ * 把角度设成指定度数：保持第一条边不动，第二条边按原来的旋转方向摆到该角度。
+ * deg 取 1~179（0/180 无法构成夹角）。
+ */
+export function angleSpanPatch(s: { a1: number; a2: number }, deg: number): Partial<{ a2: number }> {
+  const span = Math.min(179, Math.max(1, deg));
+  const d = ((s.a2 - s.a1) * 180) / Math.PI;
+  const norm = ((d % 360) + 360) % 360;
+  const sign = norm <= 180 ? 1 : -1;
+  return { a2: s.a1 + (sign * span * Math.PI) / 180 };
 }

@@ -10,14 +10,15 @@ import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
 import { describeShape } from "../model/describe";
-import { anchorOf, anchorPatch, angleLenPatch, angleRadiusFor, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, lineLength, lineLengthPatch } from "../model/paramEdits";
+import { anchorOf, anchorPatch, angleLenPatch, angleRadiusFor, angleSpanPatch, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, ellipseRadiiPatch, lineLength, lineLengthPatch, polygonRadiusPatch, polygonSidesPatch, rectSizePatch } from "../model/paramEdits";
+import { angleSpanDeg } from "../model/angle";
 import { layerName } from "../model/layers";
 import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
 
 const PRIMITIVES: [PrimitiveType, string][] = [
   ["circle", "圆"], ["ellipse", "椭圆"], ["arc", "圆弧"], ["rect", "矩形"],
   ["polygon", "多边形"], ["star", "星形"], ["rhombus", "菱形"], ["trapezoid", "梯形"],
-  ["arrow", "箭头"], ["ray", "射线"], ["line", "直线"], ["point", "点"],
+  ["arrow", "箭头"], ["ray", "射线"], ["line", "直线"], ["point", "点"], ["angle", "角度"],
 ];
 
 interface Props {
@@ -183,7 +184,7 @@ export function OptionsDrawer(props: Props) {
         ) : null}
 
         {/* 几何参数：选中线段 / 圆 / 圆弧 / 角度 / 点时可精确输入 */}
-        {selectedShape && (selectedShape.type === "line" || selectedShape.type === "circle" || selectedShape.type === "arc" || selectedShape.type === "angle" || selectedShape.type === "point") ? (
+        {selectedShape && (["line", "circle", "arc", "angle", "point", "ellipse", "rect", "polygon", "poly"] as string[]).includes(selectedShape.type) ? (
           <section className="drawer-sec">
             <h3>几何参数</h3>
             {(() => {
@@ -254,6 +255,17 @@ export function OptionsDrawer(props: Props) {
                 <span className="param-unit">格</span>
               </label>
             ) : selectedShape.type === "angle" ? (
+              <>
+              <label className="param-row">
+                <span>角度</span>
+                <ParamInput
+                  value={Math.round(angleSpanDeg(selectedShape))}
+                  step="5"
+                  onCommit={(deg) => onUpdateShape(selectedShape.id, (s2) =>
+                    s2.type === "angle" ? { ...s2, ...angleSpanPatch(s2, deg) } : s2)}
+                />
+                <span className="param-unit">°</span>
+              </label>
               <label className="param-row">
                 <span>边长</span>
                 <ParamInput
@@ -264,7 +276,53 @@ export function OptionsDrawer(props: Props) {
                 />
                 <span className="param-unit">格</span>
               </label>
-            ) : (
+              </>
+            ) : selectedShape.type === "ellipse" ? (
+              <>
+                <label className="param-row">
+                  <span>横轴 a</span>
+                  <ParamInput value={selectedShape.rx} step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "ellipse" ? { ...s2, ...ellipseRadiiPatch(v, s2.ry) } : s2)} />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>纵轴 b</span>
+                  <ParamInput value={selectedShape.ry} step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "ellipse" ? { ...s2, ...ellipseRadiiPatch(s2.rx, v) } : s2)} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : selectedShape.type === "rect" ? (
+              <>
+                <label className="param-row">
+                  <span>宽</span>
+                  <ParamInput value={Math.abs(selectedShape.x2 - selectedShape.x1)} step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "rect" ? { ...s2, ...rectSizePatch(s2, v, Math.abs(s2.y2 - s2.y1)) } : s2)} />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>高</span>
+                  <ParamInput value={Math.abs(selectedShape.y2 - selectedShape.y1)} step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "rect" ? { ...s2, ...rectSizePatch(s2, Math.abs(s2.x2 - s2.x1), v) } : s2)} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : selectedShape.type === "polygon" ? (
+              <>
+                <label className="param-row">
+                  <span>边数</span>
+                  <ParamInput value={selectedShape.sides} step="1"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "polygon" ? { ...s2, ...polygonSidesPatch(v) } : s2)} />
+                  <span className="param-unit">边</span>
+                </label>
+                <label className="param-row">
+                  <span>半径</span>
+                  <ParamInput value={selectedShape.r} step="0.5"
+                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "polygon" ? { ...s2, ...polygonRadiusPatch(v) } : s2)} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : selectedShape.type === "arc" ? (
               <>
                 <label className="param-row">
                   <span>半径</span>
@@ -297,7 +355,7 @@ export function OptionsDrawer(props: Props) {
                   <span className="param-unit">°</span>
                 </label>
               </>
-            )}
+            ) : null}
             <p className="drawer-hint">数值以网格为单位；弧的起止角按 0–360° 输入，逆时针为正</p>
           </section>
         ) : null}
