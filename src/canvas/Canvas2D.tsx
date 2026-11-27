@@ -502,8 +502,12 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (drag.kind === "curve") return; // 曲线逐点累积：抬笔不清空，双击才结束
 
     if (drag.kind === "angleArm2") {
-      // 用拖动过程中最近一次已知位置成角：真机 pointerup 的坐标不可靠（常为 0）
-      const world = drag.current;
+      // 抬手位置优先：真机 pointerup 的坐标有时是 0，只有它明显可信时才用，
+      // 否则退回拖动过程中最后一次已知位置（此前一律用后者，抬手瞬间会少一截，看着像「有延迟」）
+      const up = localPoint(e);
+      const world = Number.isFinite(up.x) && Number.isFinite(up.y) && (up.x !== 0 || up.y !== 0)
+        ? snap(toWorld(up, v))
+        : drag.current;
       const { shape, deg, snapped } = createAngle(drag.v, drag.arm1, world, color, options.specialAngleSnap);
       const styled = options.dashStyle ? ({ ...shape, dashed: true } as Shape) : shape;
       setShapes((prev) => [...prev, { ...styled, layer: currentLayer }]);
@@ -511,6 +515,8 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       setAngleDraft(null);
       onToast?.(`角度 ${deg.toFixed(1)}°${snapped ? "（已吸附特殊角）" : ""}`);
       setDrag({ kind: "none" });
+      // 画完切回选择工具：否则下一次点击会开始新角度，看起来像「还得再点一下确认」
+      onRequestTool?.("select");
       return;
     }
 
