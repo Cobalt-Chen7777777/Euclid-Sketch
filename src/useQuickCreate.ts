@@ -4,6 +4,7 @@
  */
 import { useCallback } from "react";
 
+import { createPoly, isPolyKind } from "./model/poly";
 import type { Shape } from "./model/types";
 import { newId } from "./model/types";
 
@@ -18,13 +19,19 @@ interface Options {
 }
 
 /** 默认半径 / 半长（格） */
-const R = 2;
+const DEFAULT_R = 2;
 
 export function useQuickCreate({ color, layer, center, setShapes, onSelect, onToast }: Options) {
   return useCallback(
-    (kind: string) => {
+    (kind: string, opts?: { sides?: number; r?: number; w?: number; h?: number; len?: number; deg?: number }) => {
       const cx = center?.x ?? 0;
       const cy = center?.y ?? 0;
+      const sides = opts?.sides;
+      const R = Math.max(0.3, opts?.r ?? DEFAULT_R);
+      const W = Math.max(0.3, opts?.w ?? DEFAULT_R * 2);
+      const Hh = Math.max(0.3, opts?.h ?? DEFAULT_R * 1.2);
+      const LEN = Math.max(0.3, opts?.len ?? DEFAULT_R * 2);
+      const DEG = Math.min(179, Math.max(1, opts?.deg ?? 60));
       let shape: Shape | null;
       switch (kind) {
         case "point":
@@ -34,16 +41,17 @@ export function useQuickCreate({ color, layer, center, setShapes, onSelect, onTo
           shape = { id: newId("circle"), type: "circle", cx, cy, r: R, color };
           break;
         case "ellipse":
-          shape = { id: newId("ellipse"), type: "ellipse", cx, cy, rx: R, ry: R * 0.6, color };
+          shape = { id: newId("ellipse"), type: "ellipse", cx, cy, rx: W / 2, ry: Hh / 2, color };
           break;
         case "rect":
-          shape = { id: newId("rect"), type: "rect", x1: cx - R, y1: cy - R * 0.6, x2: cx + R, y2: cy + R * 0.6, color };
+          shape = { id: newId("rect"), type: "rect", x1: cx - W / 2, y1: cy - Hh / 2, x2: cx + W / 2, y2: cy + Hh / 2, color };
           break;
         case "line":
-          shape = { id: newId("line"), type: "line", x1: cx - R, y1: cy, x2: cx + R, y2: cy, color };
+          shape = { id: newId("line"), type: "line", x1: cx - LEN / 2, y1: cy, x2: cx + LEN / 2, y2: cy, color };
           break;
         case "polygon":
-          shape = { id: newId("polygon"), type: "polygon", cx, cy, r: R, sides: 5, rotation: 0, color };
+          // 用「按参数创建」面板里滑杆选定的边数（此前写死 5，滑杆等于摆设）
+          shape = { id: newId("polygon"), type: "polygon", cx, cy, r: R, sides: Math.min(24, Math.max(3, sides ?? 5)), rotation: 0, color };
           break;
         case "arc":
           shape = {
@@ -54,16 +62,24 @@ export function useQuickCreate({ color, layer, center, setShapes, onSelect, onTo
         case "angle":
           shape = {
             id: newId("angle"), type: "angle", vx: cx, vy: cy,
-            a1: 0, a2: -Math.PI / 3, r: R * 0.42, len: R, len2: R, color,
+            a1: 0, a2: -(DEG * Math.PI) / 180, r: Math.max(0.4, LEN * 0.42), len: LEN, len2: LEN, color,
           };
           break;
+        case "star": case "rhombus": case "trapezoid": case "arrow": {
+          // 星形 / 菱形 / 梯形 / 箭头：按默认尺寸放一个（此前这几种「按参数创建」是空的）
+          const start = { x: cx - R * 0.75, y: cy + R * 0.75 };
+          const end = { x: cx + R * 0.75, y: cy - R * 0.75 };
+          const made2 = isPolyKind(kind) ? createPoly(kind, start, end, color) : null;
+          shape = made2 ? ({ ...made2 } as Shape) : null;
+          break;
+        }
         default:
           return;
       }
       const made = shape;
       if (!made) return;
       setShapes((prev) => [...prev, { ...made, layer }]);
-      onSelect(shape.id);
+      onSelect(made.id);
       onToast?.("已按参数创建，可在「几何参数」里精确修改");
     },
     [color, layer, center, setShapes, onSelect, onToast],

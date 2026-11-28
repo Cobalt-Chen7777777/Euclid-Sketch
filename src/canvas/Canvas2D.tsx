@@ -12,6 +12,8 @@ import { snapWorld } from "../model/snap";
 import { getHandles, hitTest, type Handle } from "../model/geometry";
 import { createPrimitiveByDrag } from "../model/create";
 import { smoothPoints } from "../model/ink";
+import { appendInkSamples } from "./inkSample";
+import { clampToView } from "./viewport";
 import type { InkShape, Point2, PrimitiveType, Shape } from "../model/types";
 import { ImageLockBadges } from "./imageLock";
 import { newId } from "../model/types";
@@ -60,9 +62,6 @@ interface Props {
   onRequestTool?: (tool: Tool) => void;
   tool: Tool;
   color: string;
-  lockRadius: boolean;
-  lockedRadius: number | null;
-  onLockedRadiusChange: (r: number) => void;
   svgRef: React.RefObject<SVGSVGElement | null>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -85,6 +84,7 @@ interface Props {
   options: CanvasOptions;
   /** 新建图形归属的图层 */
   currentLayer: number;
+  imgVersion?: number | undefined; // 图片补载后 +1，让被 memo 住的画布重绘
 }
 
 type DragState =
@@ -100,9 +100,9 @@ type DragState =
 export const Canvas2D = memo(function Canvas2D(props: Props) {
   const {
     shapes, setShapes, viewport: v, setViewport, tool, color, onRequestTool,
-    lockRadius, lockedRadius, currentLayer,
+    currentLayer,
     svgRef, selectedId, onSelect, onToast, placeType, placeSides, penWidth, options,
-    selectionIds, onSelectionChange, onToggleImageLock, frozen = false,
+    selectionIds, onSelectionChange, onToggleImageLock, frozen = false, imgVersion,
   } = props;
 
   const [drag, setDrag] = useState<DragState>({ kind: "none" });
@@ -200,7 +200,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     const shape = shapes.find((s) => s.id === selectedId);
     if (!shape) return null;
     for (const h of getHandles(shape)) {
-      const hs = toScreen(h.at, v);
+      // 旋转钮会被夹在画面内（大图形时角点在屏幕外），命中判定要跟渲染保持一致
+      const hs0 = toScreen(h.at, v);
+      const hs = h.id === "rot" ? clampToView(hs0, v) : hs0;
       // 10px 而非 14px：Apple Pencil 落点精确，14px 时「想拖动图形」常被误判成「抓控制点」，
       // 一移动就把图形改形（手指较粗反而很少命中，所以只有笔出问题）
       if (Math.hypot(hs.x - sp.x, hs.y - sp.y) <= 10) return { id: shape.id, handle: h };
@@ -367,12 +369,6 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
     if (tool === "place") {
       // 拖动绘制：按下定起点，拖动决定大小，松开成图（点类型仍是单击）
       const world = snap(worldRaw);
-      // 锁定半径：点一下直接画等半径圆（原「圆规」能力已并入圆工具）
-      if (placeType === "circle" && lockRadius && lockedRadius) {
-        const shape = createPrimitiveByDrag("circle", world, { x: world.x + lockedRadius, y: world.y }, color, placeSides);
-        if (shape) { setShapes((prev) => [...prev, { ...shape, layer: currentLayer }]); onSelect(shape.id); }
-        return;
-      }
       if (placeType === "point") {
         const shape = createPrimitiveByDrag("point", world, world, color, placeSides);
         if (shape) {
@@ -470,6 +466,9 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
       return;
     }
 
+    // 手写采样要换算每个合成事件的坐标，先把 SVG 的屏幕位置取下来（事件回调返回后 currentTarget 会失效）
+    const svgRect = (e.currentTarget as SVGSVGElement | null)?.getBoundingClientRect() ?? null;
+
     setDrag((d) => {
       switch (d.kind) {
         case "draw": {
@@ -477,11 +476,10 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           return { ...d, raw, current: snap(raw) };
         }
         case "ink": {
-          const world = toWorld(sp, v);
-          const last = d.points[d.points.length - 1];
-          // 距离阈值采样，避免点过密
-          if (last && Math.hypot(world.x - last.x, world.y - last.y) < 0.04) return d;
-          return { ...d, points: [...d.points, world] };
+          const native = e.nativeEvent;
+          const coalesced = typeof native.getCoalescedEvents === "function" ? native.getCoalescedEvents() : [];
+          const pts = appendInkSamples(d.points, coalesced.length > 0 ? coalesced : [native], svgRect, sp, (q) => toWorld(q, v));
+          return pts.length === d.points.length ? d : { ...d, points: pts };
         }
         case "erase":
           eraseAt(toWorld(sp, v));
@@ -663,8 +661,7 @@ export const Canvas2D = memo(function Canvas2D(props: Props) {
           lassoPoints={drag.kind === "lasso" ? drag.points : null}
           previewShape={previewShape}
           labelShape={handleDrag.dragId ? shapes.find((s2) => s2.id === handleDrag.dragId) ?? null : null}
-          showGrid={options.showGrid}
-          showTicks={options.showTicks}
+          imgVersion={imgVersion} showGrid={options.showGrid} showTicks={options.showTicks}
           gridStep={options.gridStep}
           strokeWidth={options.strokeWidth}
           gridLite={frozen}

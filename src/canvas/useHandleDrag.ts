@@ -36,8 +36,9 @@ export function useHandleDrag({ svgRef, toWorldAt, setShapes }: Options) {
       e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const sp = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      // 切线手柄不吸附（否则被旁边顶点拽住），其余控制点只吸附「别的」图形的点
-      const world = toWorldAt(sp, !st.handle.id.startsWith("h"), st.id);
+      // 切线手柄与角度的旋转点不吸附（否则被旁边顶点拽住），其余控制点只吸附「别的」图形的点
+      const canSnap = !st.handle.id.startsWith("h") && st.handle.id !== "rot";
+      const world = toWorldAt(sp, canSnap, st.id);
       setShapes((prev) => prev.map((s) => (s.id === st.id ? st.handle.apply(s, world) : s)));
     };
     window.addEventListener("pointermove", move, { passive: false });

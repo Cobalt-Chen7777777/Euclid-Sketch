@@ -7,7 +7,7 @@ import { useState } from "react";
 import { checkUpdate, type UpdateAsset } from "../update";
 import { getLastRawContext } from "../topic";
 import { CHANGELOG_URL, GITHUB_URL } from "../repo";
-import { APP_VERSION } from "../version";
+import { APP_VERSION, BUILD_TIME } from "../version";
 import { MINI_ACTIONS, MINI_REQUIRED_ACTIONS } from "../PanelHeader";
 import { CacheSection } from "./CacheSection";
 import { DebugSection } from "./DebugSection";
@@ -60,6 +60,14 @@ interface Props {
   onResetWindow: () => void;
   onFitNow: () => void;
   data: DataActions;
+}
+
+/** 构建时间只显示到「日期 时:分」，方便肉眼确认版本新旧 */
+function formatBuild(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function SettingsPage({
@@ -496,7 +504,7 @@ export function SettingsPage({
             <SettingRow
               icon={<InfoIcon />}
               title="Euclid Sketch"
-              subtitle={`数学模型构图 · v${APP_VERSION} · MarginNote 场景插件`}
+              subtitle={`数学模型构图 · v${APP_VERSION}${BUILD_TIME ? ` · 构建 ${formatBuild(BUILD_TIME)}` : ""} · MarginNote 场景插件`}
             />
             <SettingRow
               icon={<ExportIcon />}

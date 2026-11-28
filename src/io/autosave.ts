@@ -9,7 +9,7 @@ const DOC_KEY = "mathsketch.doc.v2";
 const SNAP_KEY = "mathsketch.snapshots.v2";
 const MAX_SNAPS = 40;
 /** 单条快照上限（字符），超了不入库，避免撑爆 localStorage */
-const MAX_CHARS = 600_000;
+const MAX_CHARS = 1_600_000;
 
 export interface Snapshot {
   ts: number;

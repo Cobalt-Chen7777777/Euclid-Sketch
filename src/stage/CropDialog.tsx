@@ -126,28 +126,32 @@ export function CropDialog({ src, onCancel, onConfirm }: Props) {
         </div>
 
         <div className="crop-stage" ref={boxRef}>
-          <img
-            ref={imgRef}
-            src={src}
-            alt="卡片长图"
-            className="crop-img"
-            onLoad={(e) => {
-              const el = e.currentTarget;
-              setView({ w: el.clientWidth, h: el.clientHeight });
-            }}
-          />
-          {view ? (
-            <div
-              className="crop-box"
-              style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.w * 100}%`, height: `${rect.h * 100}%` }}
-              onPointerDown={start("move")}
-            >
-              <span className="crop-h crop-nw" onPointerDown={start("nw")} />
-              <span className="crop-h crop-ne" onPointerDown={start("ne")} />
-              <span className="crop-h crop-sw" onPointerDown={start("sw")} />
-              <span className="crop-h crop-se" onPointerDown={start("se")} />
-            </div>
-          ) : null}
+          {/* 选区框的定位基准必须是「图片实际显示区域」，不能是外层容器：
+              狭长图片在宽容器里只占中间一条，按容器算百分比会整体偏移、裁出来的是别处 */}
+          <div className="crop-fit">
+            <img
+              ref={imgRef}
+              src={src}
+              alt="卡片长图"
+              className="crop-img"
+              onLoad={(e) => {
+                const el = e.currentTarget;
+                setView({ w: el.clientWidth, h: el.clientHeight });
+              }}
+            />
+            {view ? (
+              <div
+                className="crop-box"
+                style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.w * 100}%`, height: `${rect.h * 100}%` }}
+                onPointerDown={start("move")}
+              >
+                <span className="crop-h crop-nw" onPointerDown={start("nw")} />
+                <span className="crop-h crop-ne" onPointerDown={start("ne")} />
+                <span className="crop-h crop-sw" onPointerDown={start("sw")} />
+                <span className="crop-h crop-se" onPointerDown={start("se")} />
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="crop-actions">

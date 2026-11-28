@@ -22,7 +22,20 @@ export function shapeBBox(shape: Shape): BBox {
     case "rect": push(shape.x1, shape.y1); push(shape.x2, shape.y2); break;
     case "line": case "ray": push(shape.x1, shape.y1); push(shape.x2, shape.y2); break;
     case "point": push(shape.x, shape.y); break;
-    case "image": push(shape.x, shape.y); push(shape.x + shape.w, shape.y + shape.h); break;
+    case "image": {
+      // 旋转后包围盒取四个角的外接框，否则选中框和命中都对不上
+      const rot = shape.rot ?? 0;
+      const cx = shape.x + shape.w / 2;
+      const cy = shape.y + shape.h / 2;
+      const cos = Math.cos(rot);
+      const sin = Math.sin(rot);
+      for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as [number, number][]) {
+        const lx = (dx * shape.w) / 2;
+        const ly = (dy * shape.h) / 2;
+        push(cx + lx * cos - ly * sin, cy + lx * sin + ly * cos);
+      }
+      break;
+    }
     case "ink": case "poly":
       for (const q of shape.points) { push(q.x, q.y); }
       break;

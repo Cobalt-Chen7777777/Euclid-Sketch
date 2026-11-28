@@ -2,11 +2,50 @@
 /** 导出工具：SVG / 3D canvas → PNG Blob / dataURL */
 import type { SketchDocument } from "../model/types";
 
+/** 把 SVG 里 blob: 的 <image> 换成内联 dataURL（序列化后 blob 链接会失效） */
+async function inlineBlobImages(svg: SVGSVGElement): Promise<SVGSVGElement> {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  const imgs = [...clone.querySelectorAll("image")];
+  for (const el of imgs) {
+    const href = el.getAttribute("href") ?? el.getAttributeNS("http://www.w3.org/1999/xlink", "href") ?? "";
+    if (!href.startsWith("blob:")) continue;
+    try {
+      const blob = await (await fetch(href)).blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("图片读取失败"));
+        reader.readAsDataURL(blob);
+      });
+      el.setAttribute("href", dataUrl);
+      el.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", dataUrl);
+    } catch {
+      /* 单张图读不出来就不内联，别的照常导出 */
+    }
+  }
+  return clone;
+}
+
 /** 把内联 <svg> 序列化为独立 SVG 字符串（带背景与字体） */
 export function svgToDataURL(svg: SVGSVGElement): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  // 画布 svg 只有 viewBox、尺寸靠 CSS，序列化后没有 width/height ——
+  // 这样 Image 会按默认的 300×150 栅格化，导出/复制到卡片就是糊的。这里补上真实尺寸。
+  // 传进来的可能是已经克隆出来、还没挂到文档上的节点（getBoundingClientRect 恒为 0），
+  // 这时退回 viewBox 的宽高，同样是画布的真实尺寸
+  const box = svg.getBoundingClientRect();
+  let w = Math.round(box.width);
+  let h = Math.round(box.height);
+  if (!(w > 0 && h > 0)) {
+    const vb = (svg.getAttribute("viewBox") ?? "").split(/[\s,]+/).map(Number);
+    if (vb.length === 4 && vb[2]! > 0 && vb[3]! > 0) { w = Math.round(vb[2]!); h = Math.round(vb[3]!); }
+  }
+  if (w > 0 && h > 0) {
+    clone.setAttribute("width", String(w));
+    clone.setAttribute("height", String(h));
+  }
   const xml = new XMLSerializer().serializeToString(clone);
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;
 }
@@ -67,7 +106,15 @@ export async function renderExportDataUrl(
   svg: SVGSVGElement | null,
 ): Promise<{ dataUrl: string; name: string }> {
   if (tab === "3d" && capture) return { dataUrl: capture(), name: "solid-model.png" };
-  if (svg) return { dataUrl: await svgToPng(svgToDataURL(svg), 2), name: "math-sketch.png" };
+  // 按长边目标像素决定倍率：插进卡片后是按原图像素显示的，
+  // 之前固定 2× 只有面板那么大（~800px），放大就糊；这里保证长边至少 2400px
+  if (svg) {
+    const inlined = await inlineBlobImages(svg);
+    const box = svg.getBoundingClientRect();
+    const long = Math.max(box.width, box.height) || 800;
+    const scale = Math.min(4, Math.max(2, 2400 / long));
+    return { dataUrl: await svgToPng(svgToDataURL(inlined), scale), name: "math-sketch.png" };
+  }
   throw new Error("没有可导出的画布");
 }
 

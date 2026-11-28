@@ -46,6 +46,19 @@ export interface FunctionShape {
   color: string;
 }
 
+/** 极坐标曲线：r = f(θ) */
+export interface PolarShape {
+  id: string;
+  type: "polar";
+  /** r 关于 θ 的表达式（变量写 t、theta 或 θ 都可以，内部统一成 t） */
+  expr: string;
+  /** θ 的范围，默认 0..2π */
+  tRange: Range;
+  source?: string;
+  dashed?: boolean;
+  color: string;
+}
+
 export interface ParametricShape {
   id: string;
   type: "parametric";
@@ -106,6 +119,8 @@ export interface EllipseShape {
   cy: number;
   rx: number;
   ry: number;
+  /** 旋转角（弧度，绕椭圆中心） */
+  rot?: number;
   /** 公式来源（由函数面板绘制时写入；手动拖出的椭圆为空） */
   source?: string;
   /** 线型：虚线 */
@@ -130,11 +145,13 @@ export interface ArcShape {
 export interface RectShape {
   id: string;
   type: "rect";
-  /** 对角两点定义（轴对齐矩形） */
+  /** 对角两点定义（未旋转时的轴对齐矩形） */
   x1: number;
   y1: number;
   x2: number;
   y2: number;
+  /** 旋转角（弧度，绕矩形中心） */
+  rot?: number;
   /** 线型：虚线 */
   dashed?: boolean;
   color: string;
@@ -189,7 +206,8 @@ export interface InkShape {
 export interface PolyShape {
   id: string;
   type: "poly";
-  kind: "star" | "rhombus" | "trapezoid" | "arrow";
+  /** irregular = 边长相等的正多边形转过来的自由多边形（每条边都能单独调） */
+  kind: "star" | "rhombus" | "trapezoid" | "arrow" | "irregular";
   points: Point2[];
   /** 是否闭合（箭头为开放折线） */
   closed: boolean;
@@ -220,6 +238,8 @@ export interface AngleShape {
   len2?: number;
   /** 线型：虚线 */
   dashed?: boolean;
+  /** 锁定角度（度）：设了值以后夹角不再变，拖任一条边都是整角绕顶点旋转 */
+  lockDeg?: number | undefined;
   color: string;
 }
 
@@ -241,6 +261,10 @@ export interface ImageShape {
   color: string;
   /** 锁定保护：橡皮擦不掉（导入默认锁定，图片左上角徽标可切换） */
   locked?: boolean;
+  /** 原图在图片库（IndexedDB）里的 id；有它就不看 src */
+  imgId?: string;
+  /** 旋转角（弧度，绕图片中心） */
+  rot?: number;
   /** 真实宽高比（height/width）：缩放时按它校正，避免长图被压扁变形 */
   aspect?: number;
 }
@@ -278,6 +302,7 @@ export type Shape = (
   | RayShape
   | FunctionShape
   | ParametricShape
+  | PolarShape
   | ImplicitShape
   | PointShape
   | LineShape

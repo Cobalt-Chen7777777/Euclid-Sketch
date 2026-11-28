@@ -1,4 +1,4 @@
-import { BroomIcon, CanvasBgIcon, CopyIcon } from "../icons";
+import { BroomIcon, CanvasBlankIcon, CanvasGridIcon, CopyIcon, LayersIcon } from "../icons";
 
 /**
  * 画布顶部悬浮条：2D/函数/3D 切换 + 撤销重做 + 写入 + 目标卡指示。
@@ -26,6 +26,8 @@ interface Props {
   onCanvasBg: (bg: "coord" | "blank") => void;
   /** 一键清空画布图形 */
   onClearShapes: () => void;
+  /** 打开图形清单浮层（参数是按钮位置，浮层贴着它弹） */
+  onOpenShapes?: (rect: DOMRect) => void;
 }
 
 /** 目标卡指示文案：列表内显示序号/总数/标题，列表外显示短 id */
@@ -39,7 +41,7 @@ function targetLabel(cards: Card[], targetCard: string): string {
 
 export function StageTopBar({
   tab, onTabChange, canUndo, canRedo, onUndo, onRedo, history, onWrite, onSyncTarget, cards, targetCard, topic,
-  canvasBg, onCanvasBg, onClearShapes,
+  canvasBg, onCanvasBg, onClearShapes, onOpenShapes,
 }: Props) {
   const is2d = tab !== "3d";
   return (
@@ -53,13 +55,21 @@ export function StageTopBar({
       {is2d ? (
         <button type="button" className="write-btn" onClick={() => onCanvasBg(canvasBg === "coord" ? "blank" : "coord")}
           aria-label={canvasBg === "coord" ? "切换为空白画布" : "切换为坐标系画布"}
-          title={canvasBg === "coord" ? "切换为空白画布" : "切换为坐标系画布"}
-        ><CanvasBgIcon size={15} /></button>
+          title={canvasBg === "coord" ? "当前：坐标系画布，点击切换为空白" : "当前：空白画布，点击切换为坐标系"}
+        >
+          {/* 图标跟着当前背景走：有网格就画网格，空白就画一张没有网格的纸 */}
+          {canvasBg === "coord" ? <CanvasGridIcon size={15} /> : <CanvasBlankIcon size={15} />}
+        </button>
       ) : null}
       {is2d && onClearShapes ? (
         <button type="button" className="write-btn" onClick={onClearShapes}
           aria-label="清空画布图形" title="一键清空画布上的所有图形（不含坐标系）"
         ><BroomIcon size={15} /></button>
+      ) : null}
+      {is2d && onOpenShapes ? (
+        <button type="button" className="write-btn" onClick={(ev) => onOpenShapes(ev.currentTarget.getBoundingClientRect())}
+          aria-label="图形清单" title="图形清单：选中 / 隐藏 / 删除画布上的图形"
+        ><LayersIcon size={15} /></button>
       ) : null}
       {is2d && history ? <HistoryButton count={history.list.length} onOpen={history.onOpen} /> : null}
       {is2d ? (

@@ -1,6 +1,11 @@
 :root {
   color-scheme: light;
   font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  /* 画布控制点：浅色下白底蓝边，缩放/旋转用绿 */
+  --handle-bg: #fff;
+  --handle-line: #2563eb;
+  --handle-accent: #10b981;
+  --handle-accent-soft: rgba(16, 185, 129, .14);
   --page: #f4f2ee;
   --surface: #fffefb;
   --panel: #fffdf8;
@@ -208,12 +213,15 @@ body {
   border-radius: 6px; background: #faf8f3; font-family: ui-monospace, Menlo, monospace;
 }
 
-.shape-list { display: grid; gap: 5px; max-height: 160px; overflow-y: auto; }
+.shape-list { display: grid; gap: 5px; }
+/* 只有独立浮层里的清单才自己滚动；抽屉里那份已经不在了 */
+.shapes-panel .shape-list { overflow-y: auto; min-height: 0; }
 .shape-item {
   display: flex; align-items: center; gap: 8px; padding: 7px 9px;
   border: 1px solid #e8e3d9; border-radius: 7px; font-size: 12px;
 }
 .shape-item.sel { border-color: #2563eb; background: #f5f8ff; }
+.shape-item.off { opacity: .5; }
 .shape-item .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .shape-item .shape-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shape-item button { padding: 2px 8px; font-size: 13px; }
@@ -312,7 +320,8 @@ button.with-icon svg { flex: none; }
 /* 二级导航（2D / 3D）：比顶部主视图弱一档，避免两个胶囊抢视觉 */
 
 /* ---------- 设置页（版式参考 CardLink） ---------- */
-.settings-page { display: grid; gap: 10px; padding-bottom: 72px; }
+.settings-page { display: grid; gap: 10px; padding: 0 6px 72px; min-width: 0; }
+.settings-page > * { min-width: 0; max-width: 100%; }
 
 .page-head { padding: 2px 2px 0; }
 .page-head h1 { margin: 0; font-size: 16px; }
@@ -361,11 +370,12 @@ button.with-icon svg { flex: none; }
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 13px;
+  padding: 10px 16px;
   border: none;
   border-radius: 0;
   background: transparent;
   text-align: left;
+  overflow-wrap: anywhere;
   color: inherit;
   font-size: 13px;
 }
@@ -522,13 +532,15 @@ button.with-icon svg { flex: none; }
 }
 
 :root[data-mode="mini"] .mini-bar { display: flex; }
-:root[data-mode="mini"] .appbar,
-:root[data-mode="mini"] .appnav,
-:root[data-mode="mini"] .tabbar,
-:root[data-mode="mini"] .settings-page,
-:root[data-mode="mini"] .section,
-:root[data-mode="mini"] .topic,
+:root[data-curtain] .mini-bar { display: flex; }
+:root[data-mode="mini"] .appbar, :root[data-curtain] .appbar,
+:root[data-mode="mini"] .appnav, :root[data-curtain] .appnav,
+:root[data-mode="mini"] .tabbar, :root[data-curtain] .tabbar,
+:root[data-mode="mini"] .settings-page, :root[data-curtain] .settings-page,
+:root[data-mode="mini"] .section, :root[data-curtain] .section,
+:root[data-mode="mini"] .topic, :root[data-curtain] .topic,
 :root[data-mode="mini"] .resize-handle { display: none !important; }
+:root[data-curtain] .resize-handle { display: none !important; }
 :root[data-mode="mini"] body { padding: 10px 12px; }
 
 /* ---------- 深色主题：由入口写入 <html data-theme="dark"> ---------- */
@@ -541,6 +553,11 @@ button.with-icon svg { flex: none; }
   --glass: rgba(42, 39, 35, .52);
   --glass-panel: rgba(42, 39, 35, .68);
   --glass-hi: rgba(255, 255, 255, .14);
+  /* 控制点：深色下改为深底 + 提亮的描边，避免一片白点 */
+  --handle-bg: #201d18;
+  --handle-line: #8fb0ff;
+  --handle-accent: #34d399;
+  --handle-accent-soft: rgba(52, 211, 153, .18);
   --page: #1c1a17;
   --surface: #272521;
   --panel: #272521;
@@ -571,7 +588,10 @@ button.with-icon svg { flex: none; }
 .panel.theme-dark .solid-mount { background: var(--surface); border-color: var(--line); }
 .panel.theme-dark .toast { background: rgba(248, 245, 238, .97); color: #17150f; border-color: rgba(0, 0, 0, .10); }
 .panel.theme-dark .resize-handle svg { stroke: #6f6a61; }
-.panel.theme-dark .rail-btn.on { background: var(--tint); color: var(--tint-ink); }
+.panel.theme-dark /* 占位按钮：橡皮 / 套索下「绘图选项」不可用，但位置要留着，否则工具栏长度会跳 */
+.rail-btn-ghost { opacity: .32; pointer-events: none; }
+
+.rail-btn.on { background: var(--tint); color: var(--tint-ink); }
 /* 深色：图形列表项与色板边框提亮，避免黑底黑块 */
 .panel.theme-dark .shape-item,
 .panel.theme-dark .fnpad-item { background: var(--item-bg); border: 1px solid var(--item-line); }
@@ -593,7 +613,8 @@ button.with-icon svg { flex: none; }
   position: absolute;
   width: 20px;
   height: 20px;
-  margin: 2px 0 0 2px;
+  /* 角点定位：稍微往里压一点，让锁正好压在图片的角上而不是飘在角外 */
+  margin: 1px 0 0 1px;
   padding: 1px;
   border: none;
   border-radius: 5px;
@@ -710,6 +731,8 @@ button.with-icon svg { flex: none; }
 
 /* ---------- 绘图选项抽屉（悬浮在画布上） ---------- */
 .drawer {
+  /* 默认位置兜底；正常由抽屉按图标位置算出的 inline style 覆盖 */
+  /* absolute：父级 .stage 在 #root（overflow:hidden + 圆角）里，浮层因此永远出不了面板 */
   position: absolute;
   left: 58px; top: 8px; bottom: 8px;
   width: min(300px, calc(100% - 70px));
@@ -792,8 +815,9 @@ button.with-icon svg { flex: none; }
 }
 
 /* ---------- 迷你模式（收起后只剩一行） ---------- */
-:root[data-mode="mini"] .stage,
+:root[data-mode="mini"] .stage, :root[data-curtain] .stage,
 :root[data-mode="mini"] .scroll { display: none !important; }
+:root[data-curtain] .scroll { display: none !important; }
 
 /* 画布底部操作提示：不拦截触摸 */
 .stage-hint {
@@ -832,21 +856,23 @@ button.with-icon svg { flex: none; }
 
 /* ---------- 函数计算器面板（底部抽屉） ---------- */
 .fnpad {
+  /* 浮窗：不贴边、不撑满，默认落在右下角，四周留 16px；
+     宽度固定后左右都能拖（贴边时宽度被边距钉死，横向是没有余量的） */
   position: absolute;
-  /* 拖动只写 transform：提示浏览器走合成层，避免每帧重排 */
-  will-change: transform;
-  left: 8px; right: 8px; bottom: 8px;
+  will-change: left, top;
+  right: 16px; bottom: 16px; left: auto; top: auto;
+  width: min(360px, calc(100% - 32px));
   z-index: 19;
-  max-height: 90%;
+  max-height: min(72%, 620px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px 12px;
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 -6px 26px rgba(30, 25, 18, .16);
+  box-shadow: 0 10px 32px rgba(30, 25, 18, .22);
 }
 /* 曲线变多时由面板整体滚动，不允许任一子项被压扁 */
 .fnpad > * { flex-shrink: 0; }
@@ -1146,7 +1172,8 @@ html:has(.panel.theme-dark) { background: transparent; }
 }
 
 /* ---------- 工具栏自定义器 ---------- */
-.rail-customizer { display: grid; gap: 8px; padding: 4px 2px 2px; }
+.rail-customizer { display: grid; gap: 8px; padding: 4px 2px 2px; min-width: 0; }
+.rail-customizer .chips { min-width: 0; }
 .rail-pick-label { font-size: 11.5px; color: var(--muted); }
 .preset-wrap { display: inline-flex; align-items: center; gap: 2px; }
 .preset-del {
@@ -1284,17 +1311,24 @@ a.set-row {
 /* 工具栏自定义器：区块标题行（标签 + 说明 + 计数） */
 .rail-sec-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 4px 10px;
+  min-width: 0;
   margin-top: 14px;
 }
 .rail-sec-head:first-of-type { margin-top: 0; }
 .rail-sec-note {
-  flex: none;
+  /* 之前是 flex:none：这行提示不换行，等于给整张卡片定了个最小宽度，
+     面板一窄卡片就被撑出面板（设置页文字被裁掉就是这个） */
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
   font-size: 11px;
   color: var(--muted);
   opacity: .85;
+  overflow-wrap: anywhere;
 }
 .rail-count {
   font-weight: 600;
@@ -1424,6 +1458,8 @@ a.set-row {
   border-radius: 10px;
   background: var(--surface-2);
 }
+/* 包一层贴合图片尺寸的框：选区按它的百分比定位，才能和图片本身对齐（狭长图不会被错位） */
+.crop-fit { position: relative; display: inline-flex; max-width: 100%; max-height: 100%; }
 .crop-img { max-width: 100%; max-height: 52vh; object-fit: contain; display: block; }
 .crop-box {
   position: absolute;
@@ -1582,7 +1618,7 @@ a.set-row {
   background: transparent;
 }
 
-:root[data-mode="mini"] .mini-bar {
+:root[data-mode="mini"] .mini-bar, :root[data-curtain] .mini-bar  {
   --mini-btn: 34px;
   --mini-gap: 2px;
   display: flex;
@@ -1600,7 +1636,7 @@ a.set-row {
 }
 
 /* 徽章：缩小到 26 让重心与 34 的按钮一致，不再压住整条视觉 */
-:root[data-mode="mini"] .mini-bar > .brand-badge {
+:root[data-mode="mini"] .mini-bar > .brand-badge, :root[data-curtain] .mini-bar > .brand-badge  {
   width: 26px;
   height: 26px;
   border-radius: 8px;
@@ -1619,20 +1655,20 @@ a.set-row {
   /* 与徽章、首个按钮各留 6px：贴太近会像把徽章框住 */
   margin: 0 6px;
 }
-:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-divider {
+:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-divider, :root[data-curtain] .mini-bar:not(.vertical) > .mini-divider  {
   width: 1px;
   height: 16px;
 }
 /* 竖排不用分隔线：50px 宽里一条横线更像杂点，改用间距分组 */
-:root[data-mode="mini"] .mini-bar.vertical > .mini-divider {
+:root[data-mode="mini"] .mini-bar.vertical > .mini-divider, :root[data-curtain] .mini-bar.vertical > .mini-divider  {
   display: none;
 }
-:root[data-mode="mini"] .mini-bar.vertical > .brand-badge {
+:root[data-mode="mini"] .mini-bar.vertical > .brand-badge, :root[data-curtain] .mini-bar.vertical > .brand-badge  {
   margin-bottom: 6px;
 }
 
 /* 按钮：34×34 网格，图标 19px 居中，禁止被压缩 */
-:root[data-mode="mini"] .mini-bar > .mini-btn.icon {
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon, :root[data-curtain] .mini-bar > .mini-btn.icon  {
   width: var(--mini-btn);
   height: var(--mini-btn);
   padding: 0;
@@ -1646,24 +1682,66 @@ a.set-row {
   color: var(--ink);
   transition: background .15s ease;
 }
-:root[data-mode="mini"] .mini-bar > .mini-btn.icon:active {
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon:active, :root[data-curtain] .mini-bar > .mini-btn.icon:active  {
   background: rgba(120, 114, 105, .16);
 }
-:root[data-mode="mini"] .mini-bar > .mini-btn.icon svg {
+:root[data-mode="mini"] .mini-bar > .mini-btn.icon svg, :root[data-curtain] .mini-bar > .mini-btn.icon svg  {
   width: 19px;
   height: 19px;
   display: block;
 }
 
+/* 旋钮专用行：第一列要放得下 42px 的圆盘 */
+.dial-row { display: grid; grid-template-columns: 52px 1fr 46px; align-items: center; gap: 8px; font-size: 12px; }
+.dial-row output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 角度旋钮：小圆盘 + 指针，拖动自由调角度 */
+.angle-dial {
+  position: relative;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  touch-action: none;
+  flex: none;
+}
+.angle-dial-needle {
+  position: absolute; left: 50%; top: 50%;
+  width: 2px; height: 15px;
+  margin-left: -1px; margin-top: -15px;
+  border-radius: 1px;
+  background: #10b981;
+  transform-origin: 50% 100%;
+}
+.angle-dial-pin {
+  position: absolute; left: 50%; top: 50%;
+  width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+/* 展开幕布：宿主把窗口从小条拉伸到面板的这几百毫秒里，面板布局会被挤在窄窗口里
+   —— 竖向迷你条展开时那一下「畸变」就是它。展开期间保持迷你布局，这里再做一层兜底：
+   万一宿主提前把 data-mode 清掉，也宁可先空着，不要显示被压扁的面板。 */
+:root[data-curtain] .appbar,
+:root[data-curtain] .appnav,
+:root[data-curtain] .tabbar,
+:root[data-curtain] .stage,
+:root[data-curtain] .scroll,
+:root[data-curtain] .rail,
+:root[data-curtain] .resize-handle {
+  visibility: hidden;
+}
+
 /* 横排：去文字，一行放全 */
-:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-title,
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-img,
-:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-text {
+:root[data-mode="mini"] .mini-bar:not(.vertical) > .mini-title, :root[data-curtain] .mini-bar:not(.vertical) > .mini-title,
+:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-img, :root[data-curtain] .mini-bar:not(.vertical) .brand-img,
+:root[data-mode="mini"] .mini-bar:not(.vertical) .brand-text, :root[data-curtain] .mini-bar:not(.vertical) .brand-text  {
   display: none;
 }
 
 /* 竖排：自上而下，按钮水平居中 */
-:root[data-mode="mini"] .mini-bar.vertical {
+:root[data-mode="mini"] .mini-bar.vertical, :root[data-curtain] .mini-bar.vertical  {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
@@ -1671,7 +1749,7 @@ a.set-row {
 }
 
 /* 迷你条只有 50px 宽：toast 的任何文字都会把面板撑变形，直接不显示 */
-:root[data-mode="mini"] .toast {
+:root[data-mode="mini"] .toast, :root[data-curtain] .toast  {
   display: none !important;
 }
 

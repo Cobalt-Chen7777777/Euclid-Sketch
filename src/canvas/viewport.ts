@@ -8,6 +8,17 @@ export interface Viewport {
   yRange: Range;
 }
 
+/**
+ * 把屏幕点夹进可视区域：图形很大时控制点会被推到屏幕外，用户够不着。
+ * 夹进来之后，旋转钮永远贴在最靠近它的那条边上。
+ */
+export function clampToView(p: Point2, v: Viewport, margin = 26): Point2 {
+  return {
+    x: Math.min(Math.max(margin, p.x), Math.max(margin, v.width - margin)),
+    y: Math.min(Math.max(margin, p.y), Math.max(margin, v.height - margin)),
+  };
+}
+
 export function toScreen(p: Point2, v: Viewport): Point2 {
   const [x0, x1] = v.xRange;
   const [y0, y1] = v.yRange;

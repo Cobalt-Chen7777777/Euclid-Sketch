@@ -192,7 +192,12 @@ async function main() {
     record("框选整组拖动生效", selBoxBefore !== selBoxAfter, `${selBoxBefore} → ${selBoxAfter}`);
 
     // ---------- 6. 选中图形改色 ----------
-    await page.locator(".rail-btn[title^='绘图选项']").click();
+    // 橡皮 / 套索下没有「绘图选项」按钮，先切回选择工具
+    // 注意：点已经是「选择」的按钮等于「按参数创建」，会把抽屉打开，所以要先看开没开
+    await clickRailTool(page, "选择");
+    if ((await page.locator(".drawer").count()) === 0) {
+      await page.locator(".rail-btn[title^='绘图选项']").click();
+    }
     await page.waitForSelector(".drawer");
     await page.locator(".swatch").nth(2).click();
     await page.waitForTimeout(120);
@@ -206,7 +211,10 @@ async function main() {
 
     // ---------- 7. 图片锁定 ----------
     // 通过选项抽屉导入文件图片（绕过卡片渲染走 onImportImage）
-    await page.locator(".rail-btn[title^='绘图选项']").click();
+    await clickRailTool(page, "选择");
+    if ((await page.locator(".drawer").count()) === 0) {
+      await page.locator(".rail-btn[title^='绘图选项']").click();
+    }
     await page.waitForSelector(".drawer");
     const fileChooserP = page.waitForEvent("filechooser");
     await page.locator("button:has-text('从文件导入图片')").click();

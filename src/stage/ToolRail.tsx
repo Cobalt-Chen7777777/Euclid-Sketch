@@ -8,6 +8,7 @@ import type { Tool } from "../canvas/Canvas2D";
 import { RAIL_CATALOG } from "../settings/model";
 import type { PrimitiveType } from "../model/types";
 import { SlidersIcon, ToolIcon, type ToolIconName } from "../icons";
+import { toolHasOptions } from "./toolOptions";
 
 /** id → 图标（目录里的每一项都要有图标） */
 const ICONS: Record<string, ToolIconName> = {
@@ -31,17 +32,17 @@ interface Props {
   onTool: (tool: Tool) => void;
   onPlaceType: (t: PrimitiveType) => void;
   onImportImage: () => void;
-  lockRadius: boolean;
-  onToggleLock: () => void;
   optionsOpen: boolean;
-  onToggleOptions: () => void;
+  onToggleOptions: (rect?: DOMRect) => void;
+  /** 点「全部图形」时通知上层：弹出独立的图形选择器（参数是按钮位置） */
+  onOpenPicker?: (rect: DOMRect) => void;
 }
 
 export function ToolRail({
   placement = "left",
   onParamCreate,
   tool, placeType, railTools, onTool, onPlaceType, onImportImage,
-  lockRadius, onToggleLock, optionsOpen, onToggleOptions,
+  optionsOpen, onToggleOptions, onOpenPicker,
 }: Props) {
   /** 长按计时：500ms 内松手仍按原单击行为处理 */
   const holdRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
@@ -71,10 +72,11 @@ export function ToolRail({
             : item.id === "place"
               ? tool === "place" && !PLACE_TOOLS.has(placeType)
               : tool === item.id;
-        const onClick = () => {
-          // 再次点击当前已激活的图形按钮 = 按参数创建（不必长按，二次点击就出几何参数）
-          if (active && onParamCreate) {
-            onParamCreate(item.id);
+        const onClick = (ev?: React.MouseEvent<HTMLButtonElement>) => {
+          // 再次点击当前已激活的工具 = 打开「绘图选项」：
+          // 画笔/曲线调粗细颜色，图形工具直接列出「按参数创建」的各项参数（不用再点一次按钮）
+          if (active && toolHasOptions(item.id)) {
+            onToggleOptions?.(ev?.currentTarget.getBoundingClientRect());
             return;
           }
           if (item.id === "image") {
@@ -82,9 +84,9 @@ export function ToolRail({
             return;
           }
           if (item.id === "place") {
-            // 全部图形：进入 place 并自动弹出抽屉选类型（点击即有响应，不至像无效果）
+            // 全部图形：只弹独立的「选择图形」小窗，不再拉整个绘图选项抽屉
             onTool("place");
-            if (!optionsOpen) onToggleOptions();
+            if (ev) onOpenPicker?.(ev.currentTarget.getBoundingClientRect());
             return;
           }
           if (isPlace) {
@@ -106,35 +108,28 @@ export function ToolRail({
             aria-label={item.label}
             aria-pressed={active}
             title={item.label}
-            onClick={() => { if (holdRef.current.fired) { holdRef.current.fired = false; return; } onClick(); }}
+            onClick={(ev) => { if (holdRef.current.fired) { holdRef.current.fired = false; return; } onClick(ev); }}
           >
             <ToolIcon name={ICONS[item.id] ?? "place"} size={19} />
           </button>
         );
       })}
 
-      {railTools.includes("circle") ? (
-        <button
-          type="button"
-          className={`rail-btn${lockRadius ? " on" : ""}`}
-          aria-label="锁定半径"
-          aria-pressed={lockRadius}
-          title="锁定半径：开启后点一下即画等半径圆"
-          onClick={onToggleLock}
-        >
-          <ToolIcon name="lock" size={19} />
-        </button>
-      ) : null}
-
       <span className="rail-sep" aria-hidden="true" />
 
+      {/* 橡皮 / 套索没有可选项，但按钮要占位：直接删掉会让工具栏变短、图标整体位移 */}
       <button
         type="button"
-        className={`rail-btn${optionsOpen ? " on" : ""}`}
+        className={`rail-btn${optionsOpen ? " on" : ""}${toolHasOptions(tool) ? "" : " rail-btn-ghost"}`}
         aria-label="绘图选项"
         aria-expanded={optionsOpen}
+        aria-hidden={!toolHasOptions(tool)}
+        tabIndex={toolHasOptions(tool) ? 0 : -1}
         title="绘图选项（背景 / 图形 / 笔宽 / 颜色）"
-        onClick={onToggleOptions}
+        onClick={(ev) => {
+          if (!toolHasOptions(tool)) return;
+          onToggleOptions(ev.currentTarget.getBoundingClientRect());
+        }}
       >
         <SlidersIcon size={19} />
       </button>

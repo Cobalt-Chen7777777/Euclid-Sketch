@@ -9,6 +9,7 @@
  * - 解锁（半透明）：恢复可被橡皮擦除。
  */
 import type { ImageShape, Shape } from "../model/types";
+import { imageCenter } from "../model/image";
 import { toScreen, type Viewport } from "./viewport";
 
 /** 徽标渲染：图片左上角。onToggle 由 Canvas2D 传入（直接切 locked） */
@@ -19,7 +20,18 @@ export function ImageLockBadges({
     <>
       {shapes.filter((s) => s.type === "image").map((s) => {
         const img = s as ImageShape;
-        const p = toScreen({ x: img.x, y: img.y + img.h }, v);
+        // 左上角（世界坐标里 y 向下，所以取 y+h）跟着旋转一起转
+        const c = imageCenter(img);
+        const rot = img.rot ?? 0;
+        const dx = img.x - c.x;
+        const dy = img.y + img.h - c.y;
+        // 屏幕顺时针 → 世界坐标里是逆时针，用 -rot
+        const a = -rot;
+        const corner = {
+          x: c.x + dx * Math.cos(a) - dy * Math.sin(a),
+          y: c.y + dx * Math.sin(a) + dy * Math.cos(a),
+        };
+        const p = toScreen(corner, v);
         const locked = img.locked === true;
         return (
           <button

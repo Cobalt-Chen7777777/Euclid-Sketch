@@ -17,6 +17,8 @@ import {
 import { createSolid } from "./solid/solids";
 import { useMnContext } from "./useMnContext";
 import { useResizablePanel } from "./useResizablePanel";
+import { useExpandCurtain } from "./useExpandCurtain";
+import { toolHasOptions } from "./stage/toolOptions";
 import {
   DEFAULT_SETTINGS,
   clearStoredSettings,
@@ -30,6 +32,10 @@ import { PanelHeader } from "./PanelHeader";
 import { ToolRail } from "./stage/ToolRail";
 import { useAppQuickCreate } from "./useQuickCreate";
 import { OptionsDrawer } from "./stage/OptionsDrawer";
+import { ShapesPanel } from "./stage/ShapesPanel";
+import { ShapePicker } from "./stage/ShapePicker";
+import { useShapesPanel } from "./useShapesPanel";
+import { useImageHydration } from "./useImageHydration";
 import { SolidStage } from "./stage/SolidStage";
 import { FunctionPad } from "./stage/FunctionPad";
 import { resolveTheme } from "./theme";
@@ -74,7 +80,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }, []);
 
   // 撤销/重做：包装 setShapes，所有改图形的操作自动进历史栈
-  const { commit: setShapes, undo, redo, canUndo, canRedo, historySteps, historyList, jumpBack, clearHistory } = useHistoryShapes(shapes, rawSetShapes);
+  const { commit: setShapes, undo, redo, canUndo, canRedo, historyList, jumpBack, clearHistory } = useHistoryShapes(shapes, rawSetShapes);
 
   const [viewport, setViewport] = useState<Viewport>({
     width: VIEW_W,
@@ -88,14 +94,18 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   const [tab, setTab] = useState<"2d" | "fn" | "3d">("2d");
   const [tool, setTool] = useState<Tool>("select");
   const [optionsOpen, setOptionsOpen] = useState(false);
+  /** 独立的「选择图形」小窗（点工具栏「全部图形」弹出） */
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
+  const [createSize, setCreateSize] = useState({ r: 2, w: 4, h: 2.4, len: 4, deg: 60 });
+  /** 绘图选项按钮的位置：抽屉贴着这个图标弹出，而不是固定贴在左边缘 */
+  const [optionsAnchor, setOptionsAnchor] = useState<DOMRect | null>(null);
+  // 橡皮 / 套索没有可选项：切过去时把已经开着的抽屉收起来，别让用户面对一个空面板
   const [histOpen, setHistOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formulaMsg, setFormulaMsg] = useState("");
   // 正在输入法里打字：暂停自动高度，避免键盘弹起/收起引发反复 mn.fit
   const [typing, setTyping] = useState(false);
   const [toast, setToast] = useState("");
-  const [lockRadius, setLockRadius] = useState(false);
-  const [lockedRadius, setLockedRadius] = useState<number | null>(null);
   const [placeType, setPlaceType] = useState<PrimitiveType>("rect");
   const [solid, setSolid] = useState<SolidShape | null>(null);
   const captureRef = useRef<(() => string) | null>(null);
@@ -178,6 +188,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   }), [settings]);
 
   // 面板尺寸记忆与收起/关闭（右下角把手拖动缩放）
+  const { expandWithCurtain } = useExpandCurtain();
   const { resetSize, collapse, expand, close, onResizePointerDown, isResizing, previewSize } = useResizablePanel({
     remember: settings.rememberWindowSize,
   });
@@ -196,10 +207,22 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     const bar = estimateMiniSize(settings.miniActions.length, settings.miniOrientation === "v");
     collapse({ width: bar.w, height: bar.h });
   }, [collapse, settings.miniActions.length, settings.miniOrientation]);
+  /** 选图形类型：顺手清掉旧选中，否则抽屉还在给上一张图片显示参数，像「一点就跳去调图片」 */
+  const choosePlaceType = useCallback((t: PrimitiveType) => { setPlaceType(t); setSelectedId(null); }, []);
+
+  /** 切工具的统一入口：橡皮 / 套索没有「绘图选项」，切过去时把已经开着的抽屉收起 */
+  const onTool = useCallback((next: Tool) => {
+    setTool(next);
+    setPickerAnchor(null);
+    if (!toolHasOptions(next)) setOptionsOpen(false);
+  }, []);
+
+  const pickShape = useCallback((t: PrimitiveType) => { choosePlaceType(t); onTool("place"); }, [choosePlaceType, onTool]);
   const onExpand = useCallback(() => {
     setCollapsed(false);
-    expand();
-  }, [expand]);
+    // 展开期间保持迷你布局，等窗口撑开到目标尺寸再切面板布局（否则内容被挤扁）
+    expandWithCurtain(expand);
+  }, [expand, expandWithCurtain]);
 
   // ---- 公式添加（由函数面板传入表达式，返回是否成功） ----
   const onAddFormula = useCallback((src: string): { ok: boolean } => {
@@ -216,15 +239,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
     return { ok: true };
   }, [color, setShapes, showToast]);
 
-  // ---- 圆规锁定半径 ----
-  const onToggleLock = () => {
-    if (!lockRadius && lockedRadius == null) {
-      showToast("先用圆规画一个圆，再锁定半径");
-      return;
-    }
-    setLockRadius((v) => !v);
-  };
-
   const onDeleteShape = useCallback((id: string) => {
     setShapes((prev) => prev.filter((x) => x.id !== id));
     setSelectedId((cur) => (cur === id ? null : cur));
@@ -233,6 +247,8 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
   // 套索多选 + 剪贴板（复制 / 剪切 / 粘贴 / 删除）
   const quickCreate = useAppQuickCreate({ viewport, color, layer: currentLayer, setShapes, onSelect: setSelectedId, onToast: showToast });
 
+  const { shapesOpen, shapesAnchor, openShapes, closeShapes, onToggleHidden } = useShapesPanel(setShapes, setSelectedId);
+  const imgVersion = useImageHydration(shapes);
   const lasso = useLassoClipboard(shapes, setShapes, showToast);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -429,15 +445,11 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
       ) : (
         <div className="stage">
           {tab !== "3d" ? (
-            <Canvas2D
-              shapes={shapes}
+            <Canvas2D key={`canvas-${imgVersion}`} shapes={shapes}
               setShapes={setShapes}
               viewport={viewport}
               setViewport={setViewport}
               tool={tool} onRequestTool={setTool} color={color}
-              lockRadius={lockRadius}
-              lockedRadius={lockedRadius}
-              onLockedRadiusChange={setLockedRadius}
               svgRef={svgRef}
               selectedId={selectedId}
               onSelect={setSelectedId}
@@ -464,7 +476,6 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             />
           )}
 
-          {/* 悬浮：模式切换 + 撤销重做 + 写入 + 目标卡（见 StageTopBar） */}
           <StageTopBar
             tab={tab}
             onTabChange={setTab}
@@ -480,6 +491,7 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
             topic={topic}
             canvasBg={settings.canvasBg}
             onCanvasBg={(canvasBg) => updateSettings({ canvasBg })}
+            onOpenShapes={(rect) => { closeShapes(); setOptionsOpen(false); openShapes(rect); }}
             onClearShapes={() => {
               // 保留坐标系，清掉其余所有图形（之前条件写反，实际是删坐标系、留图形）
               setShapes((prev) => prev.filter((s2) => s2.type === "coord"));
@@ -506,17 +518,24 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
               placeType={placeType}
               placement={settings.railPlacement} railTools={settings.railTools}
               onParamCreate={(id) => {
-                setTool("place");
+                onTool("place");
                 setPlaceType(id as import("./model/types").PrimitiveType);
                 setOptionsOpen(true);
               }}
-              onTool={setTool}
-              onPlaceType={setPlaceType}
+              onTool={onTool}
+              onOpenPicker={(rect) => { setPickerAnchor(rect); setSelectedId(null); }}
+              onPlaceType={choosePlaceType}
               onImportImage={() => { void onImportCardImage(); }}
-              lockRadius={lockRadius}
-              onToggleLock={onToggleLock}
               optionsOpen={optionsOpen}
-              onToggleOptions={() => setOptionsOpen((v) => !v)}
+              onToggleOptions={(rect) => {
+                // 两个浮层互斥：打开一个就收起另一个，免得叠在一起
+                closeShapes();
+                setOptionsOpen((v) => {
+                  const next = !v;
+                  setOptionsAnchor(next && rect ? rect : null);
+                  return next;
+                });
+              }}
             />
 
             <LassoBar
@@ -537,45 +556,41 @@ export function App({ systemDark = false, mnTheme = null }: AppProps = {}) {
 
           {tab === "2d" && optionsOpen ? (
             <OptionsDrawer
+              anchor={optionsAnchor}
               onClose={() => setOptionsOpen(false)}
               canvasBg={settings.canvasBg}
               onCanvasBg={(canvasBg) => updateSettings({ canvasBg })}
               placeType={placeType}
-              onPlaceType={(t) => { setPlaceType(t); setTool("place"); }}
-              placeSides={placeSides}
+              placeSides={placeSides} createSize={createSize} onCreateSize={(patch) => setCreateSize((prev) => ({ ...prev, ...patch }))}
               onPlaceSides={(n) => updateSettings({ polygonSides: n })}
               penWidth={penWidth}
               onPenWidth={(n) => updateSettings({ penWidth: n })}
-              historySteps={historySteps} onJumpBack={jumpBack}
               color={color}
               onColor={onShapeColor}
-              shapes={shapes}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onDeleteShape={onDeleteShape}
-              onToggleDashed={onToggleDashed}
+              shapes={shapes} selectedId={selectedId}
               onUpdateShape={onUpdateShape}
               layers={layerOps}
               currentLayer={currentLayer}
               onSelectLayer={setCurrentLayer}
               selectionIds={lasso.selectionIds.length > 0 ? lasso.selectionIds : selectedId ? [selectedId] : []}
-              onToggleImageLock={onToggleImageLock}
-              onResizeImage={onResizeImage}
-              onFitImage={onFitImage}
-              onNormalizeImage={onNormalizeImage}
-              dashStyle={settings.dashStyle}
-              onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
-              onExportPng={() => { void onExportPng(); }}
-              onCopyPng={() => { void onCopyPng(); }}
+              onResizeImage={onResizeImage} onFitImage={onFitImage} onNormalizeImage={onNormalizeImage}
+              dashStyle={settings.dashStyle} onDashStyle={(dashStyle) => updateSettings({ dashStyle })}
+              onExportPng={() => { void onExportPng(); }} onCopyPng={() => { void onCopyPng(); }}
               onImportImageFile={() => imageInputRef.current?.click()}
               onInsertClipboard={() => { void onInsertClipboardImage(); }}
               tool={tool}
-              onQuickCreate={(kind) => { quickCreate(kind); setOptionsOpen(true); }}
+              onQuickCreate={(kind) => { quickCreate(kind, { ...createSize, sides: placeSides }); setOptionsOpen(true); }}
               imageInsertScale={settings.imageInsertScale}
               onImageInsertScale={(imageInsertScale) => updateSettings({ imageInsertScale })}
-              lockRadius={lockRadius}
-              lockedRadius={lockedRadius}
             />
+          ) : null}
+
+          {tab === "2d" ? <ShapePicker anchor={pickerAnchor} current={placeType} onPick={pickShape} onClose={() => setPickerAnchor(null)} /> : null}
+
+          {tab === "2d" && shapesOpen ? (
+            <ShapesPanel anchor={shapesAnchor} shapes={shapes} selectedId={selectedId}
+              onSelect={setSelectedId} onDeleteShape={onDeleteShape} onToggleDashed={onToggleDashed}
+              onToggleImageLock={onToggleImageLock} onToggleHidden={onToggleHidden} onClose={closeShapes} />
           ) : null}
         </div>
       )}

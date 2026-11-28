@@ -4,44 +4,44 @@
  * 放的是「画画时会调的东西」——图元类型、笔宽、颜色、公式、图形列表。
  * 导入导出、写入批注这类低频操作放在设置页，避免挤占画布。
  */
-import { useState } from "react";
-
-import { DASHABLE, type PrimitiveType, type Shape } from "../model/types";
+import { type PrimitiveType, type Shape } from "../model/types";
 import type { CanvasBg } from "../settings/model";
 import { PALETTE } from "../model/types";
-import { describeShape } from "../model/describe";
-import { anchorOf, anchorPatch, angleLenPatch, angleRadiusFor, angleSpanPatch, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, ellipseRadiiPatch, lineLength, lineLengthPatch, polygonRadiusPatch, polygonSidesPatch, rectSizePatch } from "../model/paramEdits";
-import { angleSpanDeg } from "../model/angle";
+import { anchorOf, anchorPatch, arcAngleDeg, arcAnglePatch, arcRadiusPatch, circleRadiusPatch, ellipseRadiiPatch, lineLength, lineLengthPatch, polygonRadiusPatch, polygonSidesPatch, rectSizePatch } from "../model/paramEdits";
 import { layerName } from "../model/layers";
-import { CloseIcon, FitIcon, MinusIcon, PlusIcon } from "../icons";
+import { polygonToIrregular } from "../model/poly";
+import { ParamInput } from "./ParamInput";
+import { AngleParams } from "./AngleParams";
+import { AngleDial } from "./AngleDial";
+import { PolyParams } from "./PolyParams";
+import { RotateDial } from "./RotateDial";
+import { popoverStyle } from "./popoverStyle";
+import { CloseIcon, FitIcon, MinusIcon, PlusIcon, RotateCcwIcon, RotateCwIcon } from "../icons";
 
-const PRIMITIVES: [PrimitiveType, string][] = [
-  ["circle", "圆"], ["ellipse", "椭圆"], ["arc", "圆弧"], ["rect", "矩形"],
-  ["polygon", "多边形"], ["star", "星形"], ["rhombus", "菱形"], ["trapezoid", "梯形"],
-  ["arrow", "箭头"], ["ray", "射线"], ["line", "直线"], ["point", "点"], ["angle", "角度"],
-];
+/** 图形类型的中文名（按钮上写「创建圆」这种） */
+const PLACE_LABEL: Record<string, string> = {
+  circle: "圆", ellipse: "椭圆", arc: "圆弧", rect: "矩形", polygon: "多边形",
+  star: "星形", rhombus: "菱形", trapezoid: "梯形", arrow: "箭头",
+  ray: "射线", line: "线段", point: "点", angle: "角度",
+};
 
 interface Props {
   onClose: () => void;
   canvasBg: CanvasBg;
   onCanvasBg: (bg: CanvasBg) => void;
   placeType: PrimitiveType;
-  onPlaceType: (type: PrimitiveType) => void;
   placeSides: number;
   onPlaceSides: (sides: number) => void;
+  /** 「按参数创建」用的尺寸（半径 / 宽高 / 长度 / 角度），抽屉里直接列出来 */
+  createSize: { r: number; w: number; h: number; len: number; deg: number };
+  onCreateSize: (patch: Partial<{ r: number; w: number; h: number; len: number; deg: number }>) => void;
   penWidth: number;
   onPenWidth: (width: number) => void;
-  /** 撤销栈里还能回退的步数 */
-  historySteps?: number;
-  /** 一次回退多步 */
-  onJumpBack?: (n: number) => void;
   color: string;
   onColor: (color: string) => void;
+  /** 画布图形与当前选中：几何参数/插入图片都要用 */
   shapes: Shape[];
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  onDeleteShape: (id: string) => void;
-  onToggleDashed: (id: string) => void;
   /** 通用图形补丁（数值输入用） */
   onUpdateShape: (id: string, updater: (s: Shape) => Shape) => void;
   /** 图层 */
@@ -50,8 +50,6 @@ interface Props {
   onSelectLayer: (layer: number) => void;
   /** 当前选中图形 id（移到图层用） */
   selectionIds: string[];
-  /** 切换图片锁定（锁定后橡皮擦不掉） */
-  onToggleImageLock: (id: string) => void;
   /** 等比缩放选中图片 */
   onResizeImage: (id: string, factor: number) => void;
   /** 图片重置到默认宽度 */
@@ -76,73 +74,99 @@ interface Props {
   /** 插入图片的大小系数（1 大 / 0.7 中 / 0.45 小） */
   imageInsertScale: number;
   onImageInsertScale: (scale: number) => void;
-  lockRadius: boolean;
-  lockedRadius: number | null;
+  /** 触发它的按钮位置：抽屉贴着这个图标弹出（null 时退回默认位置） */
+  anchor?: { left: number; top: number; width: number; height: number } | null;
 }
 
-/**
- * 数值输入：编辑期间只改草稿，失焦 / 回车才提交。
- * 旧实现是 type=number + 逐字提交：想把数字删掉重输时，每按一次退格都会把中间值
- * 写进图形（图形跟着跳变），iOS 的 number 键盘还常常吞掉退格。现在允许清空，
- * 空串 / 非法值直接回填原值，不会误改图形。
- */
-function ParamInput({ value, step, onCommit, positive = true }: {
-  value: number;
-  step: string;
-  onCommit: (n: number) => void;
-  /** 尺寸类参数必须为正；坐标可以负 */
-  positive?: boolean;
+/** 画笔的粗细：档位 + 滑杆（画笔专用抽屉与完整抽屉共用） */
+function PenWidthSec({ penWidth, onPenWidth }: {
+  penWidth: number;
+  onPenWidth: (w: number) => void;
 }) {
-  const [draft, setDraft] = useState<string | null>(null);
-
-  const commit = (raw: string) => {
-    setDraft(null);
-    const n = Number(raw.trim());
-    if (raw.trim() === "" || !Number.isFinite(n) || (positive && n <= 0)) return;
-    // 与显示精度一致（两位小数），避免「输入 3.333 看到 3.33 实际存 3.333」
-    onCommit(Math.round(n * 100) / 100);
-  };
-
   return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={draft ?? value.toFixed(2)}
-      onFocus={(e) => { setDraft(e.currentTarget.value); e.currentTarget.select(); }}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={(e) => commit(e.currentTarget.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") { e.currentTarget.blur(); return; }
-        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-        e.preventDefault();
-        const base = Number((draft ?? value.toFixed(2)).trim());
-        if (!Number.isFinite(base)) return;
-        const delta = Number(step) || 1;
-        const next = base + (e.key === "ArrowUp" ? delta : -delta);
-        if (positive && next <= 0) return;
-        setDraft(next.toFixed(2));
-        onCommit(Math.round(next * 100) / 100);
-      }}
-    />
+    <section className="drawer-sec">
+      <h3>笔宽</h3>
+      <div className="chips" style={{ marginBottom: 8 }}>
+        {([["细", 2], ["中", 4], ["粗", 7]] as [string, number][]).map(([label, w]) => (
+          <button key={label} type="button" className={`chip${penWidth === w ? " on" : ""}`}
+            onClick={() => onPenWidth(w)}>{label}</button>
+        ))}
+      </div>
+      <label className="drawer-row">
+        <span>粗细</span>
+        <input
+          type="range" min={1} max={12} step={1} value={penWidth}
+          onChange={(e) => onPenWidth(Number(e.target.value))}
+        />
+        <output>{penWidth}px</output>
+      </label>
+    </section>
+  );
+}
+
+/** 调色板（14 色） */
+function ColorSec({ color, onColor }: { color: string; onColor: (c: string) => void }) {
+  return (
+    <section className="drawer-sec">
+      <h3>颜色</h3>
+      <div className="swatches">
+        {PALETTE.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={`swatch${color === c ? " on" : ""}`}
+            style={{ background: c }}
+            aria-label={`颜色 ${c}`}
+            aria-pressed={color === c}
+            onClick={() => onColor(c)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
 export function OptionsDrawer(props: Props) {
   const {
     onClose, canvasBg, onCanvasBg,
-    tool, placeType, onPlaceType, placeSides, onPlaceSides, penWidth, onPenWidth,
-    historySteps = 0, onJumpBack,
+    tool, placeType, placeSides, onPlaceSides, createSize, onCreateSize, penWidth, onPenWidth,
     color, onColor,
-    shapes, selectedId, onSelect, onDeleteShape, lockRadius, lockedRadius,
-    onToggleDashed, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onToggleImageLock, onResizeImage, onFitImage, onNormalizeImage,
+    shapes, selectedId, onUpdateShape, layers, currentLayer, onSelectLayer, selectionIds, onResizeImage, onFitImage, onNormalizeImage,
     dashStyle, onDashStyle, onExportPng, onCopyPng, onImportImageFile, onInsertClipboard, imageInsertScale, onImageInsertScale,
-    onQuickCreate,
+    onQuickCreate, anchor = null,
   } = props;
 
+  /**
+   * 抽屉贴着「绘图选项」图标弹出：优先摆在图标上方（下方空间不够时放下面），
+   * 水平方向夹在面板内，右边的图标也不会把面板顶出屏幕。
+   */
+  // 位置交给统一的浮层定位：以画布区为边界，左上右下都不会压到面板外
+  const drawerStyle = popoverStyle(anchor, { width: 340, maxHeight: 640, minHeight: 260 });
+
   const selectedShape = shapes.find((s) => s.id === selectedId) ?? null;
+  /** 当前要创建的类型：角度是独立工具，其余看「当前图形类型」 */
+  const placeKind = tool === "angle" ? "angle" : placeType;
+
+  // 画笔用不到插入图形 / 线型 / 图层这些，抽屉只留粗细与颜色
+  if (tool === "pen") {
+    return (
+      <aside className="drawer" aria-label="绘图选项" style={drawerStyle}>
+        <div className="drawer-head">
+          <b>画笔</b>
+          <button type="button" className="drawer-close" onClick={onClose} aria-label="收起选项">
+            <CloseIcon size={14} />
+          </button>
+        </div>
+        <div className="drawer-body">
+          <PenWidthSec penWidth={penWidth} onPenWidth={onPenWidth} />
+          <ColorSec color={color} onColor={onColor} />
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="drawer" aria-label="绘图选项">
+    <aside className="drawer" aria-label="绘图选项" style={drawerStyle}>
       <div className="drawer-head">
         <b>绘图选项</b>
         <button type="button" className="drawer-close" onClick={onClose} aria-label="收起选项">
@@ -233,6 +257,7 @@ export function OptionsDrawer(props: Props) {
                 </label>
               </>
             ) : selectedShape.type === "line" ? (
+              <>
               <label className="param-row">
                 <span>长度</span>
                 <ParamInput
@@ -243,6 +268,8 @@ export function OptionsDrawer(props: Props) {
                 />
                 <span className="param-unit">格</span>
               </label>
+              <RotateDial shape={selectedShape} onUpdateShape={onUpdateShape} />
+              </>
             ) : selectedShape.type === "circle" ? (
               <label className="param-row">
                 <span>半径</span>
@@ -255,28 +282,7 @@ export function OptionsDrawer(props: Props) {
                 <span className="param-unit">格</span>
               </label>
             ) : selectedShape.type === "angle" ? (
-              <>
-              <label className="param-row">
-                <span>角度</span>
-                <ParamInput
-                  value={Math.round(angleSpanDeg(selectedShape))}
-                  step="5"
-                  onCommit={(deg) => onUpdateShape(selectedShape.id, (s2) =>
-                    s2.type === "angle" ? { ...s2, ...angleSpanPatch(s2, deg) } : s2)}
-                />
-                <span className="param-unit">°</span>
-              </label>
-              <label className="param-row">
-                <span>边长</span>
-                <ParamInput
-                  value={selectedShape.len ?? selectedShape.r * 1.3}
-                  step="0.5"
-                  onCommit={(len) => onUpdateShape(selectedShape.id, (s) =>
-                    s.type === "angle" ? { ...s, ...angleLenPatch(len), r: angleRadiusFor(len) } : s)}
-                />
-                <span className="param-unit">格</span>
-              </label>
-              </>
+              <AngleParams shape={selectedShape} onUpdateShape={onUpdateShape} />
             ) : selectedShape.type === "ellipse" ? (
               <>
                 <label className="param-row">
@@ -291,6 +297,7 @@ export function OptionsDrawer(props: Props) {
                     onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "ellipse" ? { ...s2, ...ellipseRadiiPatch(s2.rx, v) } : s2)} />
                   <span className="param-unit">格</span>
                 </label>
+                <RotateDial shape={selectedShape} onUpdateShape={onUpdateShape} />
               </>
             ) : selectedShape.type === "rect" ? (
               <>
@@ -306,14 +313,18 @@ export function OptionsDrawer(props: Props) {
                     onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "rect" ? { ...s2, ...rectSizePatch(s2, Math.abs(s2.x2 - s2.x1), v) } : s2)} />
                   <span className="param-unit">格</span>
                 </label>
+                <RotateDial shape={selectedShape} onUpdateShape={onUpdateShape} />
               </>
             ) : selectedShape.type === "polygon" ? (
               <>
-                <label className="param-row">
+                <label className="drawer-row">
                   <span>边数</span>
-                  <ParamInput value={selectedShape.sides} step="1"
-                    onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "polygon" ? { ...s2, ...polygonSidesPatch(v) } : s2)} />
-                  <span className="param-unit">边</span>
+                  <input
+                    type="range" min={3} max={24} step={1} value={selectedShape.sides}
+                    onChange={(e) => onUpdateShape(selectedShape.id, (s2) =>
+                      s2.type === "polygon" ? { ...s2, ...polygonSidesPatch(Number(e.target.value)) } : s2)}
+                  />
+                  <output>{selectedShape.sides}</output>
                 </label>
                 <label className="param-row">
                   <span>半径</span>
@@ -321,7 +332,27 @@ export function OptionsDrawer(props: Props) {
                     onCommit={(v) => onUpdateShape(selectedShape.id, (s2) => s2.type === "polygon" ? { ...s2, ...polygonRadiusPatch(v) } : s2)} />
                   <span className="param-unit">格</span>
                 </label>
+                <div className="dial-row">
+                  <AngleDial
+                    deg={((Math.round((selectedShape.rotation * 180) / Math.PI) % 360) + 360) % 360}
+                    onChange={(d) => onUpdateShape(selectedShape.id, (s2) =>
+                      s2.type === "polygon" ? { ...s2, rotation: (d * Math.PI) / 180 } : s2)}
+                    label="多边形旋转角度"
+                  />
+                  <span className="drawer-hint">拖动旋钮自由旋转</span>
+                  <output>{((Math.round((selectedShape.rotation * 180) / Math.PI) % 360) + 360) % 360}°</output>
+                </div>
+                <div className="chips">
+                  <button
+                    type="button"
+                    className="chip"
+                    title="转成每个顶点都能拖、每条边都能单独给长度的多边形"
+                    onClick={() => onUpdateShape(selectedShape.id, (s2) => (s2.type === "polygon" ? polygonToIrregular(s2) : s2))}
+                  >边长可调</button>
+                </div>
               </>
+            ) : selectedShape.type === "poly" && selectedShape.kind === "irregular" ? (
+              <PolyParams shape={selectedShape} onUpdateShape={onUpdateShape} />
             ) : selectedShape.type === "arc" ? (
               <>
                 <label className="param-row">
@@ -354,6 +385,7 @@ export function OptionsDrawer(props: Props) {
                   />
                   <span className="param-unit">°</span>
                 </label>
+                <RotateDial shape={selectedShape} onUpdateShape={onUpdateShape} />
               </>
             ) : null}
             <p className="drawer-hint">数值以网格为单位；弧的起止角按 0–360° 输入，逆时针为正</p>
@@ -374,88 +406,118 @@ export function OptionsDrawer(props: Props) {
               <button type="button" className="chip icon-chip" onClick={() => onFitImage(selectedShape.id)} aria-label="默认大小" title="默认大小">
                 <FitIcon size={13} />
               </button>
+              <button type="button" className="chip icon-chip" aria-label="逆时针旋转 90°" title="逆时针旋转 90°"
+                onClick={() => onUpdateShape(selectedShape.id, (s2) => s2.type === "image" ? { ...s2, rot: (s2.rot ?? 0) - Math.PI / 2 } : s2)}>
+                <RotateCcwIcon size={14} />
+              </button>
+              <button type="button" className="chip icon-chip" aria-label="顺时针旋转 90°" title="顺时针旋转 90°"
+                onClick={() => onUpdateShape(selectedShape.id, (s2) => s2.type === "image" ? { ...s2, rot: (s2.rot ?? 0) + Math.PI / 2 } : s2)}>
+                <RotateCwIcon size={14} />
+              </button>
               <button type="button" className="chip" onClick={() => onNormalizeImage(selectedShape.id)} title="按图片真实比例校正高度（修复变形的长图）">校正比例</button>
             </div>
-            <p className="drawer-hint">拖动图片中心移动 · 右下角控制点自由拉伸 · 点图片左上角锁图标切换防误擦</p>
+            {/* 旋转：旋钮拖一圈自由调（比滑杆直观，能直接看出朝向） */}
+            <div className="dial-row">
+              <AngleDial
+                deg={((Math.round(((selectedShape.rot ?? 0) * 180) / Math.PI) % 360) + 360) % 360}
+                onChange={(d) => onUpdateShape(selectedShape.id, (s2) =>
+                  s2.type === "image" ? { ...s2, rot: (d * Math.PI) / 180 } : s2)}
+                label="图片旋转角度"
+              />
+              <span className="drawer-hint">拖动旋钮自由旋转</span>
+              <output>{((Math.round(((selectedShape.rot ?? 0) * 180) / Math.PI) % 360) + 360) % 360}°</output>
+            </div>
+            <p className="drawer-hint">拖动图片中心移动 · 左下角控制点拉伸 · 右下角图标旋转 · 左上角锁图标切换防误擦</p>
             <button type="button" className="chip export-chip" onClick={onImportImageFile}>从文件导入图片</button>
           </section>
         ) : null}
 
-        {/* 插入图形：只在绘图类工具下显示（画笔 / 橡皮 / 套索 / 曲线没有插入图形的需求） */}
-        {["place", "select", "circle", "line", "point", "angle", "arc"].includes(tool) ? (
-        <section className="drawer-sec" style={selectedShape ? { display: "none" } : undefined}>
-          <h3>插入图形</h3>
-          <div className="chips">
-            {PRIMITIVES.map(([t, label]) => (
-              <button
-                key={t}
-                type="button"
-                className={`chip${placeType === t ? " on" : ""}`}
-                onClick={() => onPlaceType(t)}
-              >{label}</button>
-            ))}
-          </div>
-          {placeType === "polygon" ? (
-            <label className="drawer-row">
-              <span>边数</span>
-              <input
-                type="range" min={3} max={12} step={1} value={placeSides}
-                onChange={(e) => onPlaceSides(Number(e.target.value))}
-              />
-              <output>{placeSides}</output>
-            </label>
-          ) : null}
-          <div className="chips">
-            <button type="button" className="chip primary" onClick={() => onQuickCreate(placeType)}>
-              按参数创建{placeType === "polygon" ? `（${placeSides} 边）` : ""}
-            </button>
-          </div>
-          <p className="drawer-hint">也可以直接在画布上按住拖动来画</p>
-        </section>
+        {/* 按参数创建：把当前图形的参数直接列出来，改完点一次「创建」就行 */}
+        {["place", "select", "angle"].includes(tool) && !selectedShape ? (
+          <section className="drawer-sec">
+            <h3>按参数创建</h3>
+            {(() => null)()}
+            {placeKind === "polygon" ? (
+              <label className="drawer-row">
+                <span>边数</span>
+                <input type="range" min={3} max={24} step={1} value={placeSides}
+                  onChange={(e) => onPlaceSides(Number(e.target.value))} />
+                <output>{placeSides}</output>
+              </label>
+            ) : null}
+            {placeKind === "polygon" || placeType === "circle" || placeType === "star" || placeType === "arc" ? (
+              <label className="param-row">
+                <span>半径</span>
+                <ParamInput value={createSize.r} step="0.5"
+                  onCommit={(v) => onCreateSize({ r: v })} />
+                <span className="param-unit">格</span>
+              </label>
+            ) : null}
+            {placeKind === "ellipse" ? (
+              <>
+                <label className="param-row">
+                  <span>横轴 a</span>
+                  <ParamInput value={createSize.w / 2} step="0.5" onCommit={(v) => onCreateSize({ w: v * 2 })} />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>纵轴 b</span>
+                  <ParamInput value={createSize.h / 2} step="0.5" onCommit={(v) => onCreateSize({ h: v * 2 })} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : null}
+            {placeKind === "rect" ? (
+              <>
+                <label className="param-row">
+                  <span>宽</span>
+                  <ParamInput value={createSize.w} step="0.5" onCommit={(v) => onCreateSize({ w: v })} />
+                  <span className="param-unit">格</span>
+                </label>
+                <label className="param-row">
+                  <span>高</span>
+                  <ParamInput value={createSize.h} step="0.5" onCommit={(v) => onCreateSize({ h: v })} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : null}
+            {["line", "ray", "arrow"].includes(placeType) ? (
+              <label className="param-row">
+                <span>长度</span>
+                <ParamInput value={createSize.len} step="0.5" onCommit={(v) => onCreateSize({ len: v })} />
+                <span className="param-unit">格</span>
+              </label>
+            ) : null}
+            {(tool === "angle" || placeType === "angle") ? (
+              <>
+                <label className="param-row">
+                  <span>角度</span>
+                  <ParamInput value={createSize.deg} step="5" onCommit={(v) => onCreateSize({ deg: v })} />
+                  <span className="param-unit">°</span>
+                </label>
+                <label className="param-row">
+                  <span>边长</span>
+                  <ParamInput value={createSize.len} step="0.5" onCommit={(v) => onCreateSize({ len: v })} />
+                  <span className="param-unit">格</span>
+                </label>
+              </>
+            ) : null}
+            <div className="chips">
+              <button type="button" className="chip primary" onClick={() => onQuickCreate(placeKind)}>
+                创建{PLACE_LABEL[placeKind] ?? "图形"}
+              </button>
+            </div>
+            <p className="drawer-hint">也可以直接在画布上按住拖动来画</p>
+          </section>
         ) : null}
 
         {/* 笔宽：只在画笔 / 曲线下显示 */}
         {tool === "pen" || tool === "curve" ? (
-        <section className="drawer-sec">
-          <h3>笔宽</h3>
-          {/* 笔宽档位：细 / 中 / 粗 一键切换，减少进抽屉细调 */}
-          <div className="chips" style={{ marginBottom: 8 }}>
-            {([["细", 2], ["中", 4], ["粗", 7]] as [string, number][]).map(([label, w]) => (
-              <button key={label} type="button" className={`chip${penWidth === w ? " on" : ""}`}
-                onClick={() => onPenWidth(w)}>{label}</button>
-            ))}
-          </div>
-          <label className="drawer-row">
-            <span>粗细</span>
-            <input
-              type="range" min={1} max={12} step={1} value={penWidth}
-              onChange={(e) => onPenWidth(Number(e.target.value))}
-            />
-            <output>{penWidth}px</output>
-          </label>
-          {lockRadius && lockedRadius != null ? (
-            <p className="drawer-hint">半径已锁定 {lockedRadius.toFixed(2)}，点一下即成圆</p>
-          ) : null}
-        </section>
+          <PenWidthSec penWidth={penWidth} onPenWidth={onPenWidth} />
         ) : null}
 
         {/* 颜色 */}
-        <section className="drawer-sec">
-          <h3>颜色</h3>
-          <div className="swatches">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`swatch${color === c ? " on" : ""}`}
-                style={{ background: c }}
-                aria-label={`颜色 ${c}`}
-                aria-pressed={color === c}
-                onClick={() => onColor(c)}
-              />
-            ))}
-          </div>
-        </section>
+        <ColorSec color={color} onColor={onColor} />
 
         {/* 图层：切换当前绘制层 / 整层隐藏锁定 / 选中项移层 */}
         <section className="drawer-sec">
@@ -485,76 +547,6 @@ export function OptionsDrawer(props: Props) {
             ) : null}
           </div>
           <p className="drawer-hint">点图层名切换「新图形画在哪层」，层次越高越靠上；隐藏后不渲染也不导出，锁定后不可选中与擦除</p>
-        </section>
-
-        {/* 历史：回退多步（单步用顶部栏的撤销按钮） */}
-        {onJumpBack && historySteps > 0 ? (
-          <section className="drawer-sec">
-            <h3>历史 <em>{historySteps}</em></h3>
-            <div className="chips">
-              {[1, 5, 10].map((n) => (
-                <button key={n} type="button" className="chip" disabled={historySteps < n}
-                  onClick={() => onJumpBack(n)}>退 {n} 步</button>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {/* 图形列表 */}
-        <section className="drawer-sec">
-          <h3>图形 {shapes.length > 0 ? <em>{shapes.length}</em> : null}</h3>
-          {shapes.length === 0 ? (
-            <p className="drawer-hint">还没有图形。用画笔随手画，或用公式添加一条曲线。</p>
-          ) : (
-            <div className="shape-list">
-              {shapes.map((s) => (
-                <div key={s.id} className={`shape-item${selectedId === s.id ? " sel" : ""}`}>
-                  <button
-                    type="button"
-                    className="shape-pick"
-                    onClick={() => onSelect(s.id)}
-                    aria-label={`选中 ${describeShape(s)}`}
-                  >
-                    <span className="dot" style={{ background: "color" in s ? s.color : "#8a8377" }} />
-                    <span className="shape-label">{describeShape(s)}</span>
-                  </button>
-                  {/* 坐标系是画布的基准，不给删除入口（与画布上的橡皮规则一致） */}
-                  {s.type === "coord" ? null : (
-                    <>
-                      {s.type === "image" ? (
-                        <button
-                          type="button"
-                          className={`lock-btn${"locked" in s && s.locked ? " on" : ""}`}
-                          onClick={() => onToggleImageLock(s.id)}
-                          aria-label={"locked" in s && s.locked ? "解锁图片" : "锁定图片"}
-                          title={"locked" in s && s.locked ? "已锁定：橡皮擦不掉，点击解锁" : "未锁定：点击锁定防误擦"}
-                        >
-                          {/* 锁形用 SVG 画（emoji 在 WKWebView 里基线偏移会歪） */}
-                          <svg width={13} height={13} viewBox="0 0 18 18" aria-hidden="true">
-                            <path
-                              d={"locked" in s && s.locked ? "M6 8.2 V6.6 a3 3 0 0 1 6 0 V8.2" : "M6 8.2 V6.6 a3 3 0 0 1 6 0"}
-                              fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"
-                            />
-                            <rect x={3.8} y={8.2} width={10.4} height={7.2} rx={2} fill="currentColor" />
-                          </svg>
-                        </button>
-                      ) : null}
-                      {DASHABLE.has(s.type) ? (
-                        <button
-                          type="button"
-                          className={`dash-btn${"dashed" in s && s.dashed ? " on" : ""}`}
-                          onClick={() => onToggleDashed(s.id)}
-                          aria-label="切换虚线"
-                          title="切换虚线 / 实线"
-                        >┄</button>
-                      ) : null}
-                      <button type="button" className="del-btn" onClick={() => onDeleteShape(s.id)} aria-label="删除">✕</button>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* 导出 PNG（画布在 DOM 里才可用，所以入口放画布侧） */}

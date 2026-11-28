@@ -7,13 +7,18 @@ import { useRenderAudit } from "./useRenderAudit";
 /** 已上报异常的曲线 id：同一条只报一次，避免每帧刷日志 */
 const reportedInk = new Set<string>();
 import { angleSpanDeg, drawRange } from "../model/angle";
-import { sampleFunction, sampleParametric } from "../model/formula";
-import { sampleImplicit } from "../model/implicit";
+import { sampleFunction, sampleParametric, samplePolar } from "../model/sampling";
+import { chainSegments, sampleImplicit } from "../model/implicit";
 import { getHandles, polygonPoints } from "../model/geometry";
 import { isVisible, sortForRender } from "../model/layers";
+import { imageUrls } from "../io/imageStore";
+import { shapeCenter, shapeRot } from "../model/rotate";
+import { RotHandle } from "./RotHandle";
+import { pathFromPoints, pathSmoothThrough } from "./paths";
 import { shapeBBox } from "../model/lasso";
 import type { AngleShape, ArcShape, ImageShape, PolyShape, EllipseShape, InkShape, Point2, PolygonShape, RayShape, RectShape, Shape } from "../model/types";
 import {
+  clampToView,
   gridLines,
   radiusToScreen,
   toScreen,
@@ -45,35 +50,14 @@ interface Props {
   gridLite?: boolean;
   /** 描边线宽（设置项） */
   strokeWidth?: number;
+  /** 图片补载版本号：变了就重绘（objectURL 是模块级的，React 看不到） */
+  imgVersion?: number | undefined;
 }
 
-function pathFromPoints(points: { x: number; y: number }[], v: Viewport): string {
-  if (points.length === 0) return "";
-  let d = "";
-  let penDown = false;
-  for (const p of points) {
-    const s = toScreen(p, v);
-    if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) {
-      penDown = false;
-      continue;
-    }
-    d += `${penDown ? "L" : "M"}${s.x.toFixed(1)},${s.y.toFixed(1)} `;
-    penDown = true;
-  }
-  return d.trim();
-}
 
-/** 隐函数：一串独立短线段，逐段 M…L…（不做首尾连接） */
-function pathFromSegments(segs: [Point2, Point2][], v: Viewport): string {
-  let d = "";
-  for (const [a, b] of segs) {
-    const sa = toScreen(a, v);
-    const sb = toScreen(b, v);
-    if (!Number.isFinite(sa.x) || !Number.isFinite(sa.y) || !Number.isFinite(sb.x) || !Number.isFinite(sb.y)) continue;
-    d += `M${sa.x.toFixed(1)},${sa.y.toFixed(1)}L${sb.x.toFixed(1)},${sb.y.toFixed(1)}`;
-  }
-  return d;
-}
+
+
+
 
 /** 绘制中的实时参数：按图形类型给出最有用的数值 */
 function previewLabel(shape: Shape): string {
@@ -159,13 +143,15 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     case "ellipse": {
       const e = shape as EllipseShape;
       const c = toScreen({ x: e.cx, y: e.cy }, v);
-      return (
+      const el = (
         <ellipse
           cx={c.x} cy={c.y}
           rx={Math.abs(e.rx * sx(v))} ry={Math.abs(e.ry * sy(v))}
           fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
+      if (!e.rot) return el;
+      return <g transform={`rotate(${(e.rot * 180) / Math.PI} ${c.x} ${c.y})`}>{el}</g>;
     }
     case "arc": {
       const a = shape as ArcShape;
@@ -196,13 +182,17 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const w = Math.abs(r.x2 - r.x1);
       const h = Math.abs(r.y2 - r.y1);
       const a = toScreen({ x, y: y + h }, v);
-      return (
+      const el = (
         <rect
           x={a.x} y={a.y}
           width={Math.abs(w * sx(v))} height={Math.abs(h * sy(v))}
           fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA}
         />
       );
+      if (!r.rot) return el;
+      const cx = a.x + Math.abs(w * sx(v)) / 2;
+      const cy = a.y + Math.abs(h * sy(v)) / 2;
+      return <g transform={`rotate(${(r.rot * 180) / Math.PI} ${cx} ${cy})`}>{el}</g>;
     }
     case "polygon": {
       const p = shape as PolygonShape;
@@ -234,9 +224,9 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       const im = shape as ImageShape;
       const bl = toScreen({ x: im.x, y: im.y }, v);
       const tr = toScreen({ x: im.x + im.w, y: im.y + im.h }, v);
-      return (
+      const el = (
         <image
-          href={im.src}
+          href={im.imgId ? imageUrls.get(im.imgId) ?? "" : im.src}
           x={bl.x}
           y={tr.y}
           width={tr.x - bl.x}
@@ -244,6 +234,11 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
           preserveAspectRatio="none"
         />
       );
+      // 旋转按图片中心转（角度是弧度，屏幕坐标系顺时针为正）
+      if (!im.rot) return el;
+      const cx = (bl.x + tr.x) / 2;
+      const cy = (bl.y + tr.y) / 2;
+      return <g transform={`rotate(${(im.rot * 180) / Math.PI} ${cx} ${cy})`}>{el}</g>;
     }
     case "poly": {
       const p = shape as PolyShape;
@@ -310,7 +305,7 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
     }
     case "ink": {
       const ink = shape as InkShape;
-      const d = ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathFromPoints(ink.points, v);
+      const d = ink.smooth ? smoothPath(ink.points, v, ink.tangents) : pathSmoothThrough(ink.points, v);
       if (!d || d.includes("NaN")) {
         if (!reportedInk.has(ink.id)) {
           reportedInk.add(ink.id);
@@ -328,16 +323,24 @@ function renderShape(shape: Shape, v: Viewport, selected: boolean, baseWidth = 2
       );
     }
     case "function": {
-      const pts = sampleFunction(shape, 320);
-      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
+      // 采样点从 320 提到 1200：曲线明显更顺，渐近线处也不会拉出一条直线上天
+      const pts = sampleFunction(shape, 1200);
+      return <path d={pathFromPoints(pts, v, true)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} strokeLinecap="round" />;
     }
     case "parametric": {
-      const pts = sampleParametric(shape, 360);
-      return <path d={pathFromPoints(pts, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} />;
+      const pts = sampleParametric(shape, 1200);
+      return <path d={pathFromPoints(pts, v, true)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} strokeLinecap="round" />;
+    }
+    case "polar": {
+      const pts = samplePolar(shape, 1200);
+      return <path d={pathFromPoints(pts, v, true)} fill="none" stroke={stroke} strokeWidth={sw}
+        strokeDasharray={dashA} strokeLinecap="round" strokeLinejoin="round" />;
     }
     case "implicit": {
-      const segs = sampleImplicit(shape);
-      return <path d={pathFromSegments(segs, v)} fill="none" stroke={stroke} strokeWidth={sw} strokeDasharray={dashA} strokeLinecap="round" />;
+      // 串成整条折线再描边：一段段画会在接缝和拐角处发虚
+      const lines = chainSegments(sampleImplicit(shape));
+      return <path d={lines.map((l) => pathFromPoints(l, v)).join(" ")} fill="none" stroke={stroke} strokeWidth={sw}
+        strokeDasharray={dashA} strokeLinecap="round" strokeLinejoin="round" />;
     }
     default:
       return null;
@@ -370,7 +373,7 @@ const ShapeNode = memo(function ShapeNode({ shape, v, selected, strokeWidth }: S
 
 const StaticLayer = memo(function StaticLayer({
   shapes, viewport: v, highlightId, selectionIds, lassoPoints,
-  showGrid = true, showTicks = true, gridStep, strokeWidth = 2, gridLite = false,
+  showGrid = true, showTicks = true, gridStep, strokeWidth = 2, gridLite = false
 }: Omit<Props, "preview" | "previewShape">) {
   // 「画不出来」要真的数出来：此前 renderedInk 直接传 ink 总数，drawn 恒等于 ink，
   // render.bad 永远不会触发，日志看不出曲线是否渲染失败
@@ -394,6 +397,10 @@ const StaticLayer = memo(function StaticLayer({
   const grid = gridLines(v, step);
   const selected = shapes.find((s) => s.id === highlightId);
   const handles = selected ? getHandles(selected) : [];
+  // 图片旋转后，控制点跟着图片一起转：整组套同一个 rotate，位置就永远贴着图片的角
+  const center0 = selected ? shapeCenter(selected) : null;
+  const handleRot = shapeRot(selected);
+  const handlePivot = center0 ? toScreen(center0, v) : null;
 
   return (
     <>
@@ -444,24 +451,26 @@ const StaticLayer = memo(function StaticLayer({
         <ShapeNode key={shape.id} shape={shape} v={v} selected={shape.id === highlightId} strokeWidth={strokeWidth} />
       ))}
 
-      {/* 选中图形的控制点：缩放点用绿色 + 对角双箭头（与蓝色移动/端点区分），
-          配色取自主题绿（成功/尺寸语义），白描边保证任何底色上清晰 */}
+      {/* 选中图形的控制点：缩放点用绿色 + 对角双箭头，白描边保证任何底色上清晰 */}
+      <g transform={handleRot && handlePivot ? `rotate(${(handleRot * 180) / Math.PI} ${handlePivot.x} ${handlePivot.y})` : undefined}>
       {handles.map((h) => {
-        const p = toScreen(h.at, v);
+        // 旋转点夹在画面内：图形特别大时角点跑到屏幕外就按不到
+        const raw = toScreen(h.at, v);
+        const p = h.id === "rot" ? clampToView(raw, v) : raw;
         const isResize = h.id === "resize";
         if (isResize) {
           return (
             <g key={h.id}>
-              <circle cx={p.x} cy={p.y} r={12} fill="rgba(16, 185, 129, .14)" />
-              <circle cx={p.x} cy={p.y} r={6.5} fill="#10b981" stroke="#fff" strokeWidth={1.8} />
+              <circle cx={p.x} cy={p.y} r={12} fill="var(--handle-accent-soft, rgba(16, 185, 129, .14))" />
+              <circle cx={p.x} cy={p.y} r={6.5} fill="var(--handle-accent, #10b981)" stroke="var(--handle-bg, #fff)" strokeWidth={1.8} />
               <path
                 d={`M${p.x - 2.4},${p.y - 2.4} L${p.x + 2.4},${p.y + 2.4}`}
-                stroke="#fff" strokeWidth={1.5} strokeLinecap="round"
+                stroke="var(--handle-bg, #fff)" strokeWidth={1.5} strokeLinecap="round"
               />
               <path
                 d={`M${p.x - 1.1},${p.y - 2.4} L${p.x - 2.4},${p.y - 2.4} L${p.x - 2.4},${p.y - 1.1}
                     M${p.x + 1.1},${p.y + 2.4} L${p.x + 2.4},${p.y + 2.4} L${p.x + 2.4},${p.y + 1.1}`}
-                fill="none" stroke="#fff" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+                fill="none" stroke="var(--handle-bg, #fff)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
               />
             </g>
           );
@@ -473,16 +482,19 @@ const StaticLayer = memo(function StaticLayer({
           return (
             <g key={h.id}>
               {kp ? (
-                <line x1={kp.x} y1={kp.y} x2={p.x} y2={p.y} stroke="#2563eb" strokeWidth={1} strokeDasharray="3 3" opacity={0.55} />
+                <line x1={kp.x} y1={kp.y} x2={p.x} y2={p.y} stroke="var(--handle-line, #2563eb)" strokeWidth={1} strokeDasharray="3 3" opacity={0.55} />
               ) : null}
-              <circle cx={p.x} cy={p.y} r={4.5} fill="#fff" stroke="#2563eb" strokeWidth={1.8} />
+              <circle cx={p.x} cy={p.y} r={4.5} fill="var(--handle-bg, #fff)" stroke="var(--handle-line, #2563eb)" strokeWidth={1.8} />
             </g>
           );
         }
         const isVertex = h.id.startsWith("k");
+        if (h.id === "rot") return <RotHandle key={h.id} x={p.x} y={p.y} />;
         return <circle key={h.id} cx={p.x} cy={p.y} r={isVertex ? 5 : 6}
-          fill={isVertex ? "#2563eb" : "#fff"} stroke="#2563eb" strokeWidth={2} />;
+          fill={isVertex ? "var(--handle-line, #2563eb)" : "var(--handle-bg, #fff)"}
+          stroke="var(--handle-line, #2563eb)" strokeWidth={2} />;
       })}
+      </g>
 
       {/* 套索多选：每个选中图形画包围盒，框选时额外画轨迹（此前完全没有视觉反馈） */}
       {(selectionIds ?? []).map((id) => {

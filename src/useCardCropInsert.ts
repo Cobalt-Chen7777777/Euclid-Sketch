@@ -6,7 +6,7 @@
  */
 import { useCallback, useState } from "react";
 
-import { cropImageToDataUrl, fileToImageShape, imageSrcToShape } from "./model/image";
+import { blobToImageShape, cropImageToBlob, fileToImageShape, imageSrcToShape } from "./model/image";
 import { renderCardImage } from "./bridge";
 import type { CropRect } from "./stage/CropDialog";
 import type { Shape } from "./model/types";
@@ -38,8 +38,8 @@ export function useCardCropInsert(o: Options) {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   /** 把一张卡片图（整张或已裁好的）插进画布 */
-  const insertCardImage = useCallback(async (src: string, reuseSrc: boolean) => {
-    const shape = await imageSrcToShape(src, viewport, color, reuseSrc, shapes, 0, insertScale);
+  const insertCardImage = useCallback(async (src: string) => {
+    const shape = await imageSrcToShape(src, viewport, color, shapes, 0, insertScale);
     setShapes((prev) => [...prev, shape]);
     setSelectedId(shape.id);
     setViewport((vp) => zoomToBox(vp, shape));
@@ -69,13 +69,14 @@ export function useCardCropInsert(o: Options) {
     }
     if (!noteidArg && !fresh) showToast("未取到当前选中卡，沿用上次目标卡");
     try {
-      const rendered = await renderCardImage(nid);
+      // 先按接口上限 1200 要图（更清晰），失败再退回 880——长卡可能撞上像素上限
+      const rendered = (await renderCardImage(nid, 1200)) ?? (await renderCardImage(nid, 880));
       if (!rendered) {
         showToast("卡片渲染失败：卡片可能没有内容，或长图超过像素上限");
         return;
       }
       if (askCardCrop) { setCropSrc(rendered.src); return; }
-      await insertCardImage(rendered.src, true);
+      await insertCardImage(rendered.src);
     } catch (e) {
       showToast(`插入卡片图失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
@@ -87,12 +88,21 @@ export function useCardCropInsert(o: Options) {
     setCropSrc(null);
     if (!src) return;
     try {
-      const final = rect ? await cropImageToDataUrl(src, rect) : src;
-      await insertCardImage(final, !rect);
+      if (rect) {
+        // 裁出来的那块同样进图片库（不压缩）
+        const blob = await cropImageToBlob(src, rect);
+        const shape = await blobToImageShape(blob, viewport, color, shapes, 0, insertScale);
+        setShapes((prev) => [...prev, shape]);
+        setSelectedId(shape.id);
+        setViewport((vp) => zoomToBox(vp, shape));
+        showToast("已插入选区");
+        return;
+      }
+      await insertCardImage(src);
     } catch (e) {
       showToast(`插入失败：${e instanceof Error ? e.message : "未知错误"}`);
     }
-  }, [cropSrc, insertCardImage, showToast]);
+  }, [cropSrc, insertCardImage, showToast, viewport, color, shapes, insertScale, setShapes, setSelectedId, setViewport]);
 
   return { cropSrc, setCropSrc, insertCardImage, onCropConfirm, onImportImage, onImportCardImage };
 }

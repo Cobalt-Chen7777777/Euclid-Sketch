@@ -10,7 +10,7 @@
  */
 import { compileExpr, type EvalFn } from "./expr";
 
-import type { CircleShape, EllipseShape, FunctionShape, ImplicitShape, ParametricShape, Point2, Shape } from "./types";
+import type { CircleShape, EllipseShape, FunctionShape, ImplicitShape, ParametricShape, PolarShape, Point2, Shape } from "./types";
 import { newId, PALETTE } from "./types";
 
 export type ParseResult =
@@ -18,6 +18,7 @@ export type ParseResult =
   | { kind: "ellipse"; shape: EllipseShape }
   | { kind: "function"; shape: FunctionShape }
   | { kind: "parametric"; shape: ParametricShape }
+  | { kind: "polar"; shape: PolarShape }
   | { kind: "implicit"; shape: ImplicitShape }
   | { kind: "error"; message: string };
 
@@ -53,7 +54,8 @@ export function normalize(input: string): string {
 const compileCache = new Map<string, EvalFn>();
 
 /** 安全编译表达式，返回求值函数（带缓存） */
-function safeCompile(expr: string): EvalFn {
+/** 编译表达式（供采样模块复用） */
+export function safeCompile(expr: string): EvalFn {
   const cached = compileCache.get(expr);
   if (cached) return cached;
   const compiled = compileExpr(expr);
@@ -61,7 +63,8 @@ function safeCompile(expr: string): EvalFn {
   return compiled;
 }
 
-function evalNumber(fn: EvalFn, scope: Record<string, number>): number {
+/** 求值（供采样模块复用） */
+export function evalNumber(fn: EvalFn, scope: Record<string, number>): number {
   const value = fn(scope);
   if (!Number.isFinite(value)) throw new Error("表达式结果不是有限数字");
   return value;
@@ -182,6 +185,30 @@ function tryParametric(raw: string, color: string): ParametricShape | null {
 }
 
 /**
+ * 极坐标：r = f(θ)。θ 写成 theta 或 中文 theta 都行，内部统一成变量 t。
+ * 例如 r=1+cos(t)、r=2sin(3theta)。
+ */
+function tryPolar(raw: string, color: string): PolarShape | null {
+  const s = normalize(raw).replace(/θ/g, "t").replace(/theta/gi, "t");
+  const m = s.match(/^r=([^,;]+)$/i);
+  if (!m || !m[1]) return null;
+  const expr = m[1];
+  try {
+    safeCompile(expr);
+  } catch {
+    return null;
+  }
+  return {
+    id: newId("polar"),
+    type: "polar",
+    expr,
+    tRange: [0, Math.PI * 2],
+    source: raw.trim(),
+    color,
+  };
+}
+
+/**
  * 解析隐函数：任意 F(x,y)=0。
  * 圆的方程与椭圆方程在上面已经单独认出来了（它们还能给出圆心半径等参数），
  * 走到这里的都是没有显式解的方程：xy=1、x^3+y^3-3xy=0、x^2=4（两条竖直线）。
@@ -247,6 +274,9 @@ export function parseFormula(input: string, color: string = PALETTE[0] ?? "#2563
   const ellipse = tryEllipse(raw, color);
   if (ellipse) return { kind: "ellipse", shape: ellipse };
 
+  const polar = tryPolar(raw, color);
+  if (polar) return { kind: "polar", shape: polar };
+
   const implicit = tryImplicit(raw, color);
   if (implicit) return { kind: "implicit", shape: implicit };
 
@@ -255,77 +285,12 @@ export function parseFormula(input: string, color: string = PALETTE[0] ?? "#2563
 
   return { kind: "error", message: "无法识别的公式，请检查语法" };
 }
-
-/** 采样点缓存：表达式 + 范围 + 采样数 → 点序列。上限防止内存增长。 */
-const SAMPLE_CACHE_LIMIT = 64;
-const sampleCache = new Map<string, Point2[]>();
-function cachedSamples(key: string, compute: () => Point2[]): Point2[] {
-  const hit = sampleCache.get(key);
-  if (hit) return hit;
-  const pts = compute();
-  if (sampleCache.size >= SAMPLE_CACHE_LIMIT) {
-    const oldest = sampleCache.keys().next().value;
-    if (oldest !== undefined) sampleCache.delete(oldest);
-  }
-  sampleCache.set(key, pts);
-  return pts;
-}
-
-/** 采样函数曲线为点序列（带缓存） */
-export function sampleFunction(
-  shape: FunctionShape,
-  samples = 400,
-): Point2[] {
-  const [x0, x1] = shape.xRange;
-  return cachedSamples(`f|${shape.expr}|${x0}|${x1}|${samples}`, () => {
-    const fn = safeCompile(shape.expr);
-    const pts: Point2[] = [];
-    for (let i = 0; i <= samples; i++) {
-      const x = x0 + ((x1 - x0) * i) / samples;
-      try {
-        const y = evalNumber(fn, { x, pi: Math.PI, e: Math.E });
-        if (Number.isFinite(y)) pts.push({ x, y });
-      } catch {
-        // 定义域外跳过
-      }
-    }
-    return pts;
-  });
-}
-
-/** 采样参数方程为点序列（带缓存） */
-export function sampleParametric(
-  shape: ParametricShape,
-  samples = 400,
-): Point2[] {
-  const [t0, t1] = shape.tRange;
-  return cachedSamples(`p|${shape.xExpr}|${shape.yExpr}|${t0}|${t1}|${samples}`, () => {
-    const fx = safeCompile(shape.xExpr);
-    const fy = safeCompile(shape.yExpr);
-    const pts: Point2[] = [];
-    for (let i = 0; i <= samples; i++) {
-      const t = t0 + ((t1 - t0) * i) / samples;
-      try {
-        const x = evalNumber(fx, { t, pi: Math.PI });
-        const y = evalNumber(fy, { t, pi: Math.PI });
-        if (Number.isFinite(x) && Number.isFinite(y)) pts.push({ x, y });
-      } catch {
-        // 跳过
-      }
-    }
-    return pts;
-  });
-}
-
 /** 圆上的采样点（用于统一导出与吸附） */
 export function sampleCircle(shape: CircleShape, samples = 120): Point2[] {
   const pts: Point2[] = [];
-  for (let i = 0; i <= samples; i++) {
+  for (let i = 0; i <= samples; i += 1) {
     const a = (Math.PI * 2 * i) / samples;
-    pts.push({
-      x: shape.cx + shape.r * Math.cos(a),
-      y: shape.cy + shape.r * Math.sin(a),
-    });
+    pts.push({ x: shape.cx + shape.r * Math.cos(a), y: shape.cy + shape.r * Math.sin(a) });
   }
   return pts;
 }
@@ -336,7 +301,7 @@ export function sampleCircle(shape: CircleShape, samples = 120): Point2[] {
  * （手动拖出的圆、椭圆不带 source，清除函数时不能误删）。
  */
 export function isFormulaShape(shape: Shape): boolean {
-  if (shape.type === "function" || shape.type === "parametric" || shape.type === "implicit") return true;
+  if (shape.type === "function" || shape.type === "parametric" || shape.type === "implicit" || shape.type === "polar") return true;
   if (shape.type === "circle" || shape.type === "ellipse") {
     return typeof shape.source === "string" && shape.source.length > 0;
   }

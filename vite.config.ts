@@ -8,6 +8,8 @@ export default defineConfig({
   base: "/pkg/",
   define: {
     __MN_NATIVE_BRIDGE__: false,
+    // 打一次包写一次时间：设置页显示出来，方便确认装的是不是最新这一版
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [react(), mnRails({ mode: "panel" })],
   build: {

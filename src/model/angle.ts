@@ -5,7 +5,7 @@
  * 画角度时第二条边会吸附到最近的特殊角，直角另画方角标记。
  */
 import type { Handle } from "./geometry";
-import type { AngleShape, Point2 } from "./types";
+import type { AngleShape, Point2, Shape } from "./types";
 import { newId } from "./types";
 
 /** 可吸附的特殊角（度） */
@@ -113,16 +113,65 @@ export function angleHitTest(shape: AngleShape, world: Point2, tol: number): boo
   return forward <= span + 6 || backward <= span + 6;
 }
 
-/** 角度图形的控制点：顶点 + 两条边的端点（拖边即改角度） */
+/** 角度朝向（度，0–360）：第一条边的方向，输入框与旋转控制点都改它 */
+export function angleOrientDeg(shape: AngleShape): number {
+  return Math.round(normalizeDeg(toDeg(shape.a1)));
+}
+
+/** 绕顶点整体旋转，夹角不变：把第一条边转到 deg，第二条边跟着转同样的量 */
+export function angleOrientPatch(shape: AngleShape, deg: number): Partial<AngleShape> {
+  const delta = toRad(deg - toDeg(shape.a1));
+  return { a1: shape.a1 + delta, a2: shape.a2 + delta };
+}
+
+/** 两条边之间的开合方向：a2 在 a1 的哪一侧（+1 顺时针，-1 逆时针，按屏幕坐标系） */
+function swingSign(shape: AngleShape): number {
+  const d = ((shape.a2 - shape.a1) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  return d <= Math.PI ? 1 : -1;
+}
+
+/** 角度图形的控制点：顶点 + 两条边的端点（拖边即改角度）+ 平分线上的旋转点（整角转向） */
 export function angleHandles(shape: AngleShape): Handle[] {
-  const at = (ang: number): Point2 => ({
-    x: shape.vx + shape.r * Math.cos(ang),
-    y: shape.vy + shape.r * Math.sin(ang),
+  const at = (ang: number, radius = shape.r): Point2 => ({
+    x: shape.vx + radius * Math.cos(ang),
+    y: shape.vy + radius * Math.sin(ang),
   });
   const dir = (s0: AngleShape, w: Point2): number => Math.atan2(w.y - s0.vy, w.x - s0.vx);
+
+  /** 拖一条边：未锁定时只改这一条边；锁定后保持夹角，整角绕顶点转 */
+  const arm = (which: "a1" | "a2") => (shape: Shape, w: Point2): Shape => {
+    const s = shape as AngleShape;
+    const next = dir(s, w);
+    if (!s.lockDeg) return which === "a1" ? { ...s, a1: next } : { ...s, a2: next };
+    const span = toRad(Math.min(179, Math.max(1, s.lockDeg)));
+    const sign = swingSign(s);
+    return which === "a2"
+      ? { ...s, a2: next, a1: next - sign * span }
+      : { ...s, a1: next, a2: next + sign * span };
+  };
+
+  // 旋转点摆在平分线外侧一点，避开标注弧和两条边的端点
+  const mid = shape.a1 + (swingSign(shape) * toRad(angleSpanDeg(shape))) / 2;
+  const rotR = Math.max(shape.r * 1.35, (shape.len ?? shape.r) * 0.9);
+
   return [
     { id: "v", at: { x: shape.vx, y: shape.vy }, apply: (s0, w) => ({ ...(s0 as AngleShape), vx: w.x, vy: w.y }) },
-    { id: "a1", at: at(shape.a1), apply: (s0, w) => ({ ...(s0 as AngleShape), a1: dir(s0 as AngleShape, w) }) },
-    { id: "a2", at: at(shape.a2), apply: (s0, w) => ({ ...(s0 as AngleShape), a2: dir(s0 as AngleShape, w) }) },
+    { id: "a1", at: at(shape.a1), apply: arm("a1") },
+    { id: "a2", at: at(shape.a2), apply: arm("a2") },
+    {
+      id: "rot",
+      at: at(mid, rotR),
+      // 拖动时按「光标相对顶点的方向」与当前平分线方向的差，整体转过去
+      apply: (s0, w) => {
+        const s = s0 as AngleShape;
+        const want = dir(s, w);
+        const span = swingSign(s) * toRad(angleSpanDeg(s));
+        const cur = s.a1 + span / 2;
+        let delta = want - cur;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        return { ...s, a1: s.a1 + delta, a2: s.a2 + delta };
+      },
+    },
   ];
 }

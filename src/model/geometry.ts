@@ -3,6 +3,7 @@
  * 每个控制点携带 apply 闭包，画布层遍历即可，无需为每种图形写 switch。
  */
 import { angleHandles, angleHitTest } from "./angle";
+import { orientDeg, orientPatch } from "./rotate";
 import { sampleCurve } from "./curve";
 import { sampleImplicit } from "./implicit";
 import type { ImageShape, ImplicitShape } from "./types";
@@ -82,7 +83,9 @@ export function getHandles(shape: Shape): Handle[] {
         });
       } else {
         const e = shape as EllipseShape;
-        handles.push({
+        handles.push(
+          rotHandleAt({ x: e.cx, y: e.cy }, Math.max(e.rx, e.ry) * 1.35, 0),
+          {
           id: "rx",
           at: { x: e.cx + e.rx, y: e.cy },
           apply: (s, w) => ({ ...(s as EllipseShape), rx: Math.max(0.1, Math.abs(w.x - (s as EllipseShape).cx)) }),
@@ -99,6 +102,7 @@ export function getHandles(shape: Shape): Handle[] {
       const a = shape as ArcShape;
       const c = { x: a.cx, y: a.cy };
       return [
+        rotHandleAt(c, Math.max(0.5, a.r) * 1.35, orientDeg(shape)),
         { id: "center", at: c, apply: (s, w) => ({ ...(s as ArcShape), cx: w.x, cy: w.y }) },
         {
           id: "radius",
@@ -128,9 +132,12 @@ export function getHandles(shape: Shape): Handle[] {
     }
     case "rect": {
       const r = shape as RectShape;
+      const c: Point2 = { x: (r.x1 + r.x2) / 2, y: (r.y1 + r.y2) / 2 };
+      const rad = Math.hypot(r.x2 - r.x1, r.y2 - r.y1) / 2;
       return [
         { id: "p1", at: { x: r.x1, y: r.y1 }, apply: (s, w) => ({ ...(s as RectShape), x1: w.x, y1: w.y }) },
         { id: "p2", at: { x: r.x2, y: r.y2 }, apply: (s, w) => ({ ...(s as RectShape), x2: w.x, y2: w.y }) },
+        rotHandleAt(c, rad * 1.2, 0),
       ];
     }
     case "polygon": {
@@ -145,14 +152,29 @@ export function getHandles(shape: Shape): Handle[] {
             return { ...t, r: Math.max(0.1, dist({ x: t.cx, y: t.cy }, w)) };
           },
         },
+        {
+          // 整体旋转：挂在一个固定偏移上，跟着图形一起转（拖起来光标指哪它指哪）
+          id: "rot",
+          at: {
+            x: p.cx + p.r * 1.3 * Math.cos(p.rotation - Math.PI / 3),
+            y: p.cy + p.r * 1.3 * Math.sin(p.rotation - Math.PI / 3),
+          },
+          apply: (s, w) => {
+            const t = s as PolygonShape;
+            return { ...t, rotation: Math.atan2(w.y - t.cy, w.x - t.cx) + Math.PI / 3 };
+          },
+        },
       ];
     }
     case "ray":
     case "line": {
       const l = shape as RayShape | LineShape;
+      const mid: Point2 = { x: (l.x1 + l.x2) / 2, y: (l.y1 + l.y2) / 2 };
+      const half = Math.hypot(l.x2 - l.x1, l.y2 - l.y1) / 2;
       return [
         { id: "p1", at: { x: l.x1, y: l.y1 }, apply: (s, w) => ({ ...(s as RayShape), x1: w.x, y1: w.y }) },
         { id: "p2", at: { x: l.x2, y: l.y2 }, apply: (s, w) => ({ ...(s as RayShape), x2: w.x, y2: w.y }) },
+        rotHandleAt(mid, Math.max(0.6, half) * 1.2, orientDeg(shape)),
       ];
     }
     case "point": {
@@ -173,6 +195,35 @@ export function getHandles(shape: Shape): Handle[] {
   }
 }
 
+/** 把点绕着中心转回去（用于旋转后的命中判定：屏幕顺时针 = 世界逆时针，符号与渲染一致） */
+function unRotate(p: Point2, c: Point2, rot: number): Point2 {
+  const cos = Math.cos(rot);
+  const sin = Math.sin(rot);
+  const dx = p.x - c.x;
+  const dy = p.y - c.y;
+  return { x: c.x + dx * cos - dy * sin, y: c.y + dx * sin + dy * cos };
+}
+
+
+/**
+ * 画布上的旋转控制点：挂在「朝向逆时针 60°」的方向上，半径由图形大小定。
+ * base 是控制点当前所处的角度（矩形/椭圆传 0，因为它们整组跟着 rotate 一起转）。
+ */
+function rotHandleAt(center: Point2, r: number, baseDeg: number): Handle {
+  const OFF = -60;
+  const a = ((baseDeg + OFF) * Math.PI) / 180;
+  return {
+    id: "rot",
+    at: { x: center.x + r * Math.cos(a), y: center.y + r * Math.sin(a) },
+    apply: (s0, w) => {
+      // atan2 用的是世界坐标（y 向上），而画布 rotate() 是屏幕顺时针 —— 两者差一个符号，
+      // 这里统一换算成「屏幕上顺时针为正」的角度，拖动方向才不会反
+      const want = (Math.atan2(w.y - center.y, w.x - center.x) * 180) / Math.PI;
+      return orientPatch(s0, (((want + 60) % 360) + 360) % 360);
+    },
+  };
+}
+
 /** 点到线段的最短距离 */
 function distToSegment(p: Point2, a: Point2, b: Point2): number {
   const dx = b.x - a.x;
@@ -191,8 +242,9 @@ export function hitTest(shape: Shape, world: Point2, tol: number): boolean {
       return Math.abs(dist(world, { x: shape.cx, y: shape.cy }) - shape.r) <= tol;
     case "ellipse": {
       const e = shape as EllipseShape;
-      const dx = (world.x - e.cx) / Math.max(e.rx, 0.01);
-      const dy = (world.y - e.cy) / Math.max(e.ry, 0.01);
+      const w0 = e.rot ? unRotate(world, { x: e.cx, y: e.cy }, e.rot) : world;
+      const dx = (w0.x - e.cx) / Math.max(e.rx, 0.01);
+      const dy = (w0.y - e.cy) / Math.max(e.ry, 0.01);
       const v = Math.sqrt(dx * dx + dy * dy);
       return Math.abs(v - 1) * Math.min(e.rx, e.ry) <= tol;
     }
@@ -210,7 +262,8 @@ export function hitTest(shape: Shape, world: Point2, tol: number): boolean {
     case "rect": {
       const r = shape as RectShape;
       const c: Point2 = { x: (r.x1 + r.x2) / 2, y: (r.y1 + r.y2) / 2 };
-      if (dist(world, c) < Math.max(Math.abs(r.x2 - r.x1), Math.abs(r.y2 - r.y1))) return true;
+      const w0 = r.rot ? unRotate(world, c, r.rot) : world;
+      if (dist(w0, c) < Math.max(Math.abs(r.x2 - r.x1), Math.abs(r.y2 - r.y1))) return true;
       return false;
     }
     case "polygon": {

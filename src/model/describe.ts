@@ -12,12 +12,13 @@ export function describeShape(s: Shape): string {
     case "ray": return `射线 (${s.x1.toFixed(1)},${s.y1.toFixed(1)})→`;
     case "function": return `f(x) = ${s.expr}`;
     case "parametric": return `x=${s.xExpr}, y=${s.yExpr}`;
+    case "polar": return `极坐标 r = ${s.expr}`;
     case "implicit": return s.source ? `方程 ${s.source}` : `F(x,y)=0`;
     case "point": return `点 (${s.x.toFixed(1)},${s.y.toFixed(1)})`;
     case "line": return "线段";
     case "ink": return `笔迹（${s.points.length} 点）`;
     case "poly": {
-      const labels = { star: "星形", rhombus: "菱形", trapezoid: "梯形", arrow: "箭头" } as const;
+      const labels = { star: "星形", rhombus: "菱形", trapezoid: "梯形", arrow: "箭头", irregular: "多边形" } as const;
       return labels[s.kind];
     }
     case "angle": {

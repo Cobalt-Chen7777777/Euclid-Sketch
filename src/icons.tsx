@@ -16,14 +16,24 @@ interface IconProps {
 }
 
 /** 统一外壳：所有图标共用同一套描边参数，保证视觉重量一致 */
-function Glyph({ size = 20, children }: { size?: number; children: ReactNode }) {
+function Glyph({ size = 20, scale = 1, children }: { size?: number; scale?: number; children: ReactNode }) {
+  // 不同来源的图形在 24 格里占的比例不一样（有的画满 20 格、有的只占 16 格），
+  // 同样显示成 15px 时看着大小就不齐。scale 把它们统一到同一视觉框，
+  // 描边按反比放大 —— 缩放后线宽仍是 1.75，不会跟着变细。
+  const body = scale === 1
+    ? children
+    : (
+      <g transform={`translate(12 12) scale(${scale}) translate(-12 -12)`} strokeWidth={1.75 / scale}>
+        {children}
+      </g>
+    );
   return (
     <svg
       width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={1.75}
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
     >
-      {children}
+      {body}
     </svg>
   );
 }
@@ -481,7 +491,7 @@ export function FitIcon({ size = 20 }: IconProps) {
 /** 复制 */
 export function CopyIcon({ size = 20 }: IconProps) {
   return (
-    <Glyph size={size}>
+    <Glyph size={size} scale={0.86}>
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </Glyph>
@@ -492,7 +502,7 @@ export function CopyIcon({ size = 20 }: IconProps) {
 /** 历史记录 */
 export function HistoryIcon({ size = 20 }: IconProps) {
   return (
-    <Glyph size={size}>
+    <Glyph size={size} scale={0.94}>
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
       <path d="M12 7v5l4 2" />
@@ -613,7 +623,7 @@ export function ToolIcon({ name, size = 20 }: { name: ToolIconName; size?: numbe
 /** 撤销：回旋箭头 */
 export function UndoIcon({ size = 20 }: IconProps) {
   return (
-    <Glyph size={size}>
+    <Glyph size={size} scale={1.06}>
       <path d="M9 14 4 9l5-5" />
       <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
     </Glyph>
@@ -623,20 +633,60 @@ export function UndoIcon({ size = 20 }: IconProps) {
 /** 重做：回旋箭头（反向） */
 export function RedoIcon({ size = 20 }: IconProps) {
   return (
-    <Glyph size={size}>
+    <Glyph size={size} scale={1.06}>
       <path d="m15 14 5-5-5-5" />
       <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
     </Glyph>
   );
 }
 
-/** 画布背景：带坐标轴的画布框 */
-export function CanvasBgIcon({ size = 20 }: IconProps) {
+/** 画布背景 · 坐标系：画布框 + 十字坐标轴（15px 下只留这两笔才看得清） */
+export function CanvasGridIcon({ size = 20 }: IconProps) {
   return (
     <Glyph size={size}>
       <rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
-      <path d="M3.5 12h17" />
-      <path d="M12 3.5v17" />
+      <path d="M3.5 12h17M12 3.5v17" />
+    </Glyph>
+  );
+}
+
+/** 画布背景 · 空白：一张没有网格的纸（折角比小短线在小尺寸下更好认） */
+export function CanvasBlankIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size}>
+      <path d="M5.2 6A2.5 2.5 0 0 1 7.7 3.5h5.9l5.2 5.2v9.3a2.5 2.5 0 0 1-2.5 2.5H7.7a2.5 2.5 0 0 1-2.5-2.5z" />
+      <path d="M13.6 3.9v3.9a1.3 1.3 0 0 0 1.3 1.3h3.9" />
+    </Glyph>
+  );
+}
+
+/** 图形清单按钮：叠层（Lucide layers，ISC） */
+export function LayersIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size} scale={0.9}>
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+      <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+      <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+    </Glyph>
+  );
+}
+
+/** 逆时针旋转 90°（Lucide rotate-ccw，ISC） */
+export function RotateCcwIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size} scale={0.94}>
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </Glyph>
+  );
+}
+
+/** 顺时针旋转 90°（Lucide rotate-cw，ISC） */
+export function RotateCwIcon({ size = 20 }: IconProps) {
+  return (
+    <Glyph size={size} scale={0.94}>
+      <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
     </Glyph>
   );
 }
@@ -644,7 +694,7 @@ export function CanvasBgIcon({ size = 20 }: IconProps) {
 /** 一键清空：扫帚（Lucide broom，ISC） */
 export function BroomIcon({ size = 20 }: IconProps) {
   return (
-    <Glyph size={size}>
+    <Glyph size={size} scale={0.86}>
       <path d="M13.5 10.5 22 2" />
       <path d="M14.734 13.841a2 2 0 00-.314-2.42L12.58 9.58a2 2 0 00-2.421-.314l-7.657 4.461A1 1 0 002.3 15.3l6.403 6.403a1 1 0 001.571-.204z" />
       <path d="m5 18 2-2" />

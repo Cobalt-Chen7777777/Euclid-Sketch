@@ -133,10 +133,11 @@ export function useMiniBarFit(count: number, vertical: boolean, collapsed: boole
       logEvent("mini", `${vertical ? "竖" : "横"} ${n} 个按钮 → ${w}×${h}（当前 ${curW}×${curH}）`);
     };
 
-    // 收起那一刻的尺寸由 useResizablePanel.collapse() 用同一套栅格直接下发过了，
-    // 这里不再「立即量一次」—— 两次相同值的 mn.size 会让宿主把尺寸动画重播一遍（看着抖一下）。
-    // 只在宿主切完 mini 标记、DOM 定型后兜底校正；宿主自己重置尺寸时靠 resize 纠回。
-    const timer = setTimeout(apply, 420);
+    // 打开面板时先立刻撑到位：之前等 420ms 才下发，肉眼看到的就是迷你条「一截一截长出来」。
+    // 收起那一侧不会重播动画 —— issuePanelSize 自带「同值 700ms 内不重复下发」。
+    apply();
+    // 宿主拉伸动画结束后再兜一次（动画期间量到的尺寸可能是中间值）
+    const timer = setTimeout(apply, 300);
     // 宿主会自己重置过面板尺寸（切后台回来、旋转、动画收尾），尺寸一变就纠回来
     const onResize = () => {
       fixes = 0;

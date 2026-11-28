@@ -65,6 +65,9 @@ interface Props {
   onClearCurves: () => void;
 }
 
+/** 上一次拖动后的位置（相对画布左上角，模块级：跨挂载保留） */
+let lastShift: { x: number; y: number } | null = null;
+
 export function FunctionPad(props: Props) {
   const { onAdd, onTypingChange, onClose, message, shapes, onDeleteShape, onClearCurves } = props;
   // 草稿放在面板内部：每敲一个字只重渲染这个面板，
@@ -73,7 +76,8 @@ export function FunctionPad(props: Props) {
   // 小窗：可拖动（仅顶部拖动浮条）、两档尺寸、函数 / 算式两种模式
   /** 面板位置：相对 CSS 锚点的位移。用 transform 而不是 left/top——
       拖动时只走合成层，不触发重排，才跟手 */
-  const [pos, setPos] = useState<{ dx: number; dy: number } | null>(null);
+  // 位置存在模块级：面板切走再切回来会重新挂载，只用 state 的话会被重置回初始位置（看着像瞬移）
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(lastShift);
   const [compact, setCompact] = useState(false);
   /** 放不下时自动缩成紧凑版：内容高度超过可视高度的 88% 就缩 */
   const autoFit = useCallback(() => {
@@ -93,18 +97,14 @@ export function FunctionPad(props: Props) {
   const padRef = useRef<HTMLDivElement | null>(null);
   /** 拖动状态：起点、起始位移、允许的位移范围（保证整块始终留在画布内） */
   const barDrag = useRef<{
-    px: number; py: number; dx0: number; dy0: number;
+    px: number; py: number; x0: number; y0: number;
     minX: number; maxX: number; minY: number; maxY: number;
   } | null>(null);
   /** 拖动中最后一帧的位移（松手时用它提交，避免解析 transform 字符串） */
   /** 拖动期间挂在浮条上的原生触摸拦截的清理函数 */
   const barDragCleanup = useRef<(() => void) | null>(null);
-
-  /** 位移限制在画布内：面板整块不能拖出去 */
-  const clampShift = (dx: number, dy: number, d: NonNullable<typeof barDrag.current>) => ({
-    dx: Math.min(d.maxX, Math.max(d.minX, dx)),
-    dy: Math.min(d.maxY, Math.max(d.minY, dy)),
-  });
+  /** 拖动中最后一帧的坐标（松手时提交，避免再去解析样式） */
+  const dragAt = useRef<{ x: number; y: number } | null>(null);
 
   const onBarDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
@@ -126,14 +126,24 @@ export function FunctionPad(props: Props) {
     if (!pad || !stage) return;
     const padBox = pad.getBoundingClientRect();
     const stageBox = stage.getBoundingClientRect();
+    // 用「画布内的绝对坐标」而不是位移差：两种形态（贴底 / 已拖走）起点都能算准，
+    // 也不会被 left/right 的固定边距卡出一个拖不到的死区
+    const x0 = padBox.left - stageBox.left;
+    const y0 = padBox.top - stageBox.top;
     barDrag.current = {
-      px: e.clientX, py: e.clientY,
-      dx0: pos?.dx ?? 0, dy0: pos?.dy ?? 0,
-      minX: stageBox.left - padBox.left,
-      maxX: stageBox.right - padBox.right,
-      minY: stageBox.top - padBox.top,
-      maxY: stageBox.bottom - padBox.bottom,
+      px: e.clientX, py: e.clientY, x0, y0,
+      minX: 0,
+      maxX: Math.max(0, stageBox.width - padBox.width),
+      minY: 0,
+      maxY: Math.max(0, stageBox.height - padBox.height),
     };
+    // 立刻切成自由定位，之后全靠 left/top 走
+    setPos({ x: x0, y: y0 });
+    pad.style.setProperty("right", "auto");
+    pad.style.setProperty("bottom", "auto");
+    pad.style.setProperty("left", `${x0}px`);
+    pad.style.setProperty("top", `${y0}px`);
+    pad.style.setProperty("transform", "translate3d(0px, 0px, 0)");
   };
 
   /**
@@ -145,8 +155,11 @@ export function FunctionPad(props: Props) {
     const d = barDrag.current;
     const pad = padRef.current;
     if (!d || !pad) return;
-    const { dx, dy } = clampShift(d.dx0 + (e.clientX - d.px), d.dy0 + (e.clientY - d.py), d);
-    pad.style.setProperty("transform", `translate3d(${dx}px, ${dy}px, 0)`);
+    const x = Math.min(d.maxX, Math.max(d.minX, d.x0 + (e.clientX - d.px)));
+    const y = Math.min(d.maxY, Math.max(d.minY, d.y0 + (e.clientY - d.py)));
+    pad.style.setProperty("left", `${x}px`);
+    pad.style.setProperty("top", `${y}px`);
+    dragAt.current = { x, y };
   };
 
   const onBarDragEnd = () => {
@@ -156,9 +169,8 @@ export function FunctionPad(props: Props) {
     barDragCleanup.current?.();
     barDragCleanup.current = null;
     if (!d || !pad) return;
-    // 读回最后一帧的实际位移，提交给 React；两个值一致，所以不会闪
-    const m = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(pad.style.getPropertyValue("transform"));
-    if (m) setPos({ dx: Number(m[1]), dy: Number(m[2]) });
+    const next = dragAt.current;
+    if (next) { lastShift = next; setPos(next); }
   };
 
   // 公式绘制的四类图形全部列出（含圆/椭圆方程），手画的圆椭圆不会被误收
@@ -250,7 +262,7 @@ export function FunctionPad(props: Props) {
       role="dialog"
       aria-label="函数输入"
       ref={padRef}
-      style={pos ? { transform: `translate3d(${pos.dx}px, ${pos.dy}px, 0)` } : undefined}
+      style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
     >
       {/* 拖动浮条：按住这里移动面板 */}
       <div
@@ -260,6 +272,8 @@ export function FunctionPad(props: Props) {
         onPointerMove={onBarDragMove}
         onPointerUp={onBarDragEnd}
         onPointerCancel={onBarDragEnd}
+        // iOS 上双击浮条会把整个 webview 放大（看着像「一点就自动缩放」），这里直接吃掉
+        onDoubleClick={(e) => e.preventDefault()}
       />
       <div className="fnpad-head" title="面板工具：切换模式 / 缩放 / 退格 / 收起">
         <b>{mode === "fn" ? "函数" : "计算器"}</b>
@@ -268,7 +282,7 @@ export function FunctionPad(props: Props) {
             <button className={mode === "fn" ? "on" : ""} onClick={() => setMode("fn")}>函数</button>
             <button className={mode === "calc" ? "on" : ""} onClick={() => setMode("calc")}>算式</button>
           </div>
-          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => { setPos(null); setCompact((v) => !v); }} aria-label="切换面板大小" title="放大 / 缩小面板">
+          <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCompact((v) => !v)} aria-label="切换面板大小" title="放大 / 缩小面板">
             ⤢
           </button>
           <button type="button" className="fnpad-quick-btn" onPointerDown={(e) => e.stopPropagation()} onClick={() => setExpr(expr.slice(0, -1))} aria-label="退格">
@@ -306,7 +320,7 @@ export function FunctionPad(props: Props) {
         </div>
       ) : (
         <p className="fnpad-empty">
-          函数：sin(x)+x/2 · 方程：x^2+y^2=1、xy=1 · 参数方程：x=cos(t),y=sin(t)
+          函数：sin(x)+x/2 · 方程：x^2+y^2=1、xy=1 · 参数方程：x=cos(t),y=sin(t) · 极坐标：r=1+cos(t)
           <br />三角函数用弧度，写角度加 °（如 tan60°）
         </p>
       )}
