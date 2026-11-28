@@ -2,6 +2,7 @@
  * 旋转相关的通用小工具：哪些图形带旋转、绕哪一点转。
  * 图片、矩形、椭圆用同一个 `rot` 字段（弧度，屏幕顺时针），其余图形没有旋转概念。
  */
+import type { Handle } from "./geometry";
 import type { Point2, Shape } from "./types";
 
 /** 图形的旋转角（弧度）；不支持旋转的返回 0 */
@@ -54,4 +55,22 @@ export function orientPatch(s: Shape, deg: number): Shape {
   if (s.type === "rect" || s.type === "ellipse") return { ...s, rot: (deg * Math.PI) / 180 };
   const cur = (orientDeg(s) * Math.PI) / 180;
   return rotateShapeBy(s, (deg * Math.PI) / 180 - cur);
+}
+
+
+/**
+ * 画布上的旋转控制点：位置和拖动都按「屏幕角度」算（画布 rotate() 是屏幕顺时针），
+ * 两边同一套角度才跟手、方向不反。base 是图形当前朝向（度），矩形 / 椭圆传 0。
+ */
+export function rotHandleAt(center: Point2, r: number, baseDeg: number): Handle {
+  const OFF = 60; // 控制点相对图形朝向的屏幕夹角
+  const a = -((baseDeg + OFF) * Math.PI) / 180; // 世界坐标 y 向上，屏幕角取反
+  return {
+    id: "rot",
+    at: { x: center.x + r * Math.cos(a), y: center.y + r * Math.sin(a) },
+    apply: (s0, w) => {
+      const screenDeg = (-Math.atan2(w.y - center.y, w.x - center.x) * 180) / Math.PI;
+      return orientPatch(s0, ((screenDeg - OFF) % 360 + 360) % 360);
+    },
+  };
 }

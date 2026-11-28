@@ -3,7 +3,7 @@
  * 每个控制点携带 apply 闭包，画布层遍历即可，无需为每种图形写 switch。
  */
 import { angleHandles, angleHitTest } from "./angle";
-import { orientDeg, orientPatch } from "./rotate";
+import { orientDeg, rotHandleAt } from "./rotate";
 import { sampleCurve } from "./curve";
 import { sampleImplicit } from "./implicit";
 import type { ImageShape, ImplicitShape } from "./types";
@@ -195,6 +195,17 @@ export function getHandles(shape: Shape): Handle[] {
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
 /** 把点绕着中心转回去（用于旋转后的命中判定：屏幕顺时针 = 世界逆时针，符号与渲染一致） */
 function unRotate(p: Point2, c: Point2, rot: number): Point2 {
   const cos = Math.cos(rot);
@@ -202,26 +213,6 @@ function unRotate(p: Point2, c: Point2, rot: number): Point2 {
   const dx = p.x - c.x;
   const dy = p.y - c.y;
   return { x: c.x + dx * cos - dy * sin, y: c.y + dx * sin + dy * cos };
-}
-
-
-/**
- * 画布上的旋转控制点：挂在「朝向逆时针 60°」的方向上，半径由图形大小定。
- * base 是控制点当前所处的角度（矩形/椭圆传 0，因为它们整组跟着 rotate 一起转）。
- */
-function rotHandleAt(center: Point2, r: number, baseDeg: number): Handle {
-  const OFF = -60;
-  const a = ((baseDeg + OFF) * Math.PI) / 180;
-  return {
-    id: "rot",
-    at: { x: center.x + r * Math.cos(a), y: center.y + r * Math.sin(a) },
-    apply: (s0, w) => {
-      // atan2 用的是世界坐标（y 向上），而画布 rotate() 是屏幕顺时针 —— 两者差一个符号，
-      // 这里统一换算成「屏幕上顺时针为正」的角度，拖动方向才不会反
-      const want = (Math.atan2(w.y - center.y, w.x - center.x) * 180) / Math.PI;
-      return orientPatch(s0, (((want + 60) % 360) + 360) % 360);
-    },
-  };
 }
 
 /** 点到线段的最短距离 */
