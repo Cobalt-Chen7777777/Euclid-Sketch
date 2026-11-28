@@ -6,9 +6,9 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 
 全部计算在本地完成，不联网、不需要 API Key，笔记内容不会离开设备。
 
-**本版（0.3.0-beta.4）新增**：图形改成「先设参数再创建」，几何参数补齐到椭圆 / 矩形 / 多边形 / 角度；顶栏加画布背景切换与一键清空；拖动控制点时实时显示尺寸；历史上限提到 40 份。
+**本版（0.3.0-beta.5）新增**：所有图形都能转了（含插入的图片）；多边形边长与边数可调；插入的图片保持原图清晰度，导出 / 插入卡片长边 2400px；函数曲线按 GeoGebra 那套自适应采样；顶栏新增图形清单（可逐条隐藏），「全部图形」换成独立选择器；计算器改成可拖浮窗。
 
-> 当前版本：**0.3.0-beta.4 测试版**（2026-11-27）
+> 当前版本：**0.3.0-beta.5 测试版**（2026-11-28）
 > 稳定版：0.2.1（2026-11-21）
 > 作者：Cobalt
 > 适配：MarginNote 5（4.5.0+），iPad 实测为主
@@ -59,7 +59,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - 两条独立的作图记录：手画笔迹（`ink`）与参数化图形彼此独立，「清除全部函数」不会删掉手画的图元
 - **画布跨会话保留**：关掉面板、切到别的卡片再回来，画布还在（本版起自动保存到本机）
 
-![画布](upload://2Jsrg5S8HFIU7QJQJeRr2m1uX6g.png)
+![画布](upload://sCRSAgnuovMsRgRo73zMkgt9CBW.png)
 
 ### 函数与计算器
 
@@ -81,7 +81,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **套索**：框选后可复制 / 剪切 / 粘贴 / 删除，粘贴自动错位；框住多个图形可直接整组拖动
 - **网格吸附**：拖动点、圆心、端点时除吸附已有点外，也会吸附到网格交点（设置可关）
 
-![几何参数](upload://pTzJywRv60BTCNPieDgxSlBPDff.png)
+![旋转与角度旋钮](upload://t1aP5hFr9jPxxT4aPaKRkPDpHaL.png)
 
 ### 曲线（钢笔式）
 
@@ -138,7 +138,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - **关闭前快照**：图形增减 3 秒后留档，关闭面板 / 切后台时立即落盘，保留最近 40 份完整画布，可整份恢复；与当前画布内容相同的存档不会重复列出，可逐条删除或一键清空
 - **缓存管理**：设置 → 关于 → 缓存管理，可查看画布 / 快照 / 设置各占多少，一键清除画布缓存（不动设置）
 
-![历史记录](upload://l70Oxbp4cibXJsjGEkhPHOkeEOt.jpeg)
+![图形清单](upload://mcLU0j7GkAAQjWsN0Lpsz0uZCjC.png)
 
 ### 窗口与主题
 
@@ -150,7 +150,7 @@ Euclid Sketch 是一款在 MarginNote 里直接给数学题作图的场景插件
 - 工具栏可停靠左 / 右（竖排）或上 / 下（横排，超宽自动换行）
 - 切到后台再回来，面板尺寸会自动校正回目标值，不会停在错误的小窗
 
-![迷你条](upload://8w0WdmKcTA8ubGSYtk630tZrgac.png)
+![计算器浮窗](upload://gVfKEgck3VYlQzI0QnFQAap1UCn.png)
 - 深色模式默认跟随 MN 的白天/夜间，也可手动锁定浅色 / 深色
 
 ## 常见问题
@@ -224,6 +224,19 @@ MN 对同版本或更低版本的包会跳过安装。请先删除旧插件和�
 「复制草图」写的是**图片**，粘进批注后是一张图；「写入批注」写的是**文字清单**（图形类型、坐标、可复现的函数表达式），适合需要文字记录的场合。图片入卡推荐前者。
 
 ## 更新记录
+
+[details="Ver 0.3.0-beta.5 · 全图形旋转、图片原图入库、函数自适应采样、图形清单（2026-11-28）"]
+- 旋转：图片、矩形、椭圆、线段 / 射线、圆弧、正多边形、星形 / 菱形 / 梯形 / 箭头 / 自由多边形都能绕中心转；画布上拖绿色旋转钮，参数区用角度旋钮输精确朝向。
+- 角度锁定：锁定后夹角固定，拖任一条边都是整角旋转。
+- 图形清单：顶栏新增按钮，逐条选中 / 隐藏 / 切虚线 / 删除；隐藏的图形不渲染、不可选、不导出。
+- 多边形边长与边数可调：正多边形一键转成自由多边形，逐条边输长度，也能改边数。
+- 极坐标曲线：r=1+cos(t)、r=2sin(3theta) 直接画。
+- 插入的图片按原图存本机图片库，不再压缩；导出 / 插入卡片长边 2400px。
+- 函数曲线按 GeoGebra 那套自适应采样加密；隐函数改成自适应细分，线段串成整条描边。
+- 「全部图形」改成独立选择器；二次点击工具直接把创建参数列出来。
+- 计算器改成可拖浮窗；设置页显示构建时间。
+- 手写采样密度翻倍、笔迹改二次贝塞曲线。
+[/details]
 
 [details="Ver 0.3.0-beta.4 · 按参数创建、几何参数补齐、顶栏加背景切换与清空（2026-11-27）"]
 - 图形不再自动创建：点工具栏的图形图标只开参数面板，设好参数后点「按参数创建」，或直接拖动画布。
@@ -352,13 +365,15 @@ MN 对同版本或更低版本的包会跳过安装。请先删除旧插件和�
 
 ## 下载
 
-主推版本（0.3.0-beta.4 测试版）：
+主推版本（0.3.0-beta.5 测试版）：
 
-- [Euclid Sketch-0.3.0-beta.4.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/iY6CCGa9v2pKtvxM1SGv19sUftV.mntemplate) (485.3 KB)
-- [Euclid Sketch-0.3.0-beta.4.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/aTefOWDY11GsoewIR4oIFPf4sxz.mnaddon) (484.2 KB)
+- [Euclid Sketch-0.3.0-beta.5.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/6WWrTR58bLbZcTIKj5MZuJqvlrZ.mntemplate) (503.0 KB)
+- [Euclid Sketch-0.3.0-beta.5.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/grOtbgvDqEfa2dWms6OXbTd9ihq.mnaddon) (501.8 KB)
 
 历史版本（回退用，附件同样提供）：
 
+- [Euclid Sketch-0.3.0-beta.4.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/iY6CCGa9v2pKtvxM1SGv19sUftV.mntemplate) (485.3 KB)
+- [Euclid Sketch-0.3.0-beta.4.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/aTefOWDY11GsoewIR4oIFPf4sxz.mnaddon) (484.2 KB)
 - [Euclid Sketch-0.3.0-beta.3.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/7MoVGIOfBNbVbCyvd9979hSvAQj.mntemplate) (483.7 KB)
 - [Euclid Sketch-0.3.0-beta.3.mnaddon](https://bbs.marginnote.com.cn/uploads/short-url/l0kzlSn9O4OoU5BMFLHhs5cSSCg.mnaddon) (482.5 KB)
 - [Euclid Sketch-0.3.0-beta.2.mntemplate](https://bbs.marginnote.com.cn/uploads/short-url/gXf5WiKaypCd21lNQjtmKFCmKAn.mntemplate) (470.7 KB)

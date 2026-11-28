@@ -106,7 +106,7 @@
 - **缓存管理**：设置 → 关于可查看画布 / 快照 / 设置各占多少，一键清除画布缓存
 - **诊断日志**：版本号连点 5 次开启调试模式，可复制日志排查问题
 
-![历史记录](docs/screenshots/v030/02-history.png)
+![图形清单](docs/screenshots/v030/03-shapes.png)
 
 ---
 
@@ -148,7 +148,7 @@
   → 点顶栏「复制」→ 回卡片批注长按粘贴
 ```
 
-![选项抽屉](docs/screenshots/v030/03-params.png)
+![旋转与角度旋钮](docs/screenshots/v030/02-rotate.png)
 
 ---
 
