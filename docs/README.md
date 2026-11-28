@@ -8,7 +8,7 @@
 | [install-and-usage.md](install-and-usage.md) | 安装与使用说明（分发用精简版） |
 | [mn-publish-guide.md](mn-publish-guide.md) | 发布到 MN 社区 / 申请签名认证的操作指南（beta 只发社区帖，不入库） |
 | [mn-certify-request.md](mn-certify-request.md) | 给 MN 管理员的认证私信模板（正式版转正时使用） |
-| [screenshots/v030/](screenshots/v030/) | 0.3.0-beta.5 功能截图（画布 / 旋转 / 图形清单 / 计算器），README 引用画布一张 |
+| [screenshots/v030/](screenshots/v030/) | 0.3.0-beta.5 功能截图（画布 / 旋转 / 图形清单 / 计算器），README 引用画布、图形清单、旋转三张 |
 | [screenshots/](screenshots/) | 0.2.x 时期的截图，归档帖里仍在引用 |
 
 ## 归档
